@@ -1,0 +1,447 @@
+import React, { useState } from 'react';
+import { Plus, Search, Filter, FileText, Loader2, ExternalLink, Share2, Send, Eye, Edit, Trash2, RefreshCw, MoreVertical } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { GenerateContractDialog } from '@/components/contracts/GenerateContractDialog';
+import { EditContractDialog } from '@/components/contracts/EditContractDialog';
+import { RegenerateContractDialog } from '@/components/contracts/RegenerateContractDialog';
+import { SendForSignatureDialog } from '@/components/contracts/SendForSignatureDialog';
+import { SignatureStatusDialog } from '@/components/contracts/SignatureStatusDialog';
+import { useContracts, useTemplates, useMakeContractPublic, useDeleteContract } from '@/api/hooks/useContracts';
+import { useAuthStore } from '@/stores/authStore';
+import { useMyContractsMatrix } from '@/api/hooks/useContractsRBAC';
+import { Contract, ContractTemplate } from '@/api/services/contracts.service';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'processing': return 'bg-yellow-100 text-yellow-800';
+    case 'draft': return 'bg-gray-100 text-gray-800';
+    case 'pending_signature': return 'bg-blue-100 text-blue-800';
+    case 'signed': return 'bg-green-100 text-green-800';
+    case 'cancelled': return 'bg-red-100 text-red-800';
+    case 'failed': return 'bg-red-100 text-red-800';
+    default: return 'bg-gray-100 text-gray-800';
+  }
+};
+
+const getStatusLabel = (status: string) => {
+  switch (status) {
+    case 'processing': return 'Processing';
+    case 'draft': return 'Draft';
+    case 'pending_signature': return 'Pending Signature';
+    case 'signed': return 'Signed';
+    case 'cancelled': return 'Cancelled';
+    case 'failed': return 'Failed';
+    default: return status;
+  }
+};
+
+export default function Contracts() {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [showGenerateDialog, setShowGenerateDialog] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<ContractTemplate | null>(null);
+  const [editContract, setEditContract] = useState<Contract | null>(null);
+  const [regenerateContract, setRegenerateContract] = useState<Contract | null>(null);
+  const [sendForSignatureContract, setSendForSignatureContract] = useState<Contract | null>(null);
+  const [signatureStatusContract, setSignatureStatusContract] = useState<Contract | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [contractToDelete, setContractToDelete] = useState<Contract | null>(null);
+
+  const { data: contracts, isLoading, error } = useContracts();
+  const { data: templates } = useTemplates();
+  const makePublic = useMakeContractPublic();
+  const deleteContractMutation = useDeleteContract();
+  const currentUser = useAuthStore((s) => s.user);
+  const { data: myMatrix } = useMyContractsMatrix(currentUser?.id);
+
+  const canDo = (contract: Contract, action: 'publish' | 'send' | 'update' | 'delete' | 'regenerate') => {
+    // Admin override
+    if (currentUser?.role === 'administrator') return true;
+    if (!myMatrix || !myMatrix.policies) return false;
+    const type = (contract.contract_type as string) || '';
+    const row = myMatrix.policies.find(p => p.contract_type === type);
+    if (!row) return false;
+    switch (action) {
+      case 'publish': return !!row.can_publish;
+      case 'send': return !!row.can_send;
+      case 'update': return !!row.can_update;
+      case 'delete': return !!row.can_delete;
+      case 'regenerate': return !!row.can_regenerate;
+    }
+  };
+
+  const handleDeleteContract = async () => {
+    if (!contractToDelete) return;
+
+    try {
+      await deleteContractMutation.mutateAsync(contractToDelete.id);
+      setDeleteDialogOpen(false);
+      setContractToDelete(null);
+    } catch (error) {
+      console.error('Failed to delete contract:', error);
+    }
+  };
+
+  const filteredContracts = contracts?.filter(contract => {
+    const matchesSearch = contract.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         contract.contract_number.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || contract.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  }) || [];
+
+  const handleMakePublic = async (contract: Contract) => {
+    if (contract.is_public) {
+      // Already public, just open the URL
+      window.open(contract.public_share_url, '_blank');
+    } else {
+      // Make it public
+      await makePublic.mutateAsync(contract.id);
+    }
+  };
+
+  const handleGenerateFromTemplate = (template: ContractTemplate) => {
+    setSelectedTemplate(template);
+    setShowGenerateDialog(true);
+  };
+
+  return (
+    <AppLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-foreground">Contracts</h1>
+            <p className="text-muted-foreground">Manage generated contracts and signatures</p>
+          </div>
+          <div className="flex gap-3">
+            {templates && templates.length > 0 && (
+              <Select onValueChange={(value) => {
+                const template = templates.find(t => t.id.toString() === value);
+                if (template) handleGenerateFromTemplate(template);
+              }}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Generate from template..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {templates.filter(t => t.is_active).map((template) => (
+                    <SelectItem key={template.id} value={template.id.toString()}>
+                      {template.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        </div>
+
+        {/* Filters */}
+        <Card>
+          <CardHeader>
+            <h3 className="text-lg font-medium">Search & Filters</h3>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search contracts..."
+                    className="pl-10"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="pending_signature">Pending Signature</SelectItem>
+                  <SelectItem value="signed">Signed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="failed">Failed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Loading State */}
+        {isLoading && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <Card>
+            <CardContent className="py-12">
+              <div className="text-center text-destructive">
+                Failed to load contracts. Please try again.
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Contracts Table */}
+        {!isLoading && !error && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium">Contracts ({filteredContracts.length})</h3>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-lg">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Contract #</TableHead>
+                      <TableHead>Title</TableHead>
+                      <TableHead>Template</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Signatures</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead>Creator</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredContracts.map((contract) => (
+                      <TableRow key={contract.id}>
+                        <TableCell className="font-mono text-sm">
+                          {contract.contract_number}
+                        </TableCell>
+                        <TableCell className="font-medium">{contract.title}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{contract.template_name}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Badge className={getStatusColor(contract.status)}>
+                              {getStatusLabel(contract.status)}
+                            </Badge>
+                            {contract.status === 'processing' && (
+                              <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {contract.signatures && contract.signatures.length > 0 ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-auto p-2"
+                              onClick={() => setSignatureStatusContract(contract)}
+                            >
+                              <div className="flex flex-col gap-1 text-left">
+                                {contract.signatures.slice(0, 2).map((sig, idx) => (
+                                  <div key={idx} className="text-xs">
+                                    <span className="font-medium">{sig.signer_name}</span>
+                                    <Badge
+                                      variant="outline"
+                                      className="ml-2 text-xs"
+                                    >
+                                      {sig.status}
+                                    </Badge>
+                                  </div>
+                                ))}
+                                {contract.signatures.length > 2 && (
+                                  <span className="text-xs text-muted-foreground">
+                                    +{contract.signatures.length - 2} more
+                                  </span>
+                                )}
+                              </div>
+                            </Button>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {new Date(contract.created_at).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>{contract.created_by_email}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {contract.gdrive_file_url && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => window.open(contract.gdrive_file_url, '_blank')}
+                                title="Open in Google Drive"
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleMakePublic(contract)}
+                              disabled={makePublic.isPending || (!contract.is_public && !canDo(contract, 'publish'))}
+                              title={contract.is_public ? 'View public link' : 'Make public'}
+                            >
+                              {contract.is_public ? (
+                                <Eye className="h-4 w-4" />
+                              ) : (
+                                <Share2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => setEditContract(contract)} disabled={!canDo(contract, 'update')}>
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Edit
+                                </DropdownMenuItem>
+                                {contract.status === 'draft' && (
+                                  <>
+                                    <DropdownMenuItem onClick={() => setRegenerateContract(contract)} disabled={!canDo(contract, 'regenerate')}>
+                                      <RefreshCw className="h-4 w-4 mr-2" />
+                                      Regenerate
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setSendForSignatureContract(contract)} disabled={!canDo(contract, 'send')}>
+                                      <Send className="h-4 w-4 mr-2" />
+                                      Send for Signature
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => {
+                                    setContractToDelete(contract);
+                                    setDeleteDialogOpen(true);
+                                  }}
+                                  disabled={!canDo(contract, 'delete')}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Empty State */}
+        {!isLoading && !error && filteredContracts.length === 0 && (
+          <div className="text-center py-12">
+            <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium mb-2">No contracts found</h3>
+            <p className="text-muted-foreground mb-4">
+              {searchTerm || statusFilter !== 'all'
+                ? 'No contracts match your filters.'
+                : 'Generate your first contract from a template to get started.'}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Generate Dialog */}
+      <GenerateContractDialog
+        template={selectedTemplate}
+        open={showGenerateDialog}
+        onOpenChange={(open) => {
+          setShowGenerateDialog(open);
+          if (!open) setSelectedTemplate(null);
+        }}
+      />
+
+      {/* Edit Contract Dialog */}
+      <EditContractDialog
+        contract={editContract}
+        open={!!editContract}
+        onOpenChange={(open) => !open && setEditContract(null)}
+      />
+
+      {/* Regenerate Contract Dialog */}
+      <RegenerateContractDialog
+        contract={regenerateContract}
+        open={!!regenerateContract}
+        onOpenChange={(open) => !open && setRegenerateContract(null)}
+      />
+
+      {/* Send for Signature Dialog */}
+      <SendForSignatureDialog
+        contract={sendForSignatureContract}
+        open={!!sendForSignatureContract}
+        onOpenChange={(open) => !open && setSendForSignatureContract(null)}
+      />
+
+      {/* Signature Status Dialog */}
+      <SignatureStatusDialog
+        contract={signatureStatusContract}
+        open={!!signatureStatusContract}
+        onOpenChange={(open) => !open && setSignatureStatusContract(null)}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Contract</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{contractToDelete?.title}"? This action cannot be undone.
+              {' '}Note: You cannot delete signed contracts. Pending signature requests will be cancelled automatically.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteContract}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteContractMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </AppLayout>
+  );
+}

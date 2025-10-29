@@ -1,0 +1,917 @@
+import React, { useState } from 'react';
+import { Plus, Search, Filter, Copy, Edit2, History, FileText, Image, Handshake, Users, Calendar, Shield, Eye, Settings, Database, UserCheck, AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { AppLayout } from '@/components/layout/AppLayout';
+
+// Enhanced template data with rich placeholders and versioning
+const templates = [
+  {
+    id: 1,
+    name: "Producer Agreement Template",
+    category: "Song",
+    description: "Standard producer agreement with royalty splits and credit terms",
+    lastUpdated: "2024-01-15",
+    author: "Legal Team",
+    version: "v2.1",
+    usageCount: 45,
+    approvalStatus: "Approved",
+    approvalWorkflow: [
+      { step: "Legal Review", status: "completed", user: "Legal Team", date: "2024-01-14" },
+      { step: "Manager Approval", status: "completed", user: "John Smith", date: "2024-01-15" }
+    ],
+    placeholders: [
+      { 
+        key: "Producer Name", 
+        type: "text", 
+        required: true, 
+        description: "Full legal name of the producer",
+        crmField: "artist.name",
+        catalogField: "producer.name"
+      },
+      { 
+        key: "Artist Name", 
+        type: "text", 
+        required: true, 
+        description: "Full legal name of the artist",
+        crmField: "artist.name",
+        catalogField: "artist.name"
+      },
+      { 
+        key: "Song Title", 
+        type: "text", 
+        required: true, 
+        description: "Title of the song",
+        crmField: "track.title",
+        catalogField: "track.title"
+      },
+      { 
+        key: "ISRC", 
+        type: "text", 
+        required: true, 
+        description: "International Standard Recording Code",
+        crmField: "track.isrc",
+        catalogField: "track.isrc",
+        validation: "isrc"
+      },
+      { 
+        key: "ISWC", 
+        type: "text", 
+        required: false, 
+        description: "International Standard Musical Work Code",
+        crmField: "track.iswc",
+        catalogField: "track.iswc",
+        validation: "iswc"
+      },
+      { 
+        key: "Producer %", 
+        type: "percentage", 
+        required: true, 
+        description: "Producer's royalty percentage",
+        crmField: "contract.producerPercentage",
+        catalogField: "splits.producer"
+      },
+      { 
+        key: "Territory", 
+        type: "select", 
+        required: true, 
+        description: "Territory of exploitation",
+        options: ["Worldwide", "North America", "Europe", "Asia", "Latin America"],
+        crmField: "contract.territory",
+        catalogField: "territory"
+      },
+      { 
+        key: "Collecting Society", 
+        type: "select", 
+        required: true, 
+        description: "Performing rights organization",
+        options: ["ASCAP", "BMI", "SESAC", "SOCAN", "PRS"],
+        crmField: "artist.society",
+        catalogField: "society"
+      },
+      { 
+        key: "Term", 
+        type: "duration", 
+        required: true, 
+        description: "Contract duration",
+        crmField: "contract.term",
+        catalogField: "term"
+      }
+    ],
+    versionHistory: [
+      {
+        version: "v2.1",
+        date: "2024-01-15",
+        author: "Legal Team",
+        changes: [
+          "Added territory specification placeholder",
+          "Updated royalty calculation method",
+          "Enhanced credit requirements clause"
+        ],
+        approvedBy: "John Smith"
+      },
+      {
+        version: "v2.0",
+        date: "2024-01-05",
+        author: "John Smith",
+        changes: [
+          "Updated royalty calculation method",
+          "Added ISWC placeholder",
+          "Enhanced recoupment terms"
+        ],
+        approvedBy: "Legal Team"
+      },
+      {
+        version: "v1.9",
+        date: "2023-12-28",
+        author: "Legal Team",
+        changes: [
+          "Added credit requirements clause",
+          "Updated territory definitions"
+        ],
+        approvedBy: "Mike Wilson"
+      }
+    ],
+    content: `PRODUCER AGREEMENT
+
+This agreement is made between:
+Artist: [[Artist Name]]
+Producer: [[Producer Name]]
+
+For the recording: [[Song Title]]
+ISRC: [[ISRC]]
+ISWC: [[ISWC]]
+
+1. ROYALTIES
+Producer shall receive [[Producer %]] of net royalties from the exploitation of the master recording in the territory of [[Territory]].
+
+2. COLLECTING SOCIETY
+Royalties shall be collected through [[Collecting Society]] for a term of [[Term]].
+
+3. CREDITS
+Producer shall receive appropriate production credit on all copies of the recording and related materials.`
+  },
+  {
+    id: 2,
+    name: "Artist Likeness Rights",
+    category: "Image/Artist Likeness",
+    description: "Image and likeness usage rights for marketing and promotional materials",
+    lastUpdated: "2024-01-12",
+    author: "John Smith",
+    version: "v1.3",
+    usageCount: 23,
+    approvalStatus: "Pending Review",
+    approvalWorkflow: [
+      { step: "Legal Review", status: "pending", user: "Legal Team", date: null },
+      { step: "Manager Approval", status: "pending", user: "Sarah Johnson", date: null }
+    ],
+    placeholders: [
+      { 
+        key: "Artist Name", 
+        type: "text", 
+        required: true, 
+        description: "Full legal name of the artist",
+        crmField: "artist.name",
+        catalogField: "artist.name"
+      },
+      { 
+        key: "Usage Period", 
+        type: "duration", 
+        required: true, 
+        description: "Duration of usage rights",
+        crmField: "contract.usagePeriod",
+        catalogField: "usage.period"
+      },
+      { 
+        key: "Territory", 
+        type: "select", 
+        required: true, 
+        description: "Territory of usage",
+        options: ["Worldwide", "United States", "Europe", "Asia"],
+        crmField: "contract.territory",
+        catalogField: "territory"
+      },
+      { 
+        key: "Compensation", 
+        type: "currency", 
+        required: true, 
+        description: "Compensation amount",
+        crmField: "contract.compensation",
+        catalogField: "compensation"
+      },
+      { 
+        key: "Media Types", 
+        type: "multiselect", 
+        required: true, 
+        description: "Types of media allowed",
+        options: ["Photos", "Videos", "Social Media", "Print", "Digital"],
+        crmField: "contract.mediaTypes",
+        catalogField: "usage.mediaTypes"
+      }
+    ],
+    versionHistory: [
+      {
+        version: "v1.3",
+        date: "2024-01-12",
+        author: "John Smith",
+        changes: [
+          "Added social media usage terms",
+          "Updated compensation structure",
+          "Enhanced territory definitions"
+        ],
+        approvedBy: null
+      }
+    ],
+    content: `ARTIST LIKENESS AGREEMENT
+
+This agreement grants usage rights for:
+Artist: [[Artist Name]]
+Usage Period: [[Usage Period]]
+Territory: [[Territory]]
+Compensation: [[Compensation]]
+
+1. GRANT OF RIGHTS
+Artist grants the right to use their likeness in the following media types: [[Media Types]].
+
+2. COMPENSATION
+Artist shall receive [[Compensation]] for the usage rights granted herein.
+
+3. TERM
+This agreement shall be effective for [[Usage Period]] in the territory of [[Territory]].`
+  },
+  {
+    id: 3,
+    name: "Distribution Partnership",
+    category: "Partnership/Distribution",
+    description: "Digital distribution agreement with revenue sharing terms",
+    lastUpdated: "2024-01-10",
+    author: "Sarah Johnson",
+    version: "v3.0",
+    usageCount: 67,
+    approvalStatus: "Approved",
+    approvalWorkflow: [
+      { step: "Legal Review", status: "completed", user: "Legal Team", date: "2024-01-09" },
+      { step: "Manager Approval", status: "completed", user: "Mike Wilson", date: "2024-01-10" }
+    ],
+    placeholders: [
+      { 
+        key: "Partner Name", 
+        type: "text", 
+        required: true, 
+        description: "Name of the distribution partner",
+        crmField: "partner.name",
+        catalogField: "partner.name"
+      },
+      { 
+        key: "Territory", 
+        type: "select", 
+        required: true, 
+        description: "Distribution territory",
+        options: ["Worldwide", "North America", "Europe", "Asia", "Latin America"],
+        crmField: "contract.territory",
+        catalogField: "territory"
+      },
+      { 
+        key: "Revenue Split", 
+        type: "percentage", 
+        required: true, 
+        description: "Revenue sharing percentage",
+        crmField: "contract.revenueSplit",
+        catalogField: "splits.revenue"
+      },
+      { 
+        key: "Term Length", 
+        type: "duration", 
+        required: true, 
+        description: "Length of the agreement",
+        crmField: "contract.term",
+        catalogField: "term"
+      },
+      { 
+        key: "DSP Platforms", 
+        type: "multiselect", 
+        required: true, 
+        description: "Digital service platforms",
+        options: ["Spotify", "Apple Music", "Amazon Music", "YouTube Music", "Tidal"],
+        crmField: "contract.dspPlatforms",
+        catalogField: "distribution.platforms"
+      },
+      { 
+        key: "Marketing Commitments", 
+        type: "text", 
+        required: false, 
+        description: "Marketing commitments and obligations",
+        crmField: "contract.marketingCommitments",
+        catalogField: "marketing.commitments"
+      }
+    ],
+    versionHistory: [
+      {
+        version: "v3.0",
+        date: "2024-01-10",
+        author: "Sarah Johnson",
+        changes: [
+          "Added DSP platform selection",
+          "Enhanced marketing commitments",
+          "Updated revenue sharing terms"
+        ],
+        approvedBy: "Mike Wilson"
+      }
+    ],
+    content: `DISTRIBUTION PARTNERSHIP AGREEMENT
+
+This agreement is between:
+Partner: [[Partner Name]]
+Territory: [[Territory]]
+Term: [[Term Length]]
+
+1. DISTRIBUTION RIGHTS
+Partner shall distribute content through the following platforms: [[DSP Platforms]].
+
+2. REVENUE SHARING
+Revenue shall be shared as follows: [[Revenue Split]].
+
+3. MARKETING COMMITMENTS
+[[Marketing Commitments]]
+
+4. TERM
+This agreement shall be effective for [[Term Length]] in the territory of [[Territory]].`
+  }
+];
+
+const categoryIcons = {
+  "Song": FileText,
+  "Image/Artist Likeness": Image,
+  "Partnership/Distribution": Handshake
+};
+
+const getCategoryColor = (category: string) => {
+  switch (category) {
+    case 'Song': return 'bg-blue-100 text-blue-800';
+    case 'Image/Artist Likeness': return 'bg-purple-100 text-purple-800';
+    case 'Partnership/Distribution': return 'bg-green-100 text-green-800';
+    default: return 'bg-gray-100 text-gray-800';
+  }
+};
+
+const getApprovalStatusColor = (status: string) => {
+  switch (status) {
+    case 'Approved': return 'bg-green-100 text-green-800';
+    case 'Pending Review': return 'bg-yellow-100 text-yellow-800';
+    case 'Rejected': return 'bg-red-100 text-red-800';
+    default: return 'bg-gray-100 text-gray-800';
+  }
+};
+
+const getApprovalStatusIcon = (status: string) => {
+  switch (status) {
+    case 'Approved': return <CheckCircle2 className="h-4 w-4" />;
+    case 'Pending Review': return <Clock className="h-4 w-4" />;
+    case 'Rejected': return <AlertTriangle className="h-4 w-4" />;
+    default: return <Clock className="h-4 w-4" />;
+  }
+};
+
+export default function Templates() {
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+
+  const filteredTemplates = templates.filter(template => {
+    const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         template.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         template.placeholders.some((p: any) => p.key.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesCategory = selectedCategory === "all" || template.category === selectedCategory;
+    
+    return matchesSearch && matchesCategory;
+  });
+
+  return (
+    <AppLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-foreground">Contract Templates</h1>
+            <p className="text-muted-foreground">Create and manage reusable contract templates with rich placeholders</p>
+          </div>
+          <div className="flex gap-3">
+            <Button variant="outline" size="sm">
+              <Database className="h-4 w-4 mr-2" />
+              Import from CRM
+            </Button>
+            <Button size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              New Template
+            </Button>
+          </div>
+        </div>
+
+        {/* Enhanced Filters */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium">Search & Filters</h3>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                {showAdvancedFilters ? 'Hide' : 'Show'} Advanced
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-4">
+                <div className="flex-1 min-w-[200px]">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      placeholder="Search templates, placeholders, clauses..." 
+                      className="pl-10 h-9"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <SelectTrigger className="w-[200px] h-9">
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    <SelectItem value="Song">Song Contracts</SelectItem>
+                    <SelectItem value="Image/Artist Likeness">Image/Likeness</SelectItem>
+                    <SelectItem value="Partnership/Distribution">Partnership/Distribution</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select>
+                  <SelectTrigger className="w-[160px] h-9">
+                    <SelectValue placeholder="Approval Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="pending">Pending Review</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {showAdvancedFilters && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t">
+                  <div>
+                    <label className="text-sm font-medium">Author</label>
+                    <Select>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="All Authors" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="legal-team">Legal Team</SelectItem>
+                        <SelectItem value="john-smith">John Smith</SelectItem>
+                        <SelectItem value="sarah-johnson">Sarah Johnson</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Last Updated</label>
+                    <Select>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="All Time" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="last-7-days">Last 7 Days</SelectItem>
+                        <SelectItem value="last-30-days">Last 30 Days</SelectItem>
+                        <SelectItem value="last-90-days">Last 90 Days</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Usage Count</label>
+                    <Select>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Any" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="high">High (&gt;50)</SelectItem>
+                        <SelectItem value="medium">Medium (10-50)</SelectItem>
+                        <SelectItem value="low">Low (&lt;10)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">CRM Integration</label>
+                    <Select>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="All" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="enabled">CRM Enabled</SelectItem>
+                        <SelectItem value="disabled">No CRM</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Templates Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredTemplates.map((template) => {
+            const IconComponent = categoryIcons[template.category as keyof typeof categoryIcons] || FileText;
+            
+            return (
+              <Card key={template.id} className="hover:shadow-md transition-shadow">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-blue-50">
+                        <IconComponent className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">{template.name}</CardTitle>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge className={getCategoryColor(template.category)}>
+                            {template.category}
+                          </Badge>
+                          <div className="flex items-center gap-1">
+                            {getApprovalStatusIcon(template.approvalStatus)}
+                            <Badge className={getApprovalStatusColor(template.approvalStatus)}>
+                              {template.approvalStatus}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right text-sm text-muted-foreground">
+                      <div>v{template.version}</div>
+                      <div>{template.usageCount} uses</div>
+                    </div>
+                  </div>
+                  <CardDescription className="mt-3">
+                    {template.description}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Author:</span>
+                      <span className="font-medium">{template.author}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Updated:</span>
+                      <span>{template.lastUpdated}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Placeholders:</span>
+                      <span className="font-medium">{template.placeholders.length}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">CRM Fields:</span>
+                      <span className="font-medium">
+                        {template.placeholders.filter((p: any) => p.crmField).length}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2 mt-4">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="flex-1"
+                          onClick={() => setSelectedTemplate(template)}
+                        >
+                          <Edit2 className="h-4 w-4 mr-2" />
+                          Edit
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+                        <DialogHeader>
+                          <DialogTitle className="flex items-center gap-2">
+                            <IconComponent className="h-5 w-5" />
+                            {template.name}
+                          </DialogTitle>
+                          <DialogDescription>
+                            {template.description}
+                          </DialogDescription>
+                        </DialogHeader>
+                        
+                        {selectedTemplate && (
+                          <Tabs defaultValue="preview" className="w-full">
+                            <TabsList className="grid w-full grid-cols-6">
+                              <TabsTrigger value="preview">Preview</TabsTrigger>
+                              <TabsTrigger value="placeholders">Placeholders</TabsTrigger>
+                              <TabsTrigger value="workflow">Approval</TabsTrigger>
+                              <TabsTrigger value="history">History</TabsTrigger>
+                              <TabsTrigger value="integration">Integration</TabsTrigger>
+                              <TabsTrigger value="settings">Settings</TabsTrigger>
+                            </TabsList>
+                            
+                            <TabsContent value="preview" className="space-y-4">
+                              <div className="border rounded-lg p-4 bg-gray-50">
+                                <div className="prose prose-sm max-w-none">
+                                  <pre className="whitespace-pre-wrap font-mono text-sm">
+                                    {selectedTemplate.content}
+                                  </pre>
+                                </div>
+                              </div>
+                            </TabsContent>
+                            
+                            <TabsContent value="placeholders" className="space-y-4">
+                              <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <h4 className="font-medium">Template Placeholders</h4>
+                                  <Button variant="outline" size="sm">
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Add Placeholder
+                                  </Button>
+                                </div>
+                                {selectedTemplate.placeholders.map((placeholder: any, index: number) => (
+                                  <div key={index} className="border rounded-lg p-4">
+                                    <div className="flex items-start justify-between mb-3">
+                                      <div className="flex items-center gap-3">
+                                        <code className="bg-yellow-100 px-2 py-1 rounded text-sm">
+                                          [[{placeholder.key}]]
+                                        </code>
+                                        <Badge variant="outline">{placeholder.type}</Badge>
+                                        {placeholder.required && (
+                                          <Badge variant="destructive">Required</Badge>
+                                        )}
+                                      </div>
+                                      <Button variant="ghost" size="sm">
+                                        <Edit2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                    <div className="space-y-2 text-sm">
+                                      <div>
+                                        <span className="text-muted-foreground">Description:</span>
+                                        <p className="font-medium">{placeholder.description}</p>
+                                      </div>
+                                      {placeholder.crmField && (
+                                        <div>
+                                          <span className="text-muted-foreground">CRM Field:</span>
+                                          <p className="font-medium font-mono">{placeholder.crmField}</p>
+                                        </div>
+                                      )}
+                                      {placeholder.catalogField && (
+                                        <div>
+                                          <span className="text-muted-foreground">Catalog Field:</span>
+                                          <p className="font-medium font-mono">{placeholder.catalogField}</p>
+                                        </div>
+                                      )}
+                                      {placeholder.options && (
+                                        <div>
+                                          <span className="text-muted-foreground">Options:</span>
+                                          <p className="font-medium">{placeholder.options.join(", ")}</p>
+                                        </div>
+                                      )}
+                                      {placeholder.validation && (
+                                        <div>
+                                          <span className="text-muted-foreground">Validation:</span>
+                                          <p className="font-medium">{placeholder.validation}</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </TabsContent>
+                            
+                            <TabsContent value="workflow" className="space-y-4">
+                              <div className="space-y-3">
+                                <h4 className="font-medium">Approval Workflow</h4>
+                                <div className="space-y-3">
+                                  {selectedTemplate.approvalWorkflow.map((step: any, index: number) => (
+                                    <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                                      <div className="flex items-center gap-3">
+                                        <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
+                                          step.status === 'completed' ? 'bg-green-100' : 'bg-gray-100'
+                                        }`}>
+                                          {step.status === 'completed' ? (
+                                            <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                          ) : (
+                                            <Clock className="h-4 w-4 text-gray-600" />
+                                          )}
+                                        </div>
+                                        <div>
+                                          <div className="font-medium">{step.step}</div>
+                                          <div className="text-sm text-muted-foreground">
+                                            {step.status === 'completed' ? `Approved by ${step.user} on ${step.date}` : 'Pending'}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      {step.status === 'pending' && (
+                                        <Button variant="outline" size="sm">
+                                          <UserCheck className="h-4 w-4 mr-2" />
+                                          Review
+                                        </Button>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </TabsContent>
+                            
+                            <TabsContent value="history" className="space-y-4">
+                              <div className="space-y-3">
+                                <h4 className="font-medium">Version History</h4>
+                                <div className="space-y-3">
+                                  {selectedTemplate.versionHistory.map((version: any, index: number) => (
+                                    <div key={index} className="border rounded-lg p-4">
+                                      <div className="flex items-center justify-between mb-3">
+                                        <div>
+                                          <div className="font-medium">{version.version}</div>
+                                          <div className="text-sm text-muted-foreground">
+                                            {version.date} by {version.author}
+                                          </div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                          <Button variant="outline" size="sm">View Diff</Button>
+                                          <Button variant="outline" size="sm">Revert</Button>
+                                        </div>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <div className="text-sm font-medium">Changes:</div>
+                                        <ul className="text-sm text-muted-foreground space-y-1">
+                                          {version.changes.map((change: string, changeIndex: number) => (
+                                            <li key={changeIndex} className="flex items-start gap-2">
+                                              <span className="text-green-600">•</span>
+                                              {change}
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                      {version.approvedBy && (
+                                        <div className="text-xs text-muted-foreground mt-2">
+                                          Approved by: {version.approvedBy}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </TabsContent>
+
+                            <TabsContent value="integration" className="space-y-4">
+                              <div className="space-y-3">
+                                <h4 className="font-medium">CRM & Catalog Integration</h4>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <Card>
+                                    <CardHeader>
+                                      <CardTitle className="text-sm">CRM Integration</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                      <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-sm">Auto-fill from CRM</span>
+                                          <Switch defaultChecked />
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-sm">Sync contract data</span>
+                                          <Switch defaultChecked />
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-sm">Update CRM on changes</span>
+                                          <Switch />
+                                        </div>
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                  <Card>
+                                    <CardHeader>
+                                      <CardTitle className="text-sm">Catalog Integration</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                      <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-sm">Auto-fill from Catalog</span>
+                                          <Switch defaultChecked />
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-sm">Sync metadata</span>
+                                          <Switch defaultChecked />
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-sm">Update splits</span>
+                                          <Switch />
+                                        </div>
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                </div>
+                                <div className="space-y-2">
+                                  <h5 className="font-medium text-sm">Mapped Fields</h5>
+                                  <div className="space-y-1">
+                                    {selectedTemplate.placeholders
+                                      .filter((p: any) => p.crmField || p.catalogField)
+                                      .map((placeholder: any, index: number) => (
+                                        <div key={index} className="flex items-center justify-between p-2 border rounded text-sm">
+                                          <span className="font-medium">{placeholder.key}</span>
+                                          <div className="flex items-center gap-4 text-muted-foreground">
+                                            {placeholder.crmField && (
+                                              <span>CRM: {placeholder.crmField}</span>
+                                            )}
+                                            {placeholder.catalogField && (
+                                              <span>Catalog: {placeholder.catalogField}</span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </TabsContent>
+
+                            <TabsContent value="settings" className="space-y-4">
+                              <div className="space-y-3">
+                                <h4 className="font-medium">Template Settings</h4>
+                                <div className="space-y-4">
+                                  <div>
+                                    <Label htmlFor="template-name">Template Name</Label>
+                                    <Input id="template-name" defaultValue={selectedTemplate.name} />
+                                  </div>
+                                  <div>
+                                    <Label htmlFor="template-description">Description</Label>
+                                    <Textarea id="template-description" defaultValue={selectedTemplate.description} />
+                                  </div>
+                                  <div>
+                                    <Label htmlFor="template-category">Category</Label>
+                                    <Select defaultValue={selectedTemplate.category}>
+                                      <SelectTrigger>
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="Song">Song</SelectItem>
+                                        <SelectItem value="Image/Artist Likeness">Image/Artist Likeness</SelectItem>
+                                        <SelectItem value="Partnership/Distribution">Partnership/Distribution</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Permissions</Label>
+                                    <div className="space-y-2">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-sm">Require approval</span>
+                                        <Switch defaultChecked />
+                                      </div>
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-sm">Allow cloning</span>
+                                        <Switch defaultChecked />
+                                      </div>
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-sm">Auto-version on changes</span>
+                                        <Switch defaultChecked />
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </TabsContent>
+                          </Tabs>
+                        )}
+                      </DialogContent>
+                    </Dialog>
+                    <Button size="sm" className="flex-1">
+                      <Copy className="h-4 w-4 mr-2" />
+                      Clone
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+
+        {/* Empty State */}
+        {filteredTemplates.length === 0 && (
+          <div className="text-center py-12">
+            <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium mb-2">No templates found</h3>
+            <p className="text-muted-foreground mb-4">
+              Create your first template to get started with contract management.
+            </p>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Template
+            </Button>
+          </div>
+        )}
+      </div>
+    </AppLayout>
+  );
+}

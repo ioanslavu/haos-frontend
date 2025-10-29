@@ -1,0 +1,15 @@
+@vitejs/plugin-react
+vite
+typescript
+@types/react
+@types/react-dom
+tailwindcss
+autoprefixer
+postcss
+vitest
+@testing-library/react
+@playwright/test
+msw
+eslint
+@typescript-eslint/eslint-plugin
+prettier
