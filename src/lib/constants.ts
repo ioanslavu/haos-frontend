@@ -1,4 +1,6 @@
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const isLocal =
+  typeof window !== 'undefined' && /^(localhost|127\.0\.0\.1)(:\\d+)?$/.test(window.location.host);
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (isLocal ? 'http://localhost:8000' : '');
 export const AUTH_LOGIN_URL = import.meta.env.VITE_AUTH_LOGIN_URL || '/auth/google/login/';
 export const AUTH_CALLBACK_URL = import.meta.env.VITE_AUTH_CALLBACK_URL || '/auth/callback';
 export const APP_NAME = import.meta.env.VITE_APP_NAME || 'HaOS';
