@@ -31,6 +31,42 @@ export type TaskType =
   | 'royalty_collection'
   | 'statement_review';
 
+// Choice arrays for forms and validation
+export const TASK_STATUS_CHOICES: readonly TaskStatus[] = [
+  'todo',
+  'in_progress',
+  'blocked',
+  'review',
+  'done',
+  'cancelled'
+] as const;
+
+export const TASK_PRIORITY_CHOICES: readonly TaskPriority[] = [1, 2, 3, 4] as const;
+
+export const TASK_TYPE_CHOICES: readonly TaskType[] = [
+  'general',
+  'follow_up',
+  'review',
+  'approval',
+  'campaign_setup',
+  'content_creation',
+  'performance_review',
+  'report_delivery',
+  'ad_optimization',
+  'platform_setup',
+  'proposal',
+  'negotiation',
+  'contract_prep',
+  'closing',
+  'recording',
+  'mixing',
+  'video_production',
+  'artwork',
+  'registration',
+  'royalty_collection',
+  'statement_review',
+] as const;
+
 export interface TaskUserDetail {
   id: number;
   email: string;
