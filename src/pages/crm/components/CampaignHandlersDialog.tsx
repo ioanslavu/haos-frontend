@@ -29,7 +29,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Campaign, CAMPAIGN_HANDLER_ROLE_LABELS } from '@/types/campaign'
 import { useUpdateCampaign } from '@/api/hooks/useCampaigns'
-import { useUsersList } from '@/api/hooks/useUsers'
+import { useDepartmentUsers } from '@/api/hooks/useUsers'
 import { Plus, X, Users } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -57,8 +57,8 @@ export function CampaignHandlersDialog({
 }: CampaignHandlersDialogProps) {
   const updateCampaign = useUpdateCampaign()
 
-  // Fetch users for handler selection
-  const { data: usersData } = useUsersList({ is_active: true })
+  // Fetch department users for handler selection
+  const { data: usersData } = useDepartmentUsers({ is_active: true })
   const users = usersData?.results || []
 
   const form = useForm<HandlersFormData>({

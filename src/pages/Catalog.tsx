@@ -24,7 +24,8 @@ export default function Catalog() {
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
       stats: worksData?.count || 0,
-      label: 'works'
+      label: 'works',
+      tourId: 'works-nav',
     },
     {
       title: 'Recordings',
@@ -34,7 +35,8 @@ export default function Catalog() {
       color: 'text-purple-600',
       bgColor: 'bg-purple-50',
       stats: recordingsData?.count || 0,
-      label: 'recordings'
+      label: 'recordings',
+      tourId: 'recordings-nav',
     },
     {
       title: 'Releases',
@@ -44,7 +46,7 @@ export default function Catalog() {
       color: 'text-green-600',
       bgColor: 'bg-green-50',
       stats: releasesData?.count || 0,
-      label: 'releases'
+      label: 'releases',
     }
   ];
 
@@ -139,7 +141,8 @@ export default function Catalog() {
           {catalogSections.map((section) => (
             <Card
               key={section.href}
-              className="hover:shadow-lg transition-shadow cursor-pointer"
+              data-tour={section.tourId}
+              className="hover-lift transition-smooth cursor-pointer"
               onClick={() => navigate(section.href)}
             >
               <CardHeader>
@@ -171,7 +174,7 @@ export default function Catalog() {
             {quickActions.map((action, index) => (
               <Card
                 key={index}
-                className="hover:shadow-md transition-shadow cursor-pointer"
+                className="hover-lift transition-smooth cursor-pointer"
                 onClick={action.action}
               >
                 <CardHeader className="pb-3">

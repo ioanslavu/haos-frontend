@@ -45,20 +45,29 @@ interface Template {
   placeholders: string[]
 }
 
-interface CommissionRange {
+// Commission rates by category
+interface CommissionRates {
   concert: string
+  image_rights: string
   rights: string
   merchandising: string
-  image_rights: string
   ppd: string
   emd: string
   sync: string
 }
 
-interface CommissionStructure {
-  first_years: CommissionRange & { count: string }
-  middle_years: CommissionRange
-  last_years: CommissionRange & { count: string }
+// Year-by-year commission structure
+type CommissionByYear = Record<string, CommissionRates>;
+
+// Rights categories that can be enabled/disabled
+interface EnabledRights {
+  concert: boolean
+  image_rights: boolean
+  rights: boolean
+  merchandising: boolean
+  ppd: boolean
+  emd: boolean
+  sync: boolean
 }
 
 export default function EntityDetail() {
@@ -117,37 +126,22 @@ export default function EntityDetail() {
     special_terms: ''
   });
 
-  // Commission Structure (range-based)
-  const [commissionStructure, setCommissionStructure] = useState<CommissionStructure>({
-    first_years: {
-      count: '2',
-      concert: '20',
-      rights: '25',
-      merchandising: '20',
-      image_rights: '30',
-      ppd: '5',
-      emd: '5',
-      sync: '20'
-    },
-    middle_years: {
-      concert: '15',
-      rights: '20',
-      merchandising: '15',
-      image_rights: '25',
-      ppd: '4',
-      emd: '4',
-      sync: '15'
-    },
-    last_years: {
-      count: '1',
-      concert: '10',
-      rights: '15',
-      merchandising: '10',
-      image_rights: '20',
-      ppd: '3',
-      emd: '3',
-      sync: '10'
-    }
+  // Commission Structure (year-by-year)
+  const [commissionByYear, setCommissionByYear] = useState<CommissionByYear>({
+    '1': { concert: '20', image_rights: '30', rights: '25', merchandising: '20', ppd: '5', emd: '5', sync: '20' },
+    '2': { concert: '20', image_rights: '30', rights: '25', merchandising: '20', ppd: '5', emd: '5', sync: '20' },
+    '3': { concert: '10', image_rights: '20', rights: '15', merchandising: '10', ppd: '3', emd: '3', sync: '10' }
+  });
+
+  // Rights categories visibility
+  const [enabledRights, setEnabledRights] = useState<EnabledRights>({
+    concert: true,
+    image_rights: true,
+    rights: true,
+    merchandising: true,
+    ppd: true,
+    emd: true,
+    sync: true
   });
 
   // Preview data
@@ -199,8 +193,11 @@ export default function EntityDetail() {
 
       if (response.data.draft_data) {
         setContractTerms(response.data.draft_data.contract_terms || contractTerms);
-        if (response.data.draft_data.commission_structure) {
-          setCommissionStructure(response.data.draft_data.commission_structure);
+        if (response.data.draft_data.commission_by_year) {
+          setCommissionByYear(response.data.draft_data.commission_by_year);
+        }
+        if (response.data.draft_data.enabled_rights) {
+          setEnabledRights(response.data.draft_data.enabled_rights);
         }
         sonnerToast.success('Draft loaded successfully');
       }
@@ -232,6 +229,60 @@ export default function EntityDetail() {
       fetchContracts();
     }
   }, [activeTab, id]);
+
+  // Helper: Update contract duration and adjust commission years
+  const updateContractDuration = (newDuration: number) => {
+    const currentYears = Object.keys(commissionByYear).map(Number);
+    const currentMax = Math.max(...currentYears);
+    const updated = { ...commissionByYear };
+
+    if (newDuration > currentMax) {
+      // Add years - copy rates from last year
+      const lastYear = updated[String(currentMax)];
+      for (let i = currentMax + 1; i <= newDuration; i++) {
+        updated[String(i)] = { ...lastYear };
+      }
+    } else if (newDuration < currentMax) {
+      // Remove years beyond new duration
+      for (let i = newDuration + 1; i <= currentMax; i++) {
+        delete updated[String(i)];
+      }
+    }
+
+    setCommissionByYear(updated);
+    setContractTerms({ ...contractTerms, contract_duration_years: String(newDuration) });
+  };
+
+  // Helper: Copy a category's rate to all years
+  const copyRateToAllYears = (category: keyof CommissionRates, sourceYear: string) => {
+    const rate = commissionByYear[sourceYear][category];
+    const updated = { ...commissionByYear };
+
+    Object.keys(updated).forEach(year => {
+      updated[year] = { ...updated[year], [category]: rate };
+    });
+
+    setCommissionByYear(updated);
+  };
+
+  // Helper: Update a specific year's category rate
+  const updateCommissionRate = (year: string, category: keyof CommissionRates, value: string) => {
+    setCommissionByYear({
+      ...commissionByYear,
+      [year]: {
+        ...commissionByYear[year],
+        [category]: value
+      }
+    });
+  };
+
+  // Helper: Toggle rights category
+  const toggleRightsCategory = (category: keyof EnabledRights) => {
+    setEnabledRights({
+      ...enabledRights,
+      [category]: !enabledRights[category]
+    });
+  };
 
   const handleRevealCNP = async () => {
     if (!entity?.sensitive_identity?.id) {
@@ -395,7 +446,8 @@ export default function EntityDetail() {
         entity_id: parseInt(id),
         draft_data: {
           contract_terms: contractTerms,
-          commission_structure: commissionStructure
+          commission_by_year: commissionByYear,
+          enabled_rights: enabledRights
         }
       });
       sonnerToast.success('Draft saved successfully');
@@ -421,7 +473,8 @@ export default function EntityDetail() {
         template_id: selectedTemplate,
         contract_terms: {
           ...contractTerms,
-          commission_structure: commissionStructure
+          commission_by_year: commissionByYear,
+          enabled_rights: enabledRights
         }
       });
 
@@ -468,7 +521,8 @@ export default function EntityDetail() {
         currency: contractTerms.currency,
         start_date: contractTerms.start_date,
         special_terms: contractTerms.special_terms,
-        commission_structure: commissionStructure
+        commission_by_year: commissionByYear,
+        enabled_rights: enabledRights
       };
 
       const response = await apiClient.post('/api/v1/contracts/generate_with_terms/', {
@@ -1388,7 +1442,10 @@ export default function EntityDetail() {
                             id="duration"
                             type="number"
                             value={contractTerms.contract_duration_years}
-                            onChange={(e) => setContractTerms({...contractTerms, contract_duration_years: e.target.value})}
+                            onChange={(e) => {
+                              const newDuration = parseInt(e.target.value) || 1;
+                              updateContractDuration(newDuration);
+                            }}
                           />
                         </div>
 
@@ -1505,230 +1562,259 @@ export default function EntityDetail() {
                 <TabsContent value="rates" className="space-y-4">
                   <Card>
                     <CardHeader>
-                      <CardTitle>Revenue Share Configuration</CardTitle>
+                      <CardTitle>Revenue Share Configuration (Year-by-Year)</CardTitle>
                       <CardDescription>
-                        Concert and Image Rights vary by contract period. Other rates are constant.
+                        Configure commission rates for each year and category. Backend will analyze patterns automatically.
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                      {/* Validation Alert */}
-                      {parseInt(commissionStructure.first_years.count) + parseInt(commissionStructure.last_years.count) > parseInt(contractTerms.contract_duration_years) && (
-                        <Alert>
-                          <AlertDescription className="text-orange-600">
-                            Warning: First years count ({commissionStructure.first_years.count}) + Last years count ({commissionStructure.last_years.count}) exceeds contract duration ({contractTerms.contract_duration_years} years)
-                          </AlertDescription>
-                        </Alert>
-                      )}
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-[180px]">Category</TableHead>
+                              <TableHead className="w-[60px] text-center">Enabled</TableHead>
+                              {Object.keys(commissionByYear).sort((a, b) => parseInt(a) - parseInt(b)).map(year => (
+                                <TableHead key={year} className="text-center">Year {year}</TableHead>
+                              ))}
+                              <TableHead className="w-[120px]">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {/* Concert */}
+                            <TableRow>
+                              <TableCell className="font-medium">Concert</TableCell>
+                              <TableCell className="text-center">
+                                <Switch
+                                  checked={enabledRights.concert}
+                                  onCheckedChange={() => toggleRightsCategory('concert')}
+                                />
+                              </TableCell>
+                              {Object.keys(commissionByYear).sort((a, b) => parseInt(a) - parseInt(b)).map(year => (
+                                <TableCell key={year}>
+                                  <Input
+                                    type="number"
+                                    value={commissionByYear[year].concert}
+                                    onChange={(e) => updateCommissionRate(year, 'concert', e.target.value)}
+                                    className="w-20"
+                                    disabled={!enabledRights.concert}
+                                  />
+                                </TableCell>
+                              ))}
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => copyRateToAllYears('concert', '1')}
+                                  disabled={!enabledRights.concert}
+                                >
+                                  Copy Year 1
+                                </Button>
+                              </TableCell>
+                            </TableRow>
 
-                      {/* Concert and Image Rights (Range-based) */}
-                      <div className="space-y-4">
-                        <h3 className="font-semibold text-lg">Concert & Image Rights (Variable by Period)</h3>
+                            {/* Image Rights */}
+                            <TableRow>
+                              <TableCell className="font-medium">Image Rights</TableCell>
+                              <TableCell className="text-center">
+                                <Switch
+                                  checked={enabledRights.image_rights}
+                                  onCheckedChange={() => toggleRightsCategory('image_rights')}
+                                />
+                              </TableCell>
+                              {Object.keys(commissionByYear).sort((a, b) => parseInt(a) - parseInt(b)).map(year => (
+                                <TableCell key={year}>
+                                  <Input
+                                    type="number"
+                                    value={commissionByYear[year].image_rights}
+                                    onChange={(e) => updateCommissionRate(year, 'image_rights', e.target.value)}
+                                    className="w-20"
+                                    disabled={!enabledRights.image_rights}
+                                  />
+                                </TableCell>
+                              ))}
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => copyRateToAllYears('image_rights', '1')}
+                                  disabled={!enabledRights.image_rights}
+                                >
+                                  Copy Year 1
+                                </Button>
+                              </TableCell>
+                            </TableRow>
 
-                        {/* First Years */}
-                        <div className="space-y-3 border rounded-lg p-4 bg-muted/30">
-                          <div className="flex items-center gap-4">
-                            <h4 className="font-semibold">First</h4>
-                            <Input
-                              type="number"
-                              value={commissionStructure.first_years.count}
-                              onChange={(e) => setCommissionStructure({
-                                ...commissionStructure,
-                                first_years: { ...commissionStructure.first_years, count: e.target.value }
-                              })}
-                              className="w-20"
-                            />
-                            <h4 className="font-semibold">years</h4>
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <Label>Concert (%)</Label>
-                              <Input
-                                type="number"
-                                value={commissionStructure.first_years.concert}
-                                onChange={(e) => setCommissionStructure({
-                                  ...commissionStructure,
-                                  first_years: { ...commissionStructure.first_years, concert: e.target.value }
-                                })}
-                              />
-                            </div>
-                            <div>
-                              <Label>Image Rights (%)</Label>
-                              <Input
-                                type="number"
-                                value={commissionStructure.first_years.image_rights}
-                                onChange={(e) => setCommissionStructure({
-                                  ...commissionStructure,
-                                  first_years: { ...commissionStructure.first_years, image_rights: e.target.value }
-                                })}
-                              />
-                            </div>
-                          </div>
-                        </div>
+                            {/* Rights */}
+                            <TableRow>
+                              <TableCell className="font-medium">Rights</TableCell>
+                              <TableCell className="text-center">
+                                <Switch
+                                  checked={enabledRights.rights}
+                                  onCheckedChange={() => toggleRightsCategory('rights')}
+                                />
+                              </TableCell>
+                              {Object.keys(commissionByYear).sort((a, b) => parseInt(a) - parseInt(b)).map(year => (
+                                <TableCell key={year}>
+                                  <Input
+                                    type="number"
+                                    value={commissionByYear[year].rights}
+                                    onChange={(e) => updateCommissionRate(year, 'rights', e.target.value)}
+                                    className="w-20"
+                                    disabled={!enabledRights.rights}
+                                  />
+                                </TableCell>
+                              ))}
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => copyRateToAllYears('rights', '1')}
+                                  disabled={!enabledRights.rights}
+                                >
+                                  Copy Year 1
+                                </Button>
+                              </TableCell>
+                            </TableRow>
 
-                        {/* Middle Years */}
-                        <div className="space-y-3 border rounded-lg p-4 bg-muted/30">
-                          <h4 className="font-semibold">Middle years (all remaining)</h4>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <Label>Concert (%)</Label>
-                              <Input
-                                type="number"
-                                value={commissionStructure.middle_years.concert}
-                                onChange={(e) => setCommissionStructure({
-                                  ...commissionStructure,
-                                  middle_years: { ...commissionStructure.middle_years, concert: e.target.value }
-                                })}
-                              />
-                            </div>
-                            <div>
-                              <Label>Image Rights (%)</Label>
-                              <Input
-                                type="number"
-                                value={commissionStructure.middle_years.image_rights}
-                                onChange={(e) => setCommissionStructure({
-                                  ...commissionStructure,
-                                  middle_years: { ...commissionStructure.middle_years, image_rights: e.target.value }
-                                })}
-                              />
-                            </div>
-                          </div>
-                        </div>
+                            {/* Merchandising */}
+                            <TableRow>
+                              <TableCell className="font-medium">Merchandising</TableCell>
+                              <TableCell className="text-center">
+                                <Switch
+                                  checked={enabledRights.merchandising}
+                                  onCheckedChange={() => toggleRightsCategory('merchandising')}
+                                />
+                              </TableCell>
+                              {Object.keys(commissionByYear).sort((a, b) => parseInt(a) - parseInt(b)).map(year => (
+                                <TableCell key={year}>
+                                  <Input
+                                    type="number"
+                                    value={commissionByYear[year].merchandising}
+                                    onChange={(e) => updateCommissionRate(year, 'merchandising', e.target.value)}
+                                    className="w-20"
+                                    disabled={!enabledRights.merchandising}
+                                  />
+                                </TableCell>
+                              ))}
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => copyRateToAllYears('merchandising', '1')}
+                                  disabled={!enabledRights.merchandising}
+                                >
+                                  Copy Year 1
+                                </Button>
+                              </TableCell>
+                            </TableRow>
 
-                        {/* Last Years */}
-                        <div className="space-y-3 border rounded-lg p-4 bg-muted/30">
-                          <div className="flex items-center gap-4">
-                            <h4 className="font-semibold">Last</h4>
-                            <Input
-                              type="number"
-                              value={commissionStructure.last_years.count}
-                              onChange={(e) => setCommissionStructure({
-                                ...commissionStructure,
-                                last_years: { ...commissionStructure.last_years, count: e.target.value }
-                              })}
-                              className="w-20"
-                            />
-                            <h4 className="font-semibold">years</h4>
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <Label>Concert (%)</Label>
-                              <Input
-                                type="number"
-                                value={commissionStructure.last_years.concert}
-                                onChange={(e) => setCommissionStructure({
-                                  ...commissionStructure,
-                                  last_years: { ...commissionStructure.last_years, concert: e.target.value }
-                                })}
-                              />
-                            </div>
-                            <div>
-                              <Label>Image Rights (%)</Label>
-                              <Input
-                                type="number"
-                                value={commissionStructure.last_years.image_rights}
-                                onChange={(e) => setCommissionStructure({
-                                  ...commissionStructure,
-                                  last_years: { ...commissionStructure.last_years, image_rights: e.target.value }
-                                })}
-                              />
-                            </div>
-                          </div>
-                        </div>
+                            {/* PPD */}
+                            <TableRow>
+                              <TableCell className="font-medium">PPD</TableCell>
+                              <TableCell className="text-center">
+                                <Switch
+                                  checked={enabledRights.ppd}
+                                  onCheckedChange={() => toggleRightsCategory('ppd')}
+                                />
+                              </TableCell>
+                              {Object.keys(commissionByYear).sort((a, b) => parseInt(a) - parseInt(b)).map(year => (
+                                <TableCell key={year}>
+                                  <Input
+                                    type="number"
+                                    value={commissionByYear[year].ppd}
+                                    onChange={(e) => updateCommissionRate(year, 'ppd', e.target.value)}
+                                    className="w-20"
+                                    disabled={!enabledRights.ppd}
+                                  />
+                                </TableCell>
+                              ))}
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => copyRateToAllYears('ppd', '1')}
+                                  disabled={!enabledRights.ppd}
+                                >
+                                  Copy Year 1
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+
+                            {/* EMD */}
+                            <TableRow>
+                              <TableCell className="font-medium">EMD</TableCell>
+                              <TableCell className="text-center">
+                                <Switch
+                                  checked={enabledRights.emd}
+                                  onCheckedChange={() => toggleRightsCategory('emd')}
+                                />
+                              </TableCell>
+                              {Object.keys(commissionByYear).sort((a, b) => parseInt(a) - parseInt(b)).map(year => (
+                                <TableCell key={year}>
+                                  <Input
+                                    type="number"
+                                    value={commissionByYear[year].emd}
+                                    onChange={(e) => updateCommissionRate(year, 'emd', e.target.value)}
+                                    className="w-20"
+                                    disabled={!enabledRights.emd}
+                                  />
+                                </TableCell>
+                              ))}
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => copyRateToAllYears('emd', '1')}
+                                  disabled={!enabledRights.emd}
+                                >
+                                  Copy Year 1
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+
+                            {/* Sync */}
+                            <TableRow>
+                              <TableCell className="font-medium">Sync</TableCell>
+                              <TableCell className="text-center">
+                                <Switch
+                                  checked={enabledRights.sync}
+                                  onCheckedChange={() => toggleRightsCategory('sync')}
+                                />
+                              </TableCell>
+                              {Object.keys(commissionByYear).sort((a, b) => parseInt(a) - parseInt(b)).map(year => (
+                                <TableCell key={year}>
+                                  <Input
+                                    type="number"
+                                    value={commissionByYear[year].sync}
+                                    onChange={(e) => updateCommissionRate(year, 'sync', e.target.value)}
+                                    className="w-20"
+                                    disabled={!enabledRights.sync}
+                                  />
+                                </TableCell>
+                              ))}
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => copyRateToAllYears('sync', '1')}
+                                  disabled={!enabledRights.sync}
+                                >
+                                  Copy Year 1
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          </TableBody>
+                        </Table>
                       </div>
 
-                      <Separator />
-
-                      {/* Fixed Rates (Same for all years) */}
-                      <div className="space-y-3">
-                        <h3 className="font-semibold text-lg">Other Rates (Fixed for Contract Duration)</h3>
-                        <div className="grid grid-cols-3 gap-4">
-                          <div>
-                            <Label htmlFor="rights">Rights (%)</Label>
-                            <Input
-                              id="rights"
-                              type="number"
-                              value={commissionStructure.first_years.rights}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                setCommissionStructure({
-                                  ...commissionStructure,
-                                  first_years: { ...commissionStructure.first_years, rights: value },
-                                  middle_years: { ...commissionStructure.middle_years, rights: value },
-                                  last_years: { ...commissionStructure.last_years, rights: value }
-                                });
-                              }}
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="merchandising">Merchandising (%)</Label>
-                            <Input
-                              id="merchandising"
-                              type="number"
-                              value={commissionStructure.first_years.merchandising}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                setCommissionStructure({
-                                  ...commissionStructure,
-                                  first_years: { ...commissionStructure.first_years, merchandising: value },
-                                  middle_years: { ...commissionStructure.middle_years, merchandising: value },
-                                  last_years: { ...commissionStructure.last_years, merchandising: value }
-                                });
-                              }}
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="ppd">PPD (%)</Label>
-                            <Input
-                              id="ppd"
-                              type="number"
-                              value={commissionStructure.first_years.ppd}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                setCommissionStructure({
-                                  ...commissionStructure,
-                                  first_years: { ...commissionStructure.first_years, ppd: value },
-                                  middle_years: { ...commissionStructure.middle_years, ppd: value },
-                                  last_years: { ...commissionStructure.last_years, ppd: value }
-                                });
-                              }}
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="emd">EMD (%)</Label>
-                            <Input
-                              id="emd"
-                              type="number"
-                              value={commissionStructure.first_years.emd}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                setCommissionStructure({
-                                  ...commissionStructure,
-                                  first_years: { ...commissionStructure.first_years, emd: value },
-                                  middle_years: { ...commissionStructure.middle_years, emd: value },
-                                  last_years: { ...commissionStructure.last_years, emd: value }
-                                });
-                              }}
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="sync">Sync (%)</Label>
-                            <Input
-                              id="sync"
-                              type="number"
-                              value={commissionStructure.first_years.sync}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                setCommissionStructure({
-                                  ...commissionStructure,
-                                  first_years: { ...commissionStructure.first_years, sync: value },
-                                  middle_years: { ...commissionStructure.middle_years, sync: value },
-                                  last_years: { ...commissionStructure.last_years, sync: value }
-                                });
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </div>
+                      <Alert>
+                        <AlertDescription>
+                          <strong>Note:</strong> Backend will automatically analyze the patterns you've configured.
+                          Uniform rates (all years same) or split rates (consecutive groups) will be detected and
+                          used to generate appropriate contract text with conditional sections.
+                        </AlertDescription>
+                      </Alert>
                     </CardContent>
                   </Card>
                 </TabsContent>

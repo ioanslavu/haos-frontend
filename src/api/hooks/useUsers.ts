@@ -120,6 +120,20 @@ export const useUsersList = (params?: UserListParams) => {
   });
 };
 
+// Hook for fetching department users (for campaign handlers, etc.)
+export const useDepartmentUsers = (params?: UserListParams) => {
+  return useQuery({
+    queryKey: ['department-users', params],
+    queryFn: async () => {
+      const response = await apiClient.get<UserListResponse>(API_ENDPOINTS.USERS.DEPARTMENT, {
+        params,
+      });
+      return response.data;
+    },
+    staleTime: 1000 * 60 * 2, // 2 minutes
+  });
+};
+
 // Hook for fetching a specific user
 export const useUser = (userId: string) => {
   return useQuery({
@@ -605,5 +619,37 @@ export const usePendingRequestsCount = () => {
       return response.data.count;
     },
     refetchInterval: 30000, // Refetch every 30 seconds
+  });
+};
+
+/**
+ * Hook to cancel/withdraw a pending department request
+ */
+export const useCancelDepartmentRequest = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (requestId: number) => {
+      const response = await apiClient.delete(`/api/v1/department-requests/${requestId}/`);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['department-requests'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUTH.USER });
+      toast({
+        title: 'Request canceled',
+        description: 'Your department request has been canceled. You can now select a different department.',
+      });
+    },
+    onError: (error: unknown) => {
+      const errorMessage = error instanceof Error ? error.message :
+        (error as any)?.response?.data?.message || 'Failed to cancel request';
+      toast({
+        title: 'Cancellation failed',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    },
   });
 };

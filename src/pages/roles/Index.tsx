@@ -76,18 +76,12 @@ export default function Roles() {
     }
   };
 
-  const getRoleBadgeColor = (roleName: string) => {
-    if (roleName.includes('ADMIN')) return 'destructive';
-    if (roleName.includes('MANAGER')) return 'default';
-    if (roleName.includes('ANALYST') || roleName.includes('ACCOUNTANT')) return 'secondary';
-    if (roleName === 'ARTIST' || roleName === 'PUBLISHER') return 'outline';
-    return 'default';
-  };
-
-  const getRoleIcon = (roleName: string) => {
-    if (roleName.includes('ADMIN')) return <Shield className="h-4 w-4" />;
-    if (roleName.includes('MANAGER') || roleName.includes('EXECUTIVE')) return <Users className="h-4 w-4" />;
-    return <Key className="h-4 w-4" />;
+  const getRoleConfig = (roleName: string): { variant: any; icon: any } => {
+    if (roleName.includes('ADMIN')) return { variant: 'destructive', icon: Shield };
+    if (roleName.includes('MANAGER') || roleName.includes('EXECUTIVE')) return { variant: 'default', icon: Users };
+    if (roleName.includes('ANALYST') || roleName.includes('ACCOUNTANT')) return { variant: 'secondary', icon: Key };
+    if (roleName === 'ARTIST' || roleName === 'PUBLISHER') return { variant: 'outline', icon: Key };
+    return { variant: 'default', icon: Key };
   };
 
   return (
@@ -170,21 +164,18 @@ export default function Roles() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredRoles.map((role) => (
-                    <TableRow key={role.id} className="cursor-pointer hover:bg-muted/50">
-                      <TableCell 
-                        className="font-medium"
-                        onClick={() => navigate(`/roles/${role.id}`)}
-                      >
-                        <div className="flex items-center gap-3">
-                          {getRoleIcon(role.name)}
-                          <div>
-                            <Badge variant={getRoleBadgeColor(role.name)}>
-                              {role.name.replace(/_/g, ' ')}
-                            </Badge>
-                          </div>
-                        </div>
-                      </TableCell>
+                  {filteredRoles.map((role) => {
+                    const config = getRoleConfig(role.name);
+                    return (
+                      <TableRow key={role.id} className="cursor-pointer hover-lift transition-smooth">
+                        <TableCell
+                          className="font-medium"
+                          onClick={() => navigate(`/roles/${role.id}`)}
+                        >
+                          <Badge variant={config.variant} icon={config.icon} size="sm">
+                            {role.name.replace(/_/g, ' ')}
+                          </Badge>
+                        </TableCell>
                       <TableCell onClick={() => navigate(`/roles/${role.id}`)}>
                         <div className="flex items-center gap-2">
                           <Users className="h-4 w-4 text-muted-foreground" />
@@ -198,7 +189,7 @@ export default function Roles() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <DropdownMenu>
+                        <DropdownMenu modal={false}>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm">
                               <MoreHorizontal className="h-4 w-4" />
@@ -232,7 +223,8 @@ export default function Roles() {
                         </DropdownMenu>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             )}

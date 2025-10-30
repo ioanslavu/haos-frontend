@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, User, Shield, Bell, Palette, Database, Globe, CreditCard, Key, Users, Building, Mail, Phone, MapPin, Save, Eye, EyeOff, Trash2, Plus, Edit2, Loader2 } from 'lucide-react';
+import { Settings, User, Shield, Bell, Palette, Database, Globe, CreditCard, Key, Users, Building, Mail, Phone, MapPin, Save, Eye, EyeOff, Trash2, Plus, Edit2, Loader2, CheckCircle2, XCircle, Link } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -140,18 +141,18 @@ const teamMembers = [
   }
 ];
 
-const getStatusColor = (status: string) => {
+const getStatusConfig = (status: string): { variant: any; icon: any } => {
   switch (status) {
     case 'Active':
-      return 'bg-green-100 text-green-800';
+      return { variant: 'success', icon: CheckCircle2 };
     case 'Inactive':
-      return 'bg-gray-100 text-gray-800';
+      return { variant: 'secondary', icon: XCircle };
     case 'Connected':
-      return 'bg-green-100 text-green-800';
+      return { variant: 'success', icon: Link };
     case 'Disconnected':
-      return 'bg-red-100 text-red-800';
+      return { variant: 'destructive', icon: XCircle };
     default:
-      return 'bg-gray-100 text-gray-800';
+      return { variant: 'secondary', icon: XCircle };
   }
 };
 
@@ -401,27 +402,30 @@ export default function Settings() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {teamMembers.map((member) => (
-                      <div key={member.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
-                            {member.avatar}
+                    {teamMembers.map((member) => {
+                      const statusConfig = getStatusConfig(member.status);
+                      return (
+                        <div key={member.id} className="flex items-center justify-between p-3 border rounded-lg hover-lift transition-smooth">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
+                              {member.avatar}
+                            </div>
+                            <div>
+                              <div className="font-medium">{member.name}</div>
+                              <div className="text-sm text-muted-foreground">{member.email}</div>
+                            </div>
                           </div>
-                          <div>
-                            <div className="font-medium">{member.name}</div>
-                            <div className="text-sm text-muted-foreground">{member.email}</div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={statusConfig.variant} icon={statusConfig.icon} size="sm">
+                              {member.status}
+                            </Badge>
+                            <Button variant="ghost" size="sm">
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge className={getStatusColor(member.status)}>
-                            {member.status}
-                          </Badge>
-                          <Button variant="ghost" size="sm">
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
@@ -825,22 +829,25 @@ export default function Settings() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {systemSettings.integrations.map((integration, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div>
-                          <div className="font-medium">{integration.name}</div>
-                          <div className="text-sm text-muted-foreground">{integration.type}</div>
+                    {systemSettings.integrations.map((integration, index) => {
+                      const statusConfig = getStatusConfig(integration.status);
+                      return (
+                        <div key={index} className="flex items-center justify-between p-3 border rounded-lg hover-lift transition-smooth">
+                          <div>
+                            <div className="font-medium">{integration.name}</div>
+                            <div className="text-sm text-muted-foreground">{integration.type}</div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={statusConfig.variant} icon={statusConfig.icon} size="sm">
+                              {integration.status}
+                            </Badge>
+                            <Button variant="ghost" size="sm">
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge className={getStatusColor(integration.status)}>
-                            {integration.status}
-                          </Badge>
-                          <Button variant="ghost" size="sm">
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>

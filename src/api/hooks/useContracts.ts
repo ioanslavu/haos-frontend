@@ -8,6 +8,7 @@ import contractsService, {
   SendForSignaturePayload,
   CreateVersionPayload,
   RegenerateContractPayload,
+  ContractAuditTrail,
 } from '@/api/services/contracts.service';
 import { useUIStore } from '@/stores/uiStore';
 
@@ -18,6 +19,7 @@ const QUERY_KEYS = {
   CONTRACTS: ['contracts', 'list'], // Simplified - no params in key
   CONTRACT: (id: number) => ['contracts', 'detail', id],
   SIGNATURE_STATUS: (id: number) => ['contracts', id, 'signature-status'],
+  AUDIT_TRAIL: (id: number) => ['contracts', id, 'audit-trail'],
 };
 
 // Templates
@@ -349,5 +351,13 @@ export const useCheckContractStatus = (id: number | null, enabled: boolean = fal
     refetchIntervalInBackground: false, // Don't poll when tab is not focused
     retry: false, // Don't retry on error
     staleTime: 0, // Always consider data stale
+  });
+};
+
+export const useContractAuditTrail = (id: number) => {
+  return useQuery({
+    queryKey: QUERY_KEYS.AUDIT_TRAIL(id),
+    queryFn: () => contractsService.getContractAuditTrail(id),
+    enabled: !!id,
   });
 };

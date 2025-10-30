@@ -4,6 +4,7 @@ import { Plus, Search, Users, Building2, User, Filter, Mail, Phone } from 'lucid
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useEntities } from '@/api/hooks/useEntities';
@@ -12,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { NoClientsEmptyState, NoSearchResultsEmptyState } from '@/components/ui/empty-states-presets';
 import {
   Select,
   SelectContent,
@@ -254,32 +256,53 @@ export default function Entities() {
           {allRoles.map((role) => (
             <TabsContent key={role.value} value={role.value} className="space-y-4">
               {isLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <Card key={i} className="hover-lift">
+                      <CardContent className="p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                          <Skeleton className="h-10 w-10 rounded-full" />
+                          <div className="space-y-2 flex-1">
+                            <Skeleton className="h-4 w-32" />
+                            <Skeleton className="h-3 w-20" />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Skeleton className="h-3 w-full" />
+                          <Skeleton className="h-3 w-3/4" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
               ) : filteredEntities.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-muted-foreground">
-                    {searchQuery || kindFilter !== 'all'
-                      ? `No ${role.label.toLowerCase()} found matching your filters.`
-                      : `No ${role.label.toLowerCase()} added yet.`}
-                  </p>
-                  {!searchQuery && kindFilter === 'all' && (
-                    <Button
-                      className="mt-4"
-                      onClick={handleCreateEntity}
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add First {role.label.slice(0, -1)}
-                    </Button>
-                  )}
-                </div>
+                searchQuery || kindFilter !== 'all' ? (
+                  <NoSearchResultsEmptyState
+                    searchQuery={searchQuery}
+                    onClearSearch={() => {
+                      setSearchQuery('');
+                      setKindFilter('all');
+                    }}
+                  />
+                ) : (
+                  <NoClientsEmptyState
+                    title={`No ${role.label.toLowerCase()} yet`}
+                    description={`Add your first ${role.label.slice(0, -1).toLowerCase()} to start managing ${role.value === 'all' ? 'entities' : role.label.toLowerCase()}.`}
+                    icon={role.icon}
+                    onPrimaryAction={handleCreateEntity}
+                    tips={[
+                      'Entities can have multiple roles',
+                      'Track all contacts and relationships',
+                      'Link entities to contracts and projects',
+                    ]}
+                  />
+                )
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {filteredEntities.map((entity) => (
                     <Card
                       key={entity.id}
-                      className="hover:shadow-md transition-shadow cursor-pointer"
+                      className="hover-lift transition-smooth cursor-pointer"
                       onClick={() => navigate(`/entity/${entity.id}`)}
                     >
                       <CardContent className="p-6">

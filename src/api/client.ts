@@ -39,6 +39,8 @@ apiClient.interceptors.request.use(
 );
 
 let isRefreshing = false;
+let authCheckAttempts = 0;
+const MAX_AUTH_ATTEMPTS = 3;
 let failedQueue: Array<{
   resolve: (value?: unknown) => void;
   reject: (reason?: unknown) => void;
@@ -62,6 +64,14 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
     if (error.response?.status === 401 && !originalRequest._retry) {
+      // Prevent infinite auth loop
+      if (authCheckAttempts >= MAX_AUTH_ATTEMPTS) {
+        const authStore = (await import('@/stores/authStore')).useAuthStore.getState();
+        authStore.logout();
+        window.location.href = '/login';
+        return Promise.reject(new AuthError('Too many authentication attempts. Please login again.'));
+      }
+
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -74,11 +84,13 @@ apiClient.interceptors.response.use(
 
       originalRequest._retry = true;
       isRefreshing = true;
+      authCheckAttempts++;
 
       const authStore = (await import('@/stores/authStore')).useAuthStore.getState();
-      
+
       try {
         await authStore.checkAuth();
+        authCheckAttempts = 0; // Reset on success
         processQueue(null);
         return apiClient(originalRequest);
       } catch (refreshError) {

@@ -5,10 +5,10 @@ export const StudioLighting: React.FC = () => {
   return (
     <>
       {/* Main background gradient */}
-      <div className="fixed inset-0 studio-gradient" />
-      
+      <div className="fixed inset-0 studio-gradient pointer-events-none" />
+
       {/* Animated spotlight effects */}
-      <div className="fixed inset-0 overflow-hidden">
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
         {/* Top left spotlight */}
         <motion.div
           className="absolute -top-1/2 -left-1/2 w-full h-full"
@@ -55,61 +55,10 @@ export const StudioLighting: React.FC = () => {
           <div className="w-full h-full bg-gradient-radial from-pink-600/30 via-purple-600/20 to-transparent rounded-full blur-3xl" />
         </motion.div>
 
-        {/* Moving light beams */}
-        {[...Array(3)].map((_, i) => (
-          <motion.div
-            key={`beam-${i}`}
-            className="absolute top-0 w-1 h-full opacity-20"
-            style={{
-              left: `${33 * i}%`,
-              background: `linear-gradient(180deg, transparent, rgba(139, 92, 246, 0.5), transparent)`,
-              filter: 'blur(2px)',
-            }}
-            animate={{
-              x: ['0%', '100%', '0%'],
-            }}
-            transition={{
-              duration: 10 + i * 2,
-              repeat: Infinity,
-              ease: "linear",
-            }}
-          />
-        ))}
 
-        {/* Ambient orbs */}
-        {[...Array(5)].map((_, i) => (
-          <motion.div
-            key={`orb-${i}`}
-            className="absolute w-32 h-32 rounded-full"
-            initial={{
-              x: Math.random() * window.innerWidth,
-              y: Math.random() * window.innerHeight,
-            }}
-            animate={{
-              x: [
-                Math.random() * window.innerWidth,
-                Math.random() * window.innerWidth,
-                Math.random() * window.innerWidth,
-              ],
-              y: [
-                Math.random() * window.innerHeight,
-                Math.random() * window.innerHeight,
-                Math.random() * window.innerHeight,
-              ],
-            }}
-            transition={{
-              duration: 20 + i * 5,
-              repeat: Infinity,
-              ease: "linear",
-            }}
-            style={{
-              background: `radial-gradient(circle, ${
-                ['rgba(139, 92, 246, 0.3)', 'rgba(6, 182, 212, 0.3)', 'rgba(245, 158, 11, 0.3)'][i % 3]
-              }, transparent)`,
-              filter: 'blur(40px)',
-            }}
-          />
-        ))}
+        {/* Simplified ambient orbs with CSS animations */}
+        <div className="absolute top-1/4 left-1/4 w-32 h-32 rounded-full bg-purple-600/20 blur-3xl animate-pulse-slow" />
+        <div className="absolute bottom-1/4 right-1/4 w-32 h-32 rounded-full bg-cyan-600/20 blur-3xl animate-pulse-slow" style={{ animationDelay: '1s' }} />
       </div>
 
       {/* Noise texture overlay for depth */}

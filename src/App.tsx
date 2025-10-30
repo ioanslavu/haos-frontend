@@ -7,8 +7,17 @@ import { AuthProvider } from "@/providers/AuthProvider";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { CommandPalette } from "@/components/command-palette";
+import { lazy, Suspense } from "react";
+import { Loader2 } from "lucide-react";
 
-// Auth pages
+// Loading fallback component
+const PageLoader = () => (
+  <div className="flex items-center justify-center h-screen">
+    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+  </div>
+);
+
+// Auth pages (keep these eager since they're entry points)
 import Login from "./pages/auth/Login";
 import AuthCallback from "./pages/auth/AuthCallback";
 import AuthError from "./pages/auth/AuthError";
@@ -19,45 +28,47 @@ import DepartmentSelection from "./pages/auth/DepartmentSelection";
 import AdminRoute from "./components/auth/AdminRoute";
 import ManagerRoute from "./components/auth/ManagerRoute";
 
-// Protected pages
+// Dashboard (keep eager for fast initial load)
 import Dashboard from "./pages/dashboard/Index";
-import Contracts from "./pages/Contracts";
-import ContractGeneration from "./pages/ContractGeneration";
-import Templates from "./pages/Templates";
-import TemplateDetail from "./pages/TemplateDetail";
-import ImportTemplate from "./pages/ImportTemplate";
-import Analytics from "./pages/Analytics";
-import CRM from "./pages/CRM";
-import Catalog from "./pages/Catalog";
-import Studio from "./pages/Studio";
-import Tasks from "./pages/Tasks";
-import Settings from "./pages/Settings";
-import CompanySettings from "./pages/CompanySettings";
-import Profile from "./pages/profile/Index";
-import Users from "./pages/users/Index";
-import UserDetail from "./pages/users/UserDetail";
-import UsersManagement from "./pages/users/UsersManagement";
-import DepartmentRequests from "./pages/users/DepartmentRequests";
-import Roles from "./pages/roles/Index";
-import RoleDetail from "./pages/roles/RoleDetail";
-import NotFound from "./pages/NotFound";
 
-// Catalog pages
-import Works from "./pages/catalog/Works";
-import WorkCreate from "./pages/catalog/WorkCreate";
-import WorkEdit from "./pages/catalog/WorkEdit";
-import WorkDetail from "./pages/catalog/WorkDetail";
-import WorkContractGeneration from "./pages/catalog/WorkContractGeneration";
-import Recordings from "./pages/catalog/Recordings";
-import RecordingCreate from "./pages/catalog/RecordingCreate";
-import RecordingDetail from "./pages/catalog/RecordingDetail";
-import RecordingContractGeneration from "./pages/catalog/RecordingContractGeneration";
-import CoProdContractGeneration from "./pages/catalog/CoProdContractGeneration";
-import Releases from "./pages/catalog/Releases";
+// Lazy load heavy pages for better performance
+const Contracts = lazy(() => import("./pages/Contracts"));
+const ContractGeneration = lazy(() => import("./pages/ContractGeneration"));
+const Templates = lazy(() => import("./pages/Templates"));
+const TemplateDetail = lazy(() => import("./pages/TemplateDetail"));
+const ImportTemplate = lazy(() => import("./pages/ImportTemplate"));
+const Analytics = lazy(() => import("./pages/Analytics"));
+const CRM = lazy(() => import("./pages/CRM"));
+const Catalog = lazy(() => import("./pages/Catalog"));
+const Studio = lazy(() => import("./pages/Studio"));
+const Tasks = lazy(() => import("./pages/Tasks"));
+const Settings = lazy(() => import("./pages/Settings"));
+const CompanySettings = lazy(() => import("./pages/CompanySettings"));
+const Profile = lazy(() => import("./pages/profile/Index"));
+const Users = lazy(() => import("./pages/users/Index"));
+const UserDetail = lazy(() => import("./pages/users/UserDetail"));
+const UsersManagement = lazy(() => import("./pages/users/UsersManagement"));
+const DepartmentRequests = lazy(() => import("./pages/users/DepartmentRequests"));
+const Roles = lazy(() => import("./pages/roles/Index"));
+const RoleDetail = lazy(() => import("./pages/roles/RoleDetail"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+
+// Catalog pages (lazy loaded)
+const Works = lazy(() => import("./pages/catalog/Works"));
+const WorkCreate = lazy(() => import("./pages/catalog/WorkCreate"));
+const WorkEdit = lazy(() => import("./pages/catalog/WorkEdit"));
+const WorkDetail = lazy(() => import("./pages/catalog/WorkDetail"));
+const WorkContractGeneration = lazy(() => import("./pages/catalog/WorkContractGeneration"));
+const Recordings = lazy(() => import("./pages/catalog/Recordings"));
+const RecordingCreate = lazy(() => import("./pages/catalog/RecordingCreate"));
+const RecordingDetail = lazy(() => import("./pages/catalog/RecordingDetail"));
+const RecordingContractGeneration = lazy(() => import("./pages/catalog/RecordingContractGeneration"));
+const CoProdContractGeneration = lazy(() => import("./pages/catalog/CoProdContractGeneration"));
+const Releases = lazy(() => import("./pages/catalog/Releases"));
 
 // Entity pages
-import Entities from "./pages/Entities";
-import EntityDetail from "./pages/EntityDetail";
+const Entities = lazy(() => import("./pages/Entities"));
+const EntityDetail = lazy(() => import("./pages/EntityDetail"));
 
 const App = () => (
   <ErrorBoundary>
@@ -68,7 +79,8 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             {/* <CommandPalette /> */}
-            <Routes>
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
             {/* Public routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
@@ -260,11 +272,12 @@ const App = () => (
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
-  </QueryProvider>
+              </Routes>
+            </Suspense>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </QueryProvider>
   </ErrorBoundary>
 );
 

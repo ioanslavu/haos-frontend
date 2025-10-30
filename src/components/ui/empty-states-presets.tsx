@@ -27,6 +27,7 @@ import {
   Plus,
   RefreshCw,
   Settings,
+  Target,
 } from "lucide-react"
 
 // Base props for all presets
@@ -80,12 +81,12 @@ export function NoContractsEmptyState(props: PresetProps) {
 /**
  * No Clients Empty State
  */
-export function NoClientsEmptyState(props: PresetProps) {
+export function NoClientsEmptyState(props: PresetProps & { title?: string; description?: string; icon?: any; tips?: string[] }) {
   return (
     <EmptyState
-      icon={Users}
-      title="No clients yet"
-      description="Add your first client to start managing relationships and contracts."
+      icon={props.icon || Users}
+      title={props.title || "No clients yet"}
+      description={props.description || "Add your first client to start managing relationships and contracts."}
       primaryAction={
         props.onPrimaryAction
           ? {
@@ -98,10 +99,40 @@ export function NoClientsEmptyState(props: PresetProps) {
       showSampleDataOption={props.showSampleDataOption}
       onLoadSampleData={props.onLoadSampleData}
       compact={props.compact}
-      tips={[
+      tips={props.tips || [
         "Client data auto-fills contract templates",
         "Track all contracts per client",
         "Export client lists to CSV",
+      ]}
+    />
+  )
+}
+
+/**
+ * No Campaigns Empty State
+ */
+export function NoCampaignsEmptyState(props: PresetProps) {
+  return (
+    <EmptyState
+      icon={Target}
+      title="No campaigns yet"
+      description="Create your first marketing campaign to start tracking client engagement and deals."
+      primaryAction={
+        props.onPrimaryAction
+          ? {
+              label: "Create Campaign",
+              onClick: props.onPrimaryAction,
+              icon: Plus,
+            }
+          : undefined
+      }
+      showSampleDataOption={props.showSampleDataOption}
+      onLoadSampleData={props.onLoadSampleData}
+      compact={props.compact}
+      tips={[
+        "Campaigns help organize marketing efforts",
+        "Track campaign performance and metrics",
+        "Link campaigns to clients, artists, and brands",
       ]}
     />
   )

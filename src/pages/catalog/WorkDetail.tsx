@@ -1,13 +1,22 @@
 import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, Music, Users, DollarSign, FileText, Plus, Lock, Unlock } from 'lucide-react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { ArrowLeft, Edit, Music, Users, DollarSign, FileText, Plus, Lock, Unlock, CheckCircle2, AlertTriangle, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Loader2 } from 'lucide-react';
 import { useWorkDetails } from '@/api/hooks/useCatalog';
 import { useSplitsByObject } from '@/api/hooks/useRights';
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
 import {
   Table,
   TableBody,
@@ -21,6 +30,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { AddISWCDialog } from './components/AddISWCDialog';
 import { AddCreditDialog } from './components/AddCreditDialog';
 import { AddSplitDialog } from './components/AddSplitDialog';
+import { ActivityFeed, Activity } from '@/components/ui/activity-feed';
 
 export default function WorkDetail() {
   const { id } = useParams<{ id: string }>();
@@ -37,11 +47,91 @@ export default function WorkDetail() {
   const [writerSplitDialogOpen, setWriterSplitDialogOpen] = useState(false);
   const [publisherSplitDialogOpen, setPublisherSplitDialogOpen] = useState(false);
 
+  // Mock activity data (in production, this would come from API)
+  const activities: Activity[] = [
+    {
+      id: '1',
+      type: 'edit',
+      user: { name: 'Sarah Johnson', initials: 'SJ' },
+      action: 'updated the ISWC code for',
+      target: work?.title || 'this work',
+      timestamp: new Date(Date.now() - 1000 * 60 * 30), // 30 min ago
+      metadata: { category: 'Metadata' },
+    },
+    {
+      id: '2',
+      type: 'create',
+      user: { name: 'Michael Chen', initials: 'MC' },
+      action: 'added a new credit to',
+      target: work?.title || 'this work',
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
+      metadata: { category: 'Credits' },
+    },
+    {
+      id: '3',
+      type: 'assign',
+      user: { name: 'Emily Davis', initials: 'ED' },
+      action: 'assigned publishing split to',
+      target: 'Universal Music',
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
+      metadata: { category: 'Rights', status: '50%' },
+    },
+    {
+      id: '4',
+      type: 'create',
+      user: { name: 'Alex Thompson', initials: 'AT' },
+      action: 'created',
+      target: work?.title || 'this work',
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3), // 3 days ago
+      metadata: { status: 'New Work' },
+    },
+  ];
+
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
+      <AppLayout>
+        <div className="space-y-6">
+          {/* Header Skeleton */}
+          <div className="flex items-center gap-4">
+            <Skeleton className="h-10 w-10" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-8 w-64" />
+              <Skeleton className="h-4 w-48" />
+            </div>
+            <Skeleton className="h-10 w-32" />
+            <Skeleton className="h-10 w-24" />
+          </div>
+
+          {/* Stats Cards Skeleton */}
+          <div className="grid gap-4 md:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i}>
+                <CardHeader className="pb-2">
+                  <Skeleton className="h-4 w-20" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-8 w-24" />
+                  <Skeleton className="h-3 w-16 mt-2" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Content Skeleton */}
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-32" />
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Skeleton key={i} className="h-12 w-full" />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </AppLayout>
     );
   }
 
@@ -65,6 +155,33 @@ export default function WorkDetail() {
   return (
     <AppLayout>
       <div className="space-y-6">
+      {/* Breadcrumb Navigation */}
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to="/"><Home className="h-4 w-4" /></Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to="/catalog">Catalog</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to="/catalog/works">Works</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>{work.title}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button
@@ -153,6 +270,7 @@ export default function WorkDetail() {
           <TabsTrigger value="splits">Rights & Splits</TabsTrigger>
           <TabsTrigger value="recordings">Recordings</TabsTrigger>
           <TabsTrigger value="lyrics">Lyrics</TabsTrigger>
+          <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
         {/* Credits Tab */}
@@ -182,12 +300,12 @@ export default function WorkDetail() {
                   </TableHeader>
                   <TableBody>
                     {credits.map((credit) => (
-                      <TableRow key={credit.id}>
+                      <TableRow key={credit.id} className="hover-lift transition-smooth">
                         <TableCell className="font-medium">
                           {credit.entity_name}
                         </TableCell>
                         <TableCell>
-                          <Badge>{credit.role_display || credit.role}</Badge>
+                          <Badge variant="secondary" size="sm">{credit.role_display || credit.role}</Badge>
                         </TableCell>
                         <TableCell>{credit.credited_as || '—'}</TableCell>
                         <TableCell>
@@ -223,15 +341,19 @@ export default function WorkDetail() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-sm items-center">
                     <span>Total Allocated</span>
-                    <span className={writerTotal === 100 ? "text-green-600" : "text-amber-600"}>
+                    <Badge
+                      variant={writerTotal === 100 ? "success" : "warning"}
+                      icon={writerTotal === 100 ? CheckCircle2 : AlertTriangle}
+                      size="sm"
+                    >
                       {writerTotal}%
-                    </span>
+                    </Badge>
                   </div>
                   <Progress value={writerTotal} className="h-2" />
                   {writerTotal !== 100 && (
-                    <p className="text-xs text-amber-600">
+                    <p className="text-xs text-muted-foreground">
                       {writerTotal < 100 ? `Missing ${100 - writerTotal}%` : `Exceeds by ${writerTotal - 100}%`}
                     </p>
                   )}
@@ -247,16 +369,16 @@ export default function WorkDetail() {
                     </TableHeader>
                     <TableBody>
                       {writerSplits.map((split) => (
-                        <TableRow key={split.id}>
+                        <TableRow key={split.id} className="hover-lift transition-smooth">
                           <TableCell className="font-medium">
                             {split.entity_name}
                           </TableCell>
                           <TableCell>{split.share}%</TableCell>
                           <TableCell>
                             {split.is_locked ? (
-                              <Lock className="h-3 w-3 text-muted-foreground" />
+                              <Badge variant="secondary" size="sm" icon={Lock}>Locked</Badge>
                             ) : (
-                              <Unlock className="h-3 w-3 text-muted-foreground" />
+                              <Badge variant="outline" size="sm" icon={Unlock}>Unlocked</Badge>
                             )}
                           </TableCell>
                         </TableRow>
@@ -282,15 +404,19 @@ export default function WorkDetail() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-sm items-center">
                     <span>Total Allocated</span>
-                    <span className={publisherTotal === 100 ? "text-green-600" : "text-amber-600"}>
+                    <Badge
+                      variant={publisherTotal === 100 ? "success" : "warning"}
+                      icon={publisherTotal === 100 ? CheckCircle2 : AlertTriangle}
+                      size="sm"
+                    >
                       {publisherTotal}%
-                    </span>
+                    </Badge>
                   </div>
                   <Progress value={publisherTotal} className="h-2" />
                   {publisherTotal !== 100 && (
-                    <p className="text-xs text-amber-600">
+                    <p className="text-xs text-muted-foreground">
                       {publisherTotal < 100 ? `Missing ${100 - publisherTotal}%` : `Exceeds by ${publisherTotal - 100}%`}
                     </p>
                   )}
@@ -418,6 +544,11 @@ export default function WorkDetail() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Activity Tab */}
+        <TabsContent value="activity">
+          <ActivityFeed activities={activities} maxHeight="600px" />
         </TabsContent>
       </Tabs>
 

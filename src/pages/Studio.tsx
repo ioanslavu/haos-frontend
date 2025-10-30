@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Plus, Search, Filter, Calendar, Clock, Users, Mic, Headphones, Music, Video, Settings, Eye, Edit2, Trash2, Play, Pause, Square, Record, DollarSign } from 'lucide-react';
+import { Plus, Search, Filter, Calendar, Clock, Users, Mic, Headphones, Music, Video, Settings, Eye, Edit2, Trash2, Play, Pause, Square, Record, DollarSign, CheckCircle2, Loader2, AlertTriangle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -131,31 +132,42 @@ const studioRooms = [
   }
 ];
 
-const getStatusColor = (status: string) => {
+const getStatusConfig = (status: string): { variant: any; icon: any } => {
   switch (status) {
     case 'In Progress':
-      return 'bg-blue-100 text-blue-800';
+      return { variant: 'info', icon: Loader2 };
     case 'Scheduled':
-      return 'bg-yellow-100 text-yellow-800';
+      return { variant: 'warning', icon: Calendar };
     case 'Completed':
-      return 'bg-green-100 text-green-800';
+      return { variant: 'success', icon: CheckCircle2 };
     case 'Cancelled':
-      return 'bg-red-100 text-red-800';
+      return { variant: 'destructive', icon: XCircle };
     default:
-      return 'bg-gray-100 text-gray-800';
+      return { variant: 'secondary', icon: Clock };
   }
 };
 
-const getEquipmentStatusColor = (status: string) => {
+const getEquipmentStatusConfig = (status: string): { variant: any; icon: any } => {
   switch (status) {
     case 'Available':
-      return 'bg-green-100 text-green-800';
+      return { variant: 'success', icon: CheckCircle2 };
     case 'In Use':
-      return 'bg-blue-100 text-blue-800';
+      return { variant: 'info', icon: Loader2 };
     case 'Maintenance':
-      return 'bg-red-100 text-red-800';
+      return { variant: 'destructive', icon: AlertTriangle };
     default:
-      return 'bg-gray-100 text-gray-800';
+      return { variant: 'secondary', icon: XCircle };
+  }
+};
+
+const getRoomStatusConfig = (status: string): { variant: any; icon: any } => {
+  switch (status) {
+    case 'Available':
+      return { variant: 'success', icon: CheckCircle2 };
+    case 'Occupied':
+      return { variant: 'info', icon: Users };
+    default:
+      return { variant: 'secondary', icon: XCircle };
   }
 };
 
@@ -368,56 +380,59 @@ export default function Studio() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredSessions.map((session) => (
-                      <TableRow key={session.id}>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{session.title}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {session.producer} • {session.engineer}
+                    {filteredSessions.map((session) => {
+                      const statusConfig = getStatusConfig(session.status);
+                      return (
+                        <TableRow key={session.id} className="hover-lift transition-smooth">
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{session.title}</div>
+                              <div className="text-sm text-muted-foreground">
+                                {session.producer} • {session.engineer}
+                              </div>
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>{session.artist}</TableCell>
-                        <TableCell>{session.studio}</TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            <div>{new Date(session.startTime).toLocaleDateString()}</div>
-                            <div className="text-muted-foreground">
-                              {new Date(session.startTime).toLocaleTimeString()} - {new Date(session.endTime).toLocaleTimeString()}
+                          </TableCell>
+                          <TableCell>{session.artist}</TableCell>
+                          <TableCell>{session.studio}</TableCell>
+                          <TableCell>
+                            <div className="text-sm">
+                              <div>{new Date(session.startTime).toLocaleDateString()}</div>
+                              <div className="text-muted-foreground">
+                                {new Date(session.startTime).toLocaleTimeString()} - {new Date(session.endTime).toLocaleTimeString()}
+                              </div>
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={getStatusColor(session.status)}>
-                            {session.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Progress value={(session.completedTracks / session.tracks) * 100} className="w-20" />
-                            <span className="text-sm text-muted-foreground">
-                              {session.completedTracks}/{session.tracks}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Button variant="ghost" size="sm">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm">
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                            {session.status === 'In Progress' && (
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={statusConfig.variant} icon={statusConfig.icon} size="sm">
+                              {session.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Progress value={(session.completedTracks / session.tracks) * 100} className="w-20" />
+                              <span className="text-sm text-muted-foreground">
+                                {session.completedTracks}/{session.tracks}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
                               <Button variant="ghost" size="sm">
-                                <Pause className="h-4 w-4" />
+                                <Eye className="h-4 w-4" />
                               </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                              <Button variant="ghost" size="sm">
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                              {session.status === 'In Progress' && (
+                                <Button variant="ghost" size="sm">
+                                  <Pause className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -443,30 +458,33 @@ export default function Studio() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {equipment.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-medium">{item.name}</TableCell>
-                        <TableCell>{item.type}</TableCell>
-                        <TableCell>{item.location}</TableCell>
-                        <TableCell>
-                          <Badge className={getEquipmentStatusColor(item.status)}>
-                            {item.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{new Date(item.lastMaintenance).toLocaleDateString()}</TableCell>
-                        <TableCell>{new Date(item.nextMaintenance).toLocaleDateString()}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Button variant="ghost" size="sm">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm">
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {equipment.map((item) => {
+                      const statusConfig = getEquipmentStatusConfig(item.status);
+                      return (
+                        <TableRow key={item.id} className="hover-lift transition-smooth">
+                          <TableCell className="font-medium">{item.name}</TableCell>
+                          <TableCell>{item.type}</TableCell>
+                          <TableCell>{item.location}</TableCell>
+                          <TableCell>
+                            <Badge variant={statusConfig.variant} icon={statusConfig.icon} size="sm">
+                              {item.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{new Date(item.lastMaintenance).toLocaleDateString()}</TableCell>
+                          <TableCell>{new Date(item.nextMaintenance).toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Button variant="ghost" size="sm">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm">
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -475,43 +493,46 @@ export default function Studio() {
 
           <TabsContent value="rooms" className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {studioRooms.map((room) => (
-                <Card key={room.id}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle>{room.name}</CardTitle>
-                      <Badge className={room.status === 'Available' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}>
-                        {room.status}
-                      </Badge>
-                    </div>
-                    <CardDescription>{room.type} Studio • ${room.hourlyRate}/hour</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Capacity:</span>
-                        <span>{room.capacity} people</span>
+              {studioRooms.map((room) => {
+                const statusConfig = getRoomStatusConfig(room.status);
+                return (
+                  <Card key={room.id} className="hover-lift transition-smooth">
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <CardTitle>{room.name}</CardTitle>
+                        <Badge variant={statusConfig.variant} icon={statusConfig.icon} size="sm">
+                          {room.status}
+                        </Badge>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Current Session:</span>
-                        <span className="text-muted-foreground">
-                          {room.currentSession || 'None'}
-                        </span>
-                      </div>
-                      <div className="pt-2">
-                        <h4 className="text-sm font-medium mb-1">Equipment:</h4>
-                        <div className="flex flex-wrap gap-1">
-                          {room.equipment.map((item, index) => (
-                            <Badge key={index} variant="outline" className="text-xs">
-                              {item}
-                            </Badge>
-                          ))}
+                      <CardDescription>{room.type} Studio • ${room.hourlyRate}/hour</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span>Capacity:</span>
+                          <span>{room.capacity} people</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Current Session:</span>
+                          <span className="text-muted-foreground">
+                            {room.currentSession || 'None'}
+                          </span>
+                        </div>
+                        <div className="pt-2">
+                          <h4 className="text-sm font-medium mb-1">Equipment:</h4>
+                          <div className="flex flex-wrap gap-1">
+                            {room.equipment.map((item, index) => (
+                              <Badge key={index} variant="outline" className="text-xs">
+                                {item}
+                              </Badge>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           </TabsContent>
         </Tabs>

@@ -15,7 +15,7 @@ interface Particle {
 
 export const ParticleField: React.FC = () => {
   const particles = useMemo<Particle[]>(() => {
-    return Array.from({ length: 15 }, (_, i) => ({
+    return Array.from({ length: 8 }, (_, i) => ({
       id: i,
       symbol: musicalSymbols[Math.floor(Math.random() * musicalSymbols.length)],
       x: Math.random() * 100,
@@ -81,31 +81,6 @@ export const ParticleField: React.FC = () => {
         ))}
       </div>
 
-      {/* Floating dots */}
-      {[...Array(20)].map((_, i) => (
-        <motion.div
-          key={`dot-${i}`}
-          className="absolute w-1 h-1 bg-gradient-to-r from-cyan-400 to-purple-400 rounded-full"
-          initial={{
-            x: Math.random() * window.innerWidth,
-            y: Math.random() * window.innerHeight,
-          }}
-          animate={{
-            x: Math.random() * window.innerWidth,
-            y: Math.random() * window.innerHeight,
-          }}
-          transition={{
-            duration: Math.random() * 20 + 10,
-            repeat: Infinity,
-            repeatType: "reverse",
-            ease: "linear",
-          }}
-          style={{
-            filter: 'blur(1px)',
-            boxShadow: '0 0 10px rgba(139, 92, 246, 0.5)',
-          }}
-        />
-      ))}
     </div>
   );
 };

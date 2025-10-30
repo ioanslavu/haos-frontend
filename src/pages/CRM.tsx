@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Search, LayoutGrid, LayoutList, Loader2, Phone, Mail, Building2, Calendar, Package, DollarSign, User } from 'lucide-react';
+import { Plus, Search, LayoutGrid, LayoutList, Loader2, Phone, Mail, Building2, Calendar, Package, DollarSign, User, Music } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
@@ -24,6 +25,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  NoCampaignsEmptyState,
+  NoClientsEmptyState,
+  NoSearchResultsEmptyState,
+} from '@/components/ui/empty-states-presets';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useEntities } from '@/api/hooks/useEntities';
 import { useCampaigns, useDeleteCampaign, useUpdateCampaign, useCampaignStats } from '@/api/hooks/useCampaigns';
@@ -332,23 +338,54 @@ export default function CRM() {
 
             {/* Campaigns View */}
             {campaignsLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
+              campaignViewMode === 'kanban' ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {Array.from({ length: 3 }).map((_, colIndex) => (
+                    <div key={colIndex} className="space-y-4">
+                      {Array.from({ length: 2 }).map((_, cardIndex) => (
+                        <Card key={cardIndex} className="hover-lift">
+                          <CardHeader>
+                            <Skeleton className="h-5 w-32 mb-2" />
+                            <Skeleton className="h-4 w-24" />
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            <Skeleton className="h-12 w-full" />
+                            <Skeleton className="h-4 w-full" />
+                            <Skeleton className="h-4 w-3/4" />
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Card key={i}>
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <Skeleton className="h-5 w-48" />
+                          <Skeleton className="h-8 w-24" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )
             ) : filteredCampaigns.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">
-                  {searchQuery || statusFilter !== 'all'
-                    ? 'No campaigns found matching your filters.'
-                    : 'No campaigns yet. Create your first campaign to get started.'}
-                </p>
-                {!searchQuery && statusFilter === 'all' && (
-                  <Button className="mt-4" onClick={handleNewCampaign}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create First Campaign
-                  </Button>
-                )}
-              </div>
+              searchQuery || statusFilter !== 'all' ? (
+                <NoSearchResultsEmptyState
+                  searchQuery={searchQuery}
+                  onClearSearch={() => {
+                    setSearchQuery('');
+                    setStatusFilter('all');
+                  }}
+                />
+              ) : (
+                <NoCampaignsEmptyState
+                  onPrimaryAction={handleNewCampaign}
+                />
+              )
             ) : campaignViewMode === 'kanban' ? (
               <ModernCampaignKanban
                 campaigns={filteredCampaigns}
@@ -406,29 +443,43 @@ export default function CRM() {
                 </div>
 
                 {clientsLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
-            ) : filteredClients.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">
-                  {searchQuery
-                    ? 'No clients found matching your search.'
-                    : 'No clients yet. Add your first client to get started.'}
-                </p>
-                {!searchQuery && (
-                  <Button className="mt-4" onClick={() => setFormDialogOpen(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add First Client
-                  </Button>
-                )}
-              </div>
-            ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <Card key={i} className="hover-lift">
+                        <CardHeader>
+                          <div className="flex items-center gap-3">
+                            <Skeleton className="h-12 w-12 rounded-full" />
+                            <div className="space-y-2">
+                              <Skeleton className="h-5 w-32" />
+                              <Skeleton className="h-4 w-20" />
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <Skeleton className="h-4 w-full" />
+                          <Skeleton className="h-4 w-full" />
+                          <Skeleton className="h-4 w-3/4" />
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : filteredClients.length === 0 ? (
+                  searchQuery ? (
+                    <NoSearchResultsEmptyState
+                      searchQuery={searchQuery}
+                      onClearSearch={() => setSearchQuery('')}
+                    />
+                  ) : (
+                    <NoClientsEmptyState
+                      onPrimaryAction={() => setFormDialogOpen(true)}
+                    />
+                  )
+                ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredClients.map((client) => (
                       <Card
                         key={client.id}
-                        className="hover:shadow-md transition-shadow cursor-pointer"
+                        className="hover-lift transition-smooth cursor-pointer"
                         onClick={() => {
                           setSelectedClientId(client.id);
                           navigate(`/crm?tab=clients&clientId=${client.id}`);
@@ -551,29 +602,52 @@ export default function CRM() {
                 </div>
 
                 {artistsLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <Card key={i} className="hover-lift">
+                        <CardHeader>
+                          <div className="flex items-center gap-3">
+                            <Skeleton className="h-12 w-12 rounded-full" />
+                            <div className="space-y-2">
+                              <Skeleton className="h-5 w-32" />
+                              <Skeleton className="h-4 w-16" />
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <Skeleton className="h-4 w-full" />
+                        </CardContent>
+                      </Card>
+                    ))}
                   </div>
                 ) : filteredArtists.length === 0 ? (
-                  <div className="text-center py-12">
-                    <p className="text-muted-foreground">
-                      {searchQuery
-                        ? 'No artists found matching your search.'
-                        : 'No artists yet. Add your first artist to get started.'}
-                    </p>
-                    {!searchQuery && (
-                      <Button className="mt-4" onClick={() => setFormDialogOpen(true)}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add First Artist
-                      </Button>
-                    )}
-                  </div>
+                  searchQuery ? (
+                    <NoSearchResultsEmptyState
+                      searchQuery={searchQuery}
+                      onClearSearch={() => setSearchQuery('')}
+                    />
+                  ) : (
+                    <NoClientsEmptyState
+                      title="No artists yet"
+                      description="Start building your artist roster by adding your first artist."
+                      icon={Music}
+                      primaryAction={{
+                        label: 'Add First Artist',
+                        onClick: () => setFormDialogOpen(true),
+                      }}
+                      tips={[
+                        'Artists can be linked to campaigns for promotion tracking',
+                        'Track artist performance and engagement',
+                        'Manage artist contracts and agreements',
+                      ]}
+                    />
+                  )
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredArtists.map((artist) => (
                       <Card
                         key={artist.id}
-                        className="hover:shadow-md transition-shadow cursor-pointer"
+                        className="hover-lift transition-smooth cursor-pointer"
                         onClick={() => {
                           setSelectedArtistId(artist.id);
                           navigate(`/crm?tab=artists&artistId=${artist.id}`);
@@ -588,7 +662,7 @@ export default function CRM() {
                             <div>
                               <CardTitle className="text-lg">{artist.display_name}</CardTitle>
                               <CardDescription>
-                                <Badge variant="outline">Artist</Badge>
+                                <Badge variant="secondary" icon={Music} size="sm">Artist</Badge>
                               </CardDescription>
                             </div>
                           </div>
@@ -645,29 +719,52 @@ export default function CRM() {
                 </div>
 
                 {brandsLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <Card key={i} className="hover-lift">
+                        <CardHeader>
+                          <div className="flex items-center gap-3">
+                            <Skeleton className="h-12 w-12 rounded-full" />
+                            <div className="space-y-2">
+                              <Skeleton className="h-5 w-32" />
+                              <Skeleton className="h-4 w-16" />
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <Skeleton className="h-4 w-full" />
+                        </CardContent>
+                      </Card>
+                    ))}
                   </div>
                 ) : filteredBrands.length === 0 ? (
-                  <div className="text-center py-12">
-                    <p className="text-muted-foreground">
-                      {searchQuery
-                        ? 'No brands found matching your search.'
-                        : 'No brands yet. Add your first brand to get started.'}
-                    </p>
-                    {!searchQuery && (
-                      <Button className="mt-4" onClick={() => setFormDialogOpen(true)}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add First Brand
-                      </Button>
-                    )}
-                  </div>
+                  searchQuery ? (
+                    <NoSearchResultsEmptyState
+                      searchQuery={searchQuery}
+                      onClearSearch={() => setSearchQuery('')}
+                    />
+                  ) : (
+                    <NoClientsEmptyState
+                      title="No brands yet"
+                      description="Start managing your brand partnerships by adding your first brand."
+                      icon={Package}
+                      primaryAction={{
+                        label: 'Add First Brand',
+                        onClick: () => setFormDialogOpen(true),
+                      }}
+                      tips={[
+                        'Brands can be linked to sponsorship campaigns',
+                        'Track brand partnerships and deals',
+                        'Manage brand contracts and deliverables',
+                      ]}
+                    />
+                  )
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredBrands.map((brand) => (
                       <Card
                         key={brand.id}
-                        className="hover:shadow-md transition-shadow cursor-pointer"
+                        className="hover-lift transition-smooth cursor-pointer"
                         onClick={() => {
                           setSelectedBrandId(brand.id);
                           navigate(`/crm?tab=brands&brandId=${brand.id}`);
@@ -682,7 +779,7 @@ export default function CRM() {
                             <div>
                               <CardTitle className="text-lg">{brand.display_name}</CardTitle>
                               <CardDescription>
-                                <Badge variant="outline">Brand</Badge>
+                                <Badge variant="secondary" icon={Package} size="sm">Brand</Badge>
                               </CardDescription>
                             </div>
                           </div>

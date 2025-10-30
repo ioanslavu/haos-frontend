@@ -386,19 +386,15 @@ export default function Analytics() {
               </TableHeader>
               <TableBody>
                 {importHistory.map((import_) => (
-                  <TableRow key={import_.id}>
+                  <TableRow key={import_.id} className="hover-lift transition-smooth">
                     <TableCell className="font-medium">{import_.source}</TableCell>
                     <TableCell>{import_.date}</TableCell>
                     <TableCell>
-                      <Badge 
-                        variant={import_.status === 'Success' ? 'default' : 'destructive'}
-                        className="flex items-center gap-1 w-fit"
+                      <Badge
+                        variant={import_.status === 'Success' ? 'success' : 'destructive'}
+                        icon={import_.status === 'Success' ? CheckCircle : AlertTriangle}
+                        size="sm"
                       >
-                        {import_.status === 'Success' ? (
-                          <CheckCircle className="h-3 w-3" />
-                        ) : (
-                          <AlertTriangle className="h-3 w-3" />
-                        )}
                         {import_.status}
                       </Badge>
                     </TableCell>
@@ -435,13 +431,15 @@ export default function Analytics() {
               </TableHeader>
               <TableBody>
                 {payoutQueue.map((payout) => (
-                  <TableRow key={payout.id}>
+                  <TableRow key={payout.id} className="hover-lift transition-smooth">
                     <TableCell className="font-medium">{payout.party}</TableCell>
                     <TableCell>${payout.amount.toLocaleString()}</TableCell>
                     <TableCell>{payout.period}</TableCell>
                     <TableCell>
-                      <Badge 
-                        variant={payout.status === 'Ready' ? 'default' : 'secondary'}
+                      <Badge
+                        variant={payout.status === 'Ready' ? 'success' : 'warning'}
+                        icon={payout.status === 'Ready' ? CheckCircle : AlertTriangle}
+                        size="sm"
                       >
                         {payout.status}
                       </Badge>

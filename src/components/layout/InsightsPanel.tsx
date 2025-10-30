@@ -1,9 +1,10 @@
 
 import React from 'react';
-import { X, TrendingUp, AlertCircle, Clock, DollarSign } from 'lucide-react';
+import { X, TrendingUp, AlertCircle, Clock, DollarSign, Sparkles, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 
 interface InsightsPanelProps {
@@ -15,12 +16,16 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({ isOpen, onClose })
   if (!isOpen) return null;
 
   return (
-    <aside className="w-80 bg-white border-l border-slate-200 flex flex-col">
-      <div className="p-4 border-b border-slate-200">
+    <aside className="w-80 bg-background border-l border flex flex-col dark:bg-card">
+      <div className="p-4 border-b">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-slate-900">Insights</h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <h2 className="font-semibold">AI Insights</h2>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onClose} className="touch-target">
             <X className="h-4 w-4" />
+            <span className="sr-only">Close insights panel</span>
           </Button>
         </div>
       </div>
@@ -34,17 +39,44 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({ isOpen, onClose })
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-slate-600">Monthly Revenue</span>
-              <span className="font-medium">$45,230</span>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Monthly Revenue</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold">$45,230</span>
+                  <div className="flex items-center text-green-600 text-xs">
+                    <ArrowUpRight className="h-3 w-3" />
+                    12.5%
+                  </div>
+                </div>
+              </div>
+              <Progress value={75} className="h-1" />
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-slate-600">Active Contracts</span>
-              <span className="font-medium">127</span>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Active Contracts</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold">127</span>
+                  <div className="flex items-center text-green-600 text-xs">
+                    <ArrowUpRight className="h-3 w-3" />
+                    3
+                  </div>
+                </div>
+              </div>
+              <Progress value={63} className="h-1" />
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-slate-600">Pending Royalties</span>
-              <span className="font-medium text-orange-600">$8,450</span>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Pending Royalties</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-warning">$8,450</span>
+                  <div className="flex items-center text-red-600 text-xs">
+                    <ArrowDownRight className="h-3 w-3" />
+                    5.2%
+                  </div>
+                </div>
+              </div>
+              <Progress value={28} className="h-1" />
             </div>
           </CardContent>
         </Card>

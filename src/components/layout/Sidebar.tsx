@@ -46,6 +46,7 @@ interface NavigationItem {
   href: string;
   icon: any;
   show?: (user: any) => boolean;
+  tourId?: string; // data-tour attribute for onboarding tours
 }
 
 const navigation: NavigationItem[] = [
@@ -53,32 +54,37 @@ const navigation: NavigationItem[] = [
     name: 'Overview',
     href: '/',
     icon: LayoutDashboard,
-    show: (user) => user?.role !== 'guest'
+    show: (user) => user?.role !== 'guest',
+    tourId: 'dashboard-nav',
   },
   {
     name: 'Contracts',
     href: '/contracts',
     icon: FileText,
-    show: (user) => user?.role === 'administrator' // Only admins
+    show: (user) => user?.role === 'administrator', // Only admins
+    tourId: 'contracts-nav',
   },
   {
     name: 'Templates',
     href: '/templates',
     icon: Layout,
-    show: (user) => user?.role === 'administrator' // Only admins
+    show: (user) => user?.role === 'administrator', // Only admins
+    tourId: 'templates-nav',
   },
-  // { name: 'BI & Analytics', href: '/analytics', icon: BarChart3 },
+  // { name: 'BI & Analytics', href: '/analytics', icon: BarChart3, tourId: 'analytics-nav' },
   {
     name: 'CRM',
     href: '/crm',
     icon: Briefcase,
-    show: (user) => user?.role !== 'guest' && (user?.department || user?.role === 'administrator')
+    show: (user) => user?.role !== 'guest' && (user?.department || user?.role === 'administrator'),
+    tourId: 'crm-nav',
   },
   {
     name: 'Catalog',
     href: '/catalog',
     icon: Music,
-    show: (user) => user?.role === 'administrator' // Only admins
+    show: (user) => user?.role === 'administrator', // Only admins
+    tourId: 'catalog-nav',
   },
   // { name: 'Studio', href: '/studio', icon: Calendar },
   // { name: 'Tasks', href: '/tasks', icon: CheckSquare },
@@ -86,12 +92,13 @@ const navigation: NavigationItem[] = [
     name: 'Company Settings',
     href: '/company-settings',
     icon: Settings,
-    show: (user) => user?.role === 'administrator' // Only admins
+    show: (user) => user?.role === 'administrator', // Only admins
+    tourId: 'settings-nav',
   },
 ];
 
 const entitySubmenu: NavigationItem[] = [
-  { name: 'All Entities', href: '/entities', icon: Users },
+  { name: 'All Entities', href: '/entities', icon: Users, tourId: 'entities-nav' },
   { name: 'Clients', href: '/entities/clients', icon: User },
   { name: 'Artists', href: '/entities/artists', icon: User },
   { name: 'Writers', href: '/entities/writers', icon: User },
@@ -101,9 +108,9 @@ const entitySubmenu: NavigationItem[] = [
 ];
 
 const adminNavigation: NavigationItem[] = [
-  { name: 'User Management', href: '/users/management', icon: UserCog },
-  { name: 'Roles & Permissions', href: '/roles', icon: Shield },
-  { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'User Management', href: '/users/management', icon: UserCog, tourId: 'users-nav' },
+  { name: 'Roles & Permissions', href: '/roles', icon: Shield, tourId: 'roles-nav' },
+  { name: 'Settings', href: '/settings', icon: Settings, tourId: 'settings-nav' },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
@@ -150,6 +157,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                 <NavLink
                   to={item.href}
                   end={item.href === '/'}
+                  data-tour={item.tourId}
                   className={({ isActive }) =>
                     cn(
                       "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
@@ -198,6 +206,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                     <li key={item.name}>
                       <NavLink
                         to={item.href}
+                        data-tour={item.tourId}
                         className={({ isActive }) =>
                           cn(
                             "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
@@ -268,12 +277,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                 <li key={item.name}>
                   <NavLink
                     to={item.href}
+                    data-tour={item.tourId}
                     className={({ isActive }) =>
                       cn(
                         "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
                         "hover:bg-slate-800 hover:text-white",
-                        isActive 
-                          ? "bg-blue-600 text-white" 
+                        isActive
+                          ? "bg-blue-600 text-white"
                           : "text-slate-300",
                         collapsed && "justify-center px-2"
                       )
@@ -292,10 +302,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
       <div className="p-4 border-t border-slate-800">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className={cn(
-              "flex items-center gap-3 w-full hover:bg-slate-800 rounded-md p-2 transition-colors",
-              collapsed && "justify-center p-0"
-            )}>
+            <button
+              data-tour="profile-menu"
+              className={cn(
+                "flex items-center gap-3 w-full hover:bg-slate-800 rounded-md p-2 transition-colors",
+                collapsed && "justify-center p-0"
+              )}
+            >
               <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
                 {user?.first_name?.charAt(0) || 'U'}{user?.last_name?.charAt(0) || ''}
               </div>

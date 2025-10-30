@@ -79,19 +79,9 @@ const Login: React.FC = () => {
         </div>
       </div>
 
-      {/* Decorative elements */}
-      <motion.div
-        className="absolute bottom-10 left-10 text-gray-600 text-xs"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 0.5 }}
-        transition={{ duration: 1, delay: 2 }}
-      >
-        <p>© 2024 HaOS</p>
-        <p>Powered by Sound & Vision</p>
-      </motion.div>
 
       <motion.div
-        className="absolute top-10 left-10 flex gap-2"
+        className="absolute top-10 left-10 flex gap-2 pointer-events-none"
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.5, delay: 1 }}

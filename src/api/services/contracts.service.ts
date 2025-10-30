@@ -164,6 +164,31 @@ export interface RegenerateContractPayload {
   placeholder_values: Record<string, any>;
 }
 
+export interface AuditEvent {
+  timestamp: string;
+  event_type: string;
+  event_category: 'contract' | 'signature' | 'webhook' | 'system';
+  actor: string | null;
+  description: string;
+  changes: Record<string, any> | null;
+  metadata: Record<string, any> | null;
+  source: string;
+}
+
+export interface ContractAuditTrail {
+  contract_id: number;
+  contract_number: string;
+  current_status: string;
+  events: AuditEvent[];
+  summary: {
+    total_events: number;
+    contract_changes: number;
+    webhook_events: number;
+    signature_events: number;
+    unique_actors: number;
+  };
+}
+
 class ContractsService {
   // Templates
   async getTemplates(): Promise<ContractTemplate[]> {
@@ -281,6 +306,13 @@ class ContractsService {
   async checkContractStatus(id: number): Promise<{ status: string; error_message?: string }> {
     const response = await apiClient.get<{ status: string; error_message?: string }>(
       `${CONTRACTS_BASE}/contracts/${id}/check_status/`
+    );
+    return response.data;
+  }
+
+  async getContractAuditTrail(id: number): Promise<ContractAuditTrail> {
+    const response = await apiClient.get<ContractAuditTrail>(
+      `${CONTRACTS_BASE}/contracts/${id}/audit_trail/`
     );
     return response.data;
   }

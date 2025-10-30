@@ -23,6 +23,7 @@ export const API_ENDPOINTS = {
   },
   USERS: {
     LIST: `${API_BASE_URL}/api/v1/users/`,
+    DEPARTMENT: `${API_BASE_URL}/api/v1/users/department/`,
     DETAIL: (id: string) => `${API_BASE_URL}/api/v1/users/${id}/`,
     UPDATE: (id: string) => `${API_BASE_URL}/api/v1/users/${id}/`,
     UPDATE_ME: `${API_BASE_URL}/api/users/me/`,

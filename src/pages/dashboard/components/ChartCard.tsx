@@ -1,7 +1,9 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
+import { Button } from '@/components/ui/button';
+import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, Tooltip, CartesianGrid, Legend } from 'recharts';
+import { Download, Maximize2 } from 'lucide-react';
 
 interface ChartCardProps {
   title: string;
@@ -34,6 +36,13 @@ const barData = [
 ];
 
 export const ChartCard: React.FC<ChartCardProps> = ({ title, subtitle, type }) => {
+  const [isHovered, setIsHovered] = useState(false);
+
+  const handleExport = () => {
+    console.log('Export chart data:', type);
+    // Could export to CSV/PNG
+  };
+
   const renderChart = () => {
     switch (type) {
       case 'area':
@@ -42,28 +51,39 @@ export const ChartCard: React.FC<ChartCardProps> = ({ title, subtitle, type }) =
             <AreaChart data={areaData}>
               <defs>
                 <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1}/>
+                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.05}/>
                 </linearGradient>
               </defs>
-              <XAxis 
-                dataKey="month" 
-                axisLine={false} 
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+              <XAxis
+                dataKey="month"
+                axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 12, fill: '#64748b' }}
+                tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
               />
-              <YAxis 
-                axisLine={false} 
+              <YAxis
+                axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 12, fill: '#64748b' }}
+                tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                 tickFormatter={(value) => `$${value / 1000}k`}
               />
-              <Area 
-                type="monotone" 
-                dataKey="revenue" 
-                stroke="#3b82f6" 
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'hsl(var(--popover))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: 'var(--radius)',
+                }}
+                labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']}
+              />
+              <Area
+                type="monotone"
+                dataKey="revenue"
+                stroke="hsl(var(--primary))"
                 strokeWidth={2}
-                fill="url(#colorRevenue)" 
+                fill="url(#colorRevenue)"
+                animationDuration={1000}
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -108,22 +128,36 @@ export const ChartCard: React.FC<ChartCardProps> = ({ title, subtitle, type }) =
         return (
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={barData} layout="horizontal">
-              <XAxis 
-                type="number" 
-                axisLine={false} 
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+              <XAxis
+                type="number"
+                axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 12, fill: '#64748b' }}
+                tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                 tickFormatter={(value) => `$${value / 1000}k`}
               />
-              <YAxis 
-                type="category" 
-                dataKey="track" 
-                axisLine={false} 
+              <YAxis
+                type="category"
+                dataKey="track"
+                axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 12, fill: '#64748b' }}
-                width={80}
+                tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                width={100}
               />
-              <Bar dataKey="revenue" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'hsl(var(--popover))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: 'var(--radius)',
+                }}
+                formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']}
+              />
+              <Bar
+                dataKey="revenue"
+                fill="hsl(var(--primary))"
+                radius={[0, 4, 4, 0]}
+                animationDuration={1000}
+              />
             </BarChart>
           </ResponsiveContainer>
         );
@@ -161,10 +195,31 @@ export const ChartCard: React.FC<ChartCardProps> = ({ title, subtitle, type }) =
   };
 
   return (
-    <Card>
+    <Card
+      className="hover-lift transition-smooth"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg font-semibold">{title}</CardTitle>
-        <p className="text-sm text-slate-600">{subtitle}</p>
+        <div className="flex items-start justify-between">
+          <div>
+            <CardTitle className="text-lg font-semibold">{title}</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
+          </div>
+          {isHovered && (
+            <div className="flex gap-1 fade-in">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={handleExport}
+                aria-label="Export chart data"
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         {renderChart()}

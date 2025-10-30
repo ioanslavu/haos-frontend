@@ -163,6 +163,10 @@ const mockUser: User = {
   permissions: ['*'],
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
+  // Role and setup fields
+  role: 'administrator',
+  setup_completed: true,
+  profile_picture: null,
 };
 
 export const useAuthStore = create<AuthState>()(

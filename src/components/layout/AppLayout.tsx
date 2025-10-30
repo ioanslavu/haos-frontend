@@ -3,6 +3,7 @@ import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { InsightsPanel } from './InsightsPanel';
 import { ImpersonationBanner } from './ImpersonationBanner';
+import { ProductTour } from '@/components/onboarding/ProductTour';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/uiStore';
 
@@ -36,7 +37,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           collapsed={sidebarCollapsed}
           onCollapse={setSidebarCollapsed}
         />
-        
+
         <main className={cn(
           "flex-1 overflow-auto bg-white transition-all duration-200",
           "border-r border-slate-200"
@@ -45,12 +46,15 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             {children}
           </div>
         </main>
-        
-        <InsightsPanel 
+
+        <InsightsPanel
           isOpen={insightsPanelOpen}
           onClose={() => setInsightsPanelOpen(false)}
         />
       </div>
+
+      {/* Onboarding Product Tour */}
+      <ProductTour />
     </div>
   );
 };

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 
 export const BackgroundVisualizer: React.FC = () => {
   const bars = useMemo(() => {
-    const barCount = 20;
+    const barCount = 12;
     return Array.from({ length: barCount }, (_, i) => ({
       id: i,
       height: Math.random() * 100 + 50,
@@ -38,54 +38,6 @@ export const BackgroundVisualizer: React.FC = () => {
         ))}
       </div>
 
-      {/* Additional ambient bars on the sides */}
-      <div className="absolute top-0 left-0 h-full flex flex-col justify-center gap-2">
-        {[...Array(8)].map((_, i) => (
-          <motion.div
-            key={`left-${i}`}
-            className="h-1 bg-gradient-to-r from-purple-500/20 to-transparent"
-            initial={{ scaleX: 0, opacity: 0 }}
-            animate={{
-              scaleX: [0, 1, 0],
-              opacity: [0, 0.5, 0],
-            }}
-            transition={{
-              duration: 3,
-              delay: i * 0.3,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-            style={{
-              width: `${Math.random() * 100 + 50}px`,
-              transformOrigin: 'left',
-            }}
-          />
-        ))}
-      </div>
-
-      <div className="absolute top-0 right-0 h-full flex flex-col justify-center gap-2 items-end">
-        {[...Array(8)].map((_, i) => (
-          <motion.div
-            key={`right-${i}`}
-            className="h-1 bg-gradient-to-l from-cyan-500/20 to-transparent"
-            initial={{ scaleX: 0, opacity: 0 }}
-            animate={{
-              scaleX: [0, 1, 0],
-              opacity: [0, 0.5, 0],
-            }}
-            transition={{
-              duration: 3,
-              delay: i * 0.3 + 0.5,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-            style={{
-              width: `${Math.random() * 100 + 50}px`,
-              transformOrigin: 'right',
-            }}
-          />
-        ))}
-      </div>
     </div>
   );
 };

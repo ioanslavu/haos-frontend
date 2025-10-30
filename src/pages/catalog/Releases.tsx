@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Disc, Search, Calendar, Edit, Eye, Package } from 'lucide-react';
+import { Plus, Disc, Search, Calendar, Edit, Eye, Package, Music, Album, Radio, FileMusic, Film, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -18,15 +18,19 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useNavigate } from 'react-router-dom';
 import { useReleases, useUpcomingReleases, useRecentReleases } from '@/api/hooks/useCatalog';
 import { Loader2 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { NoCatalogItemsEmptyState, NoSearchResultsEmptyState } from '@/components/ui/empty-states-presets';
 import { format } from 'date-fns';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { ViewModeToggle, useViewMode } from '@/components/ui/view-mode-toggle';
 
 export default function Releases() {
   const navigate = useNavigate();
+  const [viewMode, setViewMode] = useViewMode('releases', 'table');
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -54,18 +58,37 @@ export default function Releases() {
     navigate('/catalog/releases/new');
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusConfig = (status: string): { variant: any; icon: any } => {
     switch (status) {
       case 'draft':
-        return 'secondary';
+        return { variant: 'secondary', icon: Edit };
       case 'scheduled':
-        return 'default';
+        return { variant: 'warning', icon: Calendar };
       case 'released':
-        return 'outline';
+        return { variant: 'success', icon: CheckCircle2 };
       case 'withdrawn':
-        return 'destructive';
+        return { variant: 'destructive', icon: Radio };
       default:
-        return 'secondary';
+        return { variant: 'secondary', icon: FileMusic };
+    }
+  };
+
+  const getTypeConfig = (type: string): { variant: any; icon: any } => {
+    switch (type) {
+      case 'single':
+        return { variant: 'default', icon: Music };
+      case 'ep':
+        return { variant: 'secondary', icon: Disc };
+      case 'album':
+        return { variant: 'outline', icon: Album };
+      case 'compilation':
+        return { variant: 'outline', icon: Package };
+      case 'live_album':
+        return { variant: 'destructive', icon: Radio };
+      case 'soundtrack':
+        return { variant: 'info', icon: Film };
+      default:
+        return { variant: 'secondary', icon: FileMusic };
     }
   };
 
@@ -97,7 +120,7 @@ export default function Releases() {
             Manage albums, singles, EPs, and compilations
           </p>
         </div>
-        <Button onClick={handleCreateRelease}>
+        <Button onClick={handleCreateRelease} aria-label="Create new release">
           <Plus className="mr-2 h-4 w-4" />
           New Release
         </Button>
@@ -157,6 +180,7 @@ export default function Releases() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-8"
+              aria-label="Search releases"
             />
           </div>
         </div>
@@ -186,11 +210,17 @@ export default function Releases() {
             <SelectItem value="withdrawn">Withdrawn</SelectItem>
           </SelectContent>
         </Select>
+        <ViewModeToggle
+          value={viewMode}
+          onValueChange={setViewMode}
+          availableModes={['table', 'grid']}
+        />
       </div>
 
-      {/* Table */}
-      <div className="rounded-md border">
-        <Table>
+      {/* Content */}
+      {viewMode === 'table' ? (
+        <div className="rounded-md border">
+          <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="w-12"></TableHead>
@@ -207,15 +237,38 @@ export default function Releases() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={10} className="text-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                </TableCell>
-              </TableRow>
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell><Skeleton className="h-10 w-10 rounded" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-48" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-12" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                </TableRow>
+              ))
             ) : releases.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                  No releases found
+                <TableCell colSpan={10} className="p-0">
+                  {searchQuery || typeFilter || statusFilter ? (
+                    <NoSearchResultsEmptyState
+                      searchQuery={searchQuery}
+                      onClearSearch={() => {
+                        setSearchQuery('');
+                        setTypeFilter('');
+                        setStatusFilter('');
+                      }}
+                    />
+                  ) : (
+                    <NoCatalogItemsEmptyState
+                      itemType="releases"
+                      onPrimaryAction={handleCreateRelease}
+                    />
+                  )}
                 </TableCell>
               </TableRow>
             ) : (
@@ -245,14 +298,24 @@ export default function Releases() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">
-                      {release.type.replace('_', ' ')}
-                    </Badge>
+                    {(() => {
+                      const config = getTypeConfig(release.type);
+                      return (
+                        <Badge variant={config.variant} icon={config.icon} size="sm">
+                          {release.type.replace('_', ' ')}
+                        </Badge>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={getStatusColor(release.status) as any}>
-                      {release.status}
-                    </Badge>
+                    {(() => {
+                      const config = getStatusConfig(release.status);
+                      return (
+                        <Badge variant={config.variant} icon={config.icon} size="sm">
+                          {release.status}
+                        </Badge>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell>
                     {release.release_date ? (
@@ -310,7 +373,147 @@ export default function Releases() {
             )}
           </TableBody>
         </Table>
-      </div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <Card key={i} className="p-4">
+                  <Skeleton className="h-48 w-full mb-4 rounded" />
+                  <Skeleton className="h-6 w-3/4 mb-2" />
+                  <Skeleton className="h-4 w-1/2" />
+                </Card>
+              ))}
+            </div>
+          ) : releases.length === 0 ? (
+            searchQuery || typeFilter || statusFilter ? (
+              <NoSearchResultsEmptyState
+                searchQuery={searchQuery}
+                onClearSearch={() => {
+                  setSearchQuery('');
+                  setTypeFilter('');
+                  setStatusFilter('');
+                }}
+              />
+            ) : (
+              <NoCatalogItemsEmptyState
+                itemType="releases"
+                onPrimaryAction={handleCreateRelease}
+              />
+            )
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {releases.map((release) => {
+                const typeConfig = getTypeConfig(release.type);
+                const statusConfig = getStatusConfig(release.status);
+
+                return (
+                  <Card
+                    key={release.id}
+                    className="hover-lift transition-smooth cursor-pointer overflow-hidden"
+                    onClick={() => handleViewRelease(release.id)}
+                  >
+                    <div className="aspect-square relative bg-muted">
+                      {release.artwork_url ? (
+                        <img
+                          src={release.artwork_url}
+                          alt={release.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-4xl font-bold text-muted-foreground">
+                          {getReleaseTypeIcon(release.type)}
+                        </div>
+                      )}
+                      <div className="absolute top-2 right-2">
+                        <Badge variant={statusConfig.variant} icon={statusConfig.icon} size="sm">
+                          {release.status}
+                        </Badge>
+                      </div>
+                    </div>
+                    <CardHeader>
+                      <CardTitle className="text-lg">{release.title}</CardTitle>
+                      {release.catalog_number && (
+                        <CardDescription className="text-xs">
+                          Cat# {release.catalog_number}
+                        </CardDescription>
+                      )}
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant={typeConfig.variant} icon={typeConfig.icon} size="sm">
+                          {release.type.replace('_', ' ')}
+                        </Badge>
+                        {release.upc && (
+                          <Badge variant="outline" size="sm">{release.upc}</Badge>
+                        )}
+                      </div>
+
+                      <div className="space-y-2 text-sm">
+                        {release.release_date && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Release:</span>
+                            <div className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3 text-muted-foreground" />
+                              <span className="font-medium">
+                                {format(new Date(release.release_date), 'MMM d, yyyy')}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                        {release.label_name && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Label:</span>
+                            <span className="font-medium truncate ml-2">{release.label_name}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Tracks:</span>
+                          <Badge>{release.track_count || 0}</Badge>
+                        </div>
+                        {release.formatted_total_duration && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Duration:</span>
+                            <span className="font-medium">{release.formatted_total_duration}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex gap-2 pt-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="flex-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewRelease(release.id);
+                          }}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          View
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="flex-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/catalog/releases/${release.id}/edit`);
+                          }}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Pagination */}
       {totalPages > 1 && (

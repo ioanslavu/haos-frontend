@@ -27,7 +27,19 @@ import {
   Loader2,
   History,
   Key,
+  CheckCircle2,
+  XCircle,
+  UserCheck,
+  UserX,
+  Crown,
+  Briefcase,
+  BarChart3,
+  Wrench,
+  Palette,
+  Music,
 } from 'lucide-react';
+import { StatusBadge } from '@/components/ui/badge-examples';
+import { ErrorEmptyState } from '@/components/ui/empty-states-presets';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -174,28 +186,23 @@ export default function UsersPage() {
     unlockUser.mutate(user.id);
   };
 
-  const getRoleBadgeColor = (role: string) => {
-    if (role.includes('ADMIN')) return 'bg-red-100 text-red-800';
-    if (role.includes('MANAGER')) return 'bg-blue-100 text-blue-800';
-    if (role.includes('ANALYST')) return 'bg-green-100 text-green-800';
-    if (role.includes('COORDINATOR')) return 'bg-purple-100 text-purple-800';
-    if (role === 'ARTIST') return 'bg-indigo-100 text-indigo-800';
-    if (role === 'PUBLISHER') return 'bg-yellow-100 text-yellow-800';
-    return 'bg-gray-100 text-gray-800';
+  const getRoleBadgeConfig = (role: string): { variant: any; icon: any } => {
+    if (role.includes('ADMIN')) return { variant: 'destructive', icon: Crown };
+    if (role.includes('MANAGER')) return { variant: 'info', icon: Briefcase };
+    if (role.includes('ANALYST')) return { variant: 'success', icon: BarChart3 };
+    if (role.includes('COORDINATOR')) return { variant: 'ai', icon: Wrench };
+    if (role === 'ARTIST') return { variant: 'subtle-info', icon: Music };
+    if (role === 'PUBLISHER') return { variant: 'warning', icon: Palette };
+    return { variant: 'secondary', icon: Shield };
   };
 
   if (error) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <p className="text-muted-foreground">Failed to load users</p>
-            <Button onClick={() => window.location.reload()} className="mt-4" variant="outline">
-              Retry
-            </Button>
-          </div>
-        </div>
+        <ErrorEmptyState
+          errorMessage="Failed to load users"
+          onRetry={() => window.location.reload()}
+        />
       </AppLayout>
     );
   }
@@ -355,11 +362,19 @@ export default function UsersPage() {
                         <TableCell>
                           {user.roles.length > 0 ? (
                             <div className="flex flex-wrap gap-1">
-                              {user.roles.map((role) => (
-                                <Badge key={role} className={getRoleBadgeColor(role)}>
-                                  {role.replace(/_/g, ' ')}
-                                </Badge>
-                              ))}
+                              {user.roles.map((role) => {
+                                const config = getRoleBadgeConfig(role);
+                                return (
+                                  <Badge
+                                    key={role}
+                                    variant={config.variant}
+                                    icon={config.icon}
+                                    size="sm"
+                                  >
+                                    {role.replace(/_/g, ' ')}
+                                  </Badge>
+                                );
+                              })}
                             </div>
                           ) : (
                             <span className="text-muted-foreground">No role</span>
@@ -369,16 +384,16 @@ export default function UsersPage() {
                         <TableCell>
                           <div className="flex items-center gap-1">
                             <Badge
-                              className={
-                                user.is_active
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-gray-100 text-gray-800'
-                              }
+                              variant={user.is_active ? 'subtle-success' : 'secondary'}
+                              icon={user.is_active ? CheckCircle2 : XCircle}
+                              size="sm"
                             >
                               {user.is_active ? 'Active' : 'Inactive'}
                             </Badge>
                             {user.is_locked && (
-                              <Badge className="bg-red-100 text-red-800">Locked</Badge>
+                              <Badge variant="subtle-destructive" icon={Lock} size="sm">
+                                Locked
+                              </Badge>
                             )}
                           </div>
                         </TableCell>
@@ -388,7 +403,7 @@ export default function UsersPage() {
                             : 'Never'}
                         </TableCell>
                         <TableCell className="text-right">
-                          <DropdownMenu>
+                          <DropdownMenu modal={false}>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" className="h-8 w-8 p-0">
                                 <span className="sr-only">Open menu</span>
@@ -516,11 +531,14 @@ export default function UsersPage() {
               <div>
                 <Label>Current Role</Label>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {selectedUser?.roles[0] ? (
-                    <Badge className={getRoleBadgeColor(selectedUser.roles[0])}>
-                      {selectedUser.roles[0].replace(/_/g, ' ')}
-                    </Badge>
-                  ) : (
+                  {selectedUser?.roles[0] ? (() => {
+                    const config = getRoleBadgeConfig(selectedUser.roles[0]);
+                    return (
+                      <Badge variant={config.variant} icon={config.icon} size="sm">
+                        {selectedUser.roles[0].replace(/_/g, ' ')}
+                      </Badge>
+                    );
+                  })() : (
                     'No role assigned'
                   )}
                 </p>

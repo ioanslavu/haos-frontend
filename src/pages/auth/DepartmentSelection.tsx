@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { useCreateDepartmentRequest, useDepartmentRequests } from '@/api/hooks/useUsers';
+import { useCreateDepartmentRequest, useDepartmentRequests, useCancelDepartmentRequest } from '@/api/hooks/useUsers';
 import { useAuthStore } from '@/stores/authStore';
 import { cn } from '@/lib/utils';
 
@@ -22,6 +22,7 @@ export default function DepartmentSelection() {
   const [showDialog, setShowDialog] = useState(false);
 
   const createRequestMutation = useCreateDepartmentRequest();
+  const cancelRequestMutation = useCancelDepartmentRequest();
   const { data: requests, refetch } = useDepartmentRequests();
 
   // Check for existing pending request
@@ -54,9 +55,16 @@ export default function DepartmentSelection() {
     }
   };
 
-  const handleChangeRequest = () => {
-    // Allow user to request a different department
-    refetch();
+  const handleChangeRequest = async () => {
+    // Cancel the pending request so user can select a different department
+    if (pendingRequest) {
+      try {
+        await cancelRequestMutation.mutateAsync(pendingRequest.id);
+        refetch(); // Refresh to hide pending request screen
+      } catch (error) {
+        console.error('Cancel failed:', error);
+      }
+    }
   };
 
   // If user already has pending request, show waiting screen
@@ -91,8 +99,16 @@ export default function DepartmentSelection() {
               variant="outline"
               onClick={handleChangeRequest}
               className="w-full"
+              disabled={cancelRequestMutation.isPending}
             >
-              Request Different Department
+              {cancelRequestMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Canceling...
+                </>
+              ) : (
+                'Request Different Department'
+              )}
             </Button>
           </Card>
 

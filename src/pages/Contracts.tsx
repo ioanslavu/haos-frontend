@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, ExternalLink, Share2, Send, Eye, Edit, Trash2, RefreshCw, MoreVertical } from 'lucide-react';
 import { ColumnDef } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { EditContractDialog } from '@/components/contracts/EditContractDialog';
 import { RegenerateContractDialog } from '@/components/contracts/RegenerateContractDialog';
 import { SendForSignatureDialog } from '@/components/contracts/SendForSignatureDialog';
 import { SignatureStatusDialog } from '@/components/contracts/SignatureStatusDialog';
+import { ContractDetailSheet } from '@/components/contracts/ContractDetailSheet';
 import { useContracts, useTemplates, useMakeContractPublic, useDeleteContract } from '@/api/hooks/useContracts';
 import { useAuthStore } from '@/stores/authStore';
 import { useMyContractsMatrix } from '@/api/hooks/useContractsRBAC';
@@ -61,6 +62,8 @@ export default function ContractsModern() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [contractToDelete, setContractToDelete] = useState<Contract | null>(null);
   const [selectedRows, setSelectedRows] = useState<Contract[]>([]);
+  const [detailSheetContractId, setDetailSheetContractId] = useState<number | null>(null);
+  const [detailSheetOpen, setDetailSheetOpen] = useState(false);
 
   const { data: contracts, isLoading, error, refetch } = useContracts();
   const { data: templates } = useTemplates();
@@ -68,6 +71,19 @@ export default function ContractsModern() {
   const deleteContractMutation = useDeleteContract();
   const currentUser = useAuthStore((s) => s.user);
   const { data: myMatrix } = useMyContractsMatrix(currentUser?.id);
+
+  // Safety cleanup: Remove pointer-events: none from body when all dialogs are closed
+  useEffect(() => {
+    const allDialogsClosed = !editContract && !regenerateContract && !sendForSignatureContract && !signatureStatusContract && !deleteDialogOpen && !detailSheetOpen;
+
+    if (allDialogsClosed) {
+      // Small delay to let animations finish
+      const timer = setTimeout(() => {
+        document.body.style.pointerEvents = '';
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [editContract, regenerateContract, sendForSignatureContract, signatureStatusContract, deleteDialogOpen, detailSheetOpen]);
 
   const canDo = (contract: Contract, action: 'publish' | 'send' | 'update' | 'delete' | 'regenerate') => {
     // Admin override
@@ -120,8 +136,8 @@ export default function ContractsModern() {
     return matchesStatus;
   }) || [];
 
-  // Define columns for DataTable
-  const columns: ColumnDef<Contract>[] = [
+  // Define columns for DataTable (memoized to prevent infinite re-renders)
+  const columns: ColumnDef<Contract>[] = useMemo(() => [
     {
       accessorKey: 'contract_number',
       header: 'Contract #',
@@ -230,13 +246,21 @@ export default function ContractsModern() {
             >
               {contract.is_public ? <Eye className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
             </Button>
-            <DropdownMenu>
+            <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm">
                   <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => {
+                  setDetailSheetContractId(contract.id);
+                  setDetailSheetOpen(true);
+                }}>
+                  <Eye className="h-4 w-4 mr-2" />
+                  View Details
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => setEditContract(contract)} disabled={!canDo(contract, 'update')}>
                   <Edit className="h-4 w-4 mr-2" />
                   Edit
@@ -271,7 +295,7 @@ export default function ContractsModern() {
         );
       },
     },
-  ];
+  ], [makePublic.isPending, currentUser, myMatrix]);
 
   return (
     <AppLayout>
@@ -391,28 +415,46 @@ export default function ContractsModern() {
         open={showGenerateDialog}
         onOpenChange={(open) => {
           setShowGenerateDialog(open);
-          if (!open) setSelectedTemplate(null);
+          if (!open) {
+            setTimeout(() => setSelectedTemplate(null), 200);
+          }
         }}
       />
       <EditContractDialog
         contract={editContract}
         open={!!editContract}
-        onOpenChange={(open) => !open && setEditContract(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setTimeout(() => setEditContract(null), 200);
+          }
+        }}
       />
       <RegenerateContractDialog
         contract={regenerateContract}
         open={!!regenerateContract}
-        onOpenChange={(open) => !open && setRegenerateContract(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setTimeout(() => setRegenerateContract(null), 200);
+          }
+        }}
       />
       <SendForSignatureDialog
         contract={sendForSignatureContract}
         open={!!sendForSignatureContract}
-        onOpenChange={(open) => !open && setSendForSignatureContract(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setTimeout(() => setSendForSignatureContract(null), 200);
+          }
+        }}
       />
       <SignatureStatusDialog
         contract={signatureStatusContract}
         open={!!signatureStatusContract}
-        onOpenChange={(open) => !open && setSignatureStatusContract(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setTimeout(() => setSignatureStatusContract(null), 200);
+          }
+        }}
       />
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
@@ -440,6 +482,18 @@ export default function ContractsModern() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Contract Detail Sheet */}
+      <ContractDetailSheet
+        contractId={detailSheetContractId}
+        open={detailSheetOpen}
+        onOpenChange={(open) => {
+          setDetailSheetOpen(open);
+          if (!open) {
+            setTimeout(() => setDetailSheetContractId(null), 200);
+          }
+        }}
+      />
     </AppLayout>
   );
 }

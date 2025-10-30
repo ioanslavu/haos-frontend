@@ -204,7 +204,7 @@ export default function Templates() {
                       <Copy className="h-4 w-4 mr-2" />
                       Generate
                     </Button>
-                    <DropdownMenu>
+                    <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>
                         <Button variant="outline" size="sm">
                           <MoreVertical className="h-4 w-4" />
