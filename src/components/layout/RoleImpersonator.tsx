@@ -11,7 +11,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/stores/authStore';
-import { useUsersList } from '@/api/hooks/useUsers';
 import apiClient from '@/api/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -22,16 +21,8 @@ interface TestUser {
   role: string;
   roleLabel: string;
   department: string | null;
+  departmentName: string | null;
 }
-
-const roleLabels: Record<string, string> = {
-  guest: 'Guest',
-  administrator: 'Administrator',
-  digital_manager: 'Digital Manager',
-  digital_employee: 'Digital Employee',
-  sales_manager: 'Sales Manager',
-  sales_employee: 'Sales Employee',
-};
 
 const roleColors: Record<string, string> = {
   guest: 'bg-slate-100 text-slate-700',
@@ -40,32 +31,48 @@ const roleColors: Record<string, string> = {
   digital_employee: 'bg-blue-50 text-blue-600',
   sales_manager: 'bg-green-100 text-green-700',
   sales_employee: 'bg-green-50 text-green-600',
+  publishing_manager: 'bg-orange-100 text-orange-700',
+  publishing_employee: 'bg-orange-50 text-orange-600',
 };
 
 export function RoleImpersonator() {
   const { user, isAdmin, checkAuth } = useAuthStore();
-  const { data: usersData, isLoading } = useUsersList();
   const [testUsers, setTestUsers] = useState<TestUser[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [impersonating, setImpersonating] = useState(false);
   const { toast } = useToast();
 
-  // Filter test users from the users list
+  // Fetch test users from dedicated endpoint
   useEffect(() => {
-    if (usersData) {
-      const users = Array.isArray(usersData) ? usersData : usersData.results || [];
-      const filtered = users
-        .filter((u: any) => u.email?.includes('test-') && u.email?.includes('@hahahaproduction.com'))
-        .map((u: any) => ({
+    const fetchTestUsers = async () => {
+      if (!isAdmin()) return;
+
+      try {
+        setIsLoading(true);
+        const response = await apiClient.get('/api/v1/impersonate/test-users/');
+        const users = response.data.test_users || [];
+
+        const mapped = users.map((u: any) => ({
           id: u.id,
           email: u.email,
-          displayName: `${u.first_name} ${u.last_name}`.trim() || u.email,
-          role: u.role || 'guest',
-          roleLabel: roleLabels[u.role] || u.role,
-          department: u.department,
+          displayName: u.full_name || `${u.first_name} ${u.last_name}`.trim() || u.email,
+          role: u.role?.code || 'guest',
+          roleLabel: u.role?.name || 'Guest',
+          department: u.department?.code || null,
+          departmentName: u.department?.name || null,
         }));
-      setTestUsers(filtered);
-    }
-  }, [usersData]);
+
+        setTestUsers(mapped);
+      } catch (error) {
+        console.error('Failed to fetch test users:', error);
+        setTestUsers([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTestUsers();
+  }, [isAdmin]);
 
   // Only show for administrators
   if (!isAdmin()) {
@@ -130,7 +137,7 @@ export function RoleImpersonator() {
     }
   };
 
-  const isCurrentlyImpersonating = user?.email?.includes('test-');
+  const isCurrentlyImpersonating = user?.email?.startsWith('test.');
 
   return (
     <DropdownMenu>
@@ -181,12 +188,14 @@ export function RoleImpersonator() {
               className="cursor-pointer flex items-center justify-between"
             >
               <div className="flex flex-col">
-                <span className="text-sm font-medium">{testUser.displayName}</span>
-                <span className="text-xs text-muted-foreground">{testUser.email}</span>
+                <span className="text-sm font-medium">{testUser.roleLabel}</span>
+                <span className="text-xs text-muted-foreground">
+                  {testUser.departmentName || 'No Department'}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <Badge className={roleColors[testUser.role]} variant="secondary">
-                  {testUser.department ? testUser.department.charAt(0).toUpperCase() : 'No Dept'}
+                  {testUser.roleLabel}
                 </Badge>
                 {isActive && <Check className="h-4 w-4 text-primary" />}
               </div>

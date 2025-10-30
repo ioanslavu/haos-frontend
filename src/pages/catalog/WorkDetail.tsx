@@ -105,7 +105,7 @@ export default function WorkDetail() {
           {/* Stats Cards Skeleton */}
           <div className="grid gap-4 md:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <Card key={i}>
+              <Card key={i} className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                 <CardHeader className="pb-2">
                   <Skeleton className="h-4 w-20" />
                 </CardHeader>
@@ -118,7 +118,7 @@ export default function WorkDetail() {
           </div>
 
           {/* Content Skeleton */}
-          <Card>
+          <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
             <CardHeader>
               <Skeleton className="h-6 w-32" />
             </CardHeader>
@@ -192,9 +192,9 @@ export default function WorkDetail() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1">
-          <h1 className="text-3xl font-bold tracking-tight">{work.title}</h1>
+          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">{work.title}</h1>
           {work.alternate_titles && (
-            <p className="text-muted-foreground">{work.alternate_titles}</p>
+            <p className="text-muted-foreground text-base">{work.alternate_titles}</p>
           )}
         </div>
         <div className="flex gap-2">
@@ -211,7 +211,7 @@ export default function WorkDetail() {
 
       {/* Work Info Cards */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">ISWC</CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />
@@ -230,7 +230,7 @@ export default function WorkDetail() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Language</CardTitle>
             <Badge variant="outline">{work.language?.toUpperCase() || 'N/A'}</Badge>
@@ -242,7 +242,7 @@ export default function WorkDetail() {
             )}
           </CardContent>
         </Card>
-        <Card>
+        <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Recordings</CardTitle>
             <Music className="h-4 w-4 text-muted-foreground" />
@@ -252,7 +252,7 @@ export default function WorkDetail() {
             <p className="text-xs text-muted-foreground">{stats.total_releases} releases</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Year Composed</CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />
@@ -275,7 +275,7 @@ export default function WorkDetail() {
 
         {/* Credits Tab */}
         <TabsContent value="credits" className="space-y-4">
-          <Card>
+          <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Credits</CardTitle>
               <Button size="sm" onClick={() => setCreditDialogOpen(true)}>
@@ -331,7 +331,7 @@ export default function WorkDetail() {
         <TabsContent value="splits" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             {/* Writer Splits */}
-            <Card>
+            <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Writer Splits</CardTitle>
                 <Button size="sm" onClick={() => setWriterSplitDialogOpen(true)}>
@@ -394,7 +394,7 @@ export default function WorkDetail() {
             </Card>
 
             {/* Publisher Splits */}
-            <Card>
+            <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Publisher Splits</CardTitle>
                 <Button size="sm" onClick={() => setPublisherSplitDialogOpen(true)}>
@@ -460,7 +460,7 @@ export default function WorkDetail() {
 
         {/* Recordings Tab */}
         <TabsContent value="recordings">
-          <Card>
+          <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Recordings</CardTitle>
               <Button size="sm" onClick={() => navigate(`/catalog/recordings/create?work=${workId}`)}>
@@ -526,7 +526,7 @@ export default function WorkDetail() {
 
         {/* Lyrics Tab */}
         <TabsContent value="lyrics">
-          <Card>
+          <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Lyrics</CardTitle>
               <Button size="sm" onClick={() => navigate(`/catalog/works/${workId}/edit`)}>

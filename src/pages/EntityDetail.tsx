@@ -626,7 +626,7 @@ export default function EntityDetail() {
                 <AvatarFallback>{getInitials(entity.display_name)}</AvatarFallback>
               </Avatar>
               <div>
-                <h1 className="text-3xl font-bold tracking-tight">{entity.display_name}</h1>
+                <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">{entity.display_name}</h1>
                 {entity.stage_name && (
                   <p className="text-lg text-muted-foreground mt-1">
                     aka "{entity.stage_name}"
@@ -709,19 +709,87 @@ export default function EntityDetail() {
         </div>
 
         {/* Main Content */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="details">Details</TabsTrigger>
-            <TabsTrigger value="identifiers">Identifiers & Codes</TabsTrigger>
-            <TabsTrigger value="contracts">Contracts</TabsTrigger>
-            <TabsTrigger value="financial">Financial</TabsTrigger>
-            {hasCampaigns && <TabsTrigger value="campaigns">Campaigns</TabsTrigger>}
-            {hasCreativeRole && <TabsTrigger value="catalog">Catalog</TabsTrigger>}
-            <TabsTrigger value="activity">Activity Log</TabsTrigger>
-            {hasCreativeRole && <TabsTrigger value="social">Social Media</TabsTrigger>}
-            {entity.kind === 'PF' && <TabsTrigger value="sensitive">Sensitive Info</TabsTrigger>}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="inline-flex h-auto items-center justify-start gap-1 rounded-full bg-muted/50 p-1.5 backdrop-blur-sm border border-border/50 flex-wrap">
+            <TabsTrigger
+              value="details"
+              className="rounded-full px-4 py-2.5 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md hover:bg-background/50"
+            >
+              <User className="h-3.5 w-3.5 mr-1.5" />
+              Details
+            </TabsTrigger>
+            <TabsTrigger
+              value="identifiers"
+              className="rounded-full px-4 py-2.5 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md hover:bg-background/50"
+            >
+              <Hash className="h-3.5 w-3.5 mr-1.5" />
+              Identifiers
+            </TabsTrigger>
+            <TabsTrigger
+              value="contracts"
+              className="rounded-full px-4 py-2.5 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md hover:bg-background/50"
+            >
+              <FileText className="h-3.5 w-3.5 mr-1.5" />
+              Contracts
+            </TabsTrigger>
+            <TabsTrigger
+              value="financial"
+              className="rounded-full px-4 py-2.5 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md hover:bg-background/50"
+            >
+              <DollarSign className="h-3.5 w-3.5 mr-1.5" />
+              Financial
+            </TabsTrigger>
+            {hasCampaigns && (
+              <TabsTrigger
+                value="campaigns"
+                className="rounded-full px-4 py-2.5 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md hover:bg-background/50"
+              >
+                <TrendingUp className="h-3.5 w-3.5 mr-1.5" />
+                Campaigns
+              </TabsTrigger>
+            )}
+            {hasCreativeRole && (
+              <TabsTrigger
+                value="catalog"
+                className="rounded-full px-4 py-2.5 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md hover:bg-background/50"
+              >
+                <Music className="h-3.5 w-3.5 mr-1.5" />
+                Catalog
+              </TabsTrigger>
+            )}
+            <TabsTrigger
+              value="activity"
+              className="rounded-full px-4 py-2.5 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md hover:bg-background/50"
+            >
+              <Calendar className="h-3.5 w-3.5 mr-1.5" />
+              Activity
+            </TabsTrigger>
+            {hasCreativeRole && (
+              <TabsTrigger
+                value="social"
+                className="rounded-full px-4 py-2.5 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md hover:bg-background/50"
+              >
+                <Users className="h-3.5 w-3.5 mr-1.5" />
+                Social
+              </TabsTrigger>
+            )}
+            {entity.kind === 'PF' && (
+              <TabsTrigger
+                value="sensitive"
+                className="rounded-full px-4 py-2.5 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md hover:bg-background/50"
+              >
+                <EyeOff className="h-3.5 w-3.5 mr-1.5" />
+                Sensitive
+              </TabsTrigger>
+            )}
             {showContractGeneration && (
-              <TabsTrigger value="generate-contract">Generate Contract</TabsTrigger>
+              <TabsTrigger
+                value="generate-contract"
+                className="rounded-full px-4 py-2.5 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md hover:bg-background/50"
+              >
+                <FileText className="h-3.5 w-3.5 mr-1.5" />
+                Generate Contract
+              </TabsTrigger>
             )}
           </TabsList>
 
@@ -729,7 +797,7 @@ export default function EntityDetail() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Personal Information for PF */}
               {entity.kind === 'PF' && (entity.first_name || entity.last_name) && (
-                <Card>
+                <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                   <CardHeader>
                     <CardTitle>Personal Information</CardTitle>
                     <CardDescription>Individual details</CardDescription>
@@ -780,7 +848,7 @@ export default function EntityDetail() {
               )}
 
               {/* Contact Information */}
-              <Card>
+              <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                 <CardHeader>
                   <CardTitle>Contact Information</CardTitle>
                   <CardDescription>Primary contact details for this entity</CardDescription>
@@ -819,7 +887,7 @@ export default function EntityDetail() {
               </Card>
 
               {/* Contact Persons */}
-              <Card>
+              <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <div>
                     <CardTitle>Contact Persons</CardTitle>
@@ -925,7 +993,7 @@ export default function EntityDetail() {
 
               {/* Business Information */}
               {entity.kind === 'PJ' && (
-                <Card>
+                <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                   <CardHeader>
                     <CardTitle>Business Information</CardTitle>
                     <CardDescription>Company registration and tax details</CardDescription>
@@ -955,7 +1023,7 @@ export default function EntityDetail() {
 
               {/* Banking Information */}
               {(entity.iban || entity.bank_name || entity.bank_branch) && (
-                <Card>
+                <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                   <CardHeader>
                     <CardTitle>Banking Information</CardTitle>
                     <CardDescription>Bank account details</CardDescription>
@@ -993,7 +1061,7 @@ export default function EntityDetail() {
               )}
 
               {/* System Information */}
-              <Card>
+              <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                 <CardHeader>
                   <CardTitle>System Information</CardTitle>
                   <CardDescription>Metadata and tracking information</CardDescription>
@@ -1027,7 +1095,7 @@ export default function EntityDetail() {
 
               {/* Notes */}
               {entity.notes && (
-                <Card>
+                <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                   <CardHeader>
                     <CardTitle>Notes</CardTitle>
                     <CardDescription>Internal notes about this entity</CardDescription>
@@ -1047,7 +1115,7 @@ export default function EntityDetail() {
                 <>
                   {/* Stats Cards */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <Card>
+                    <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Total Campaigns</CardTitle>
                         <Package className="h-4 w-4 text-muted-foreground" />
@@ -1057,7 +1125,7 @@ export default function EntityDetail() {
                       </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Total Value</CardTitle>
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -1069,7 +1137,7 @@ export default function EntityDetail() {
                       </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Unique Clients</CardTitle>
                         <Users className="h-4 w-4 text-muted-foreground" />
@@ -1079,7 +1147,7 @@ export default function EntityDetail() {
                       </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Unique Brands</CardTitle>
                         <Building2 className="h-4 w-4 text-muted-foreground" />
@@ -1091,7 +1159,7 @@ export default function EntityDetail() {
                   </div>
 
                   {/* Avg Campaign Value */}
-                  <Card>
+                  <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium">Avg Campaign Value</CardTitle>
                       <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -1109,7 +1177,7 @@ export default function EntityDetail() {
                   </Card>
 
                   {/* Status Breakdown */}
-                  <Card>
+                  <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                     <CardHeader>
                       <CardTitle>Campaign Status Breakdown</CardTitle>
                       <CardDescription>Distribution of campaigns across different statuses</CardDescription>
@@ -1129,7 +1197,7 @@ export default function EntityDetail() {
                   </Card>
 
                   {/* Top Brands */}
-                  <Card>
+                  <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                     <CardHeader>
                       <CardTitle>Brands by Campaign Count</CardTitle>
                       <CardDescription>Brands this artist has worked with</CardDescription>
@@ -1165,7 +1233,7 @@ export default function EntityDetail() {
                   </Card>
 
                   {/* Top Clients */}
-                  <Card>
+                  <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                     <CardHeader>
                       <CardTitle>Clients by Campaign Count</CardTitle>
                       <CardDescription>Clients this artist has worked with</CardDescription>
@@ -1212,7 +1280,7 @@ export default function EntityDetail() {
           {hasCreativeRole && (
             <TabsContent value="catalog" className="space-y-6">
               {/* Works */}
-              <Card>
+              <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <div>
                     <CardTitle className="flex items-center gap-2">
@@ -1274,7 +1342,7 @@ export default function EntityDetail() {
               </Card>
 
               {/* Recordings */}
-              <Card>
+              <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <div>
                     <CardTitle className="flex items-center gap-2">
@@ -1338,7 +1406,7 @@ export default function EntityDetail() {
               </Card>
 
               {/* Releases */}
-              <Card>
+              <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <div>
                     <CardTitle className="flex items-center gap-2">
@@ -1427,7 +1495,7 @@ export default function EntityDetail() {
                 </TabsList>
 
                 <TabsContent value="terms" className="space-y-4">
-                  <Card>
+                  <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                     <CardHeader>
                       <CardTitle>Contract Terms</CardTitle>
                       <CardDescription>
@@ -1560,7 +1628,7 @@ export default function EntityDetail() {
                 </TabsContent>
 
                 <TabsContent value="rates" className="space-y-4">
-                  <Card>
+                  <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                     <CardHeader>
                       <CardTitle>Revenue Share Configuration (Year-by-Year)</CardTitle>
                       <CardDescription>
@@ -1820,7 +1888,7 @@ export default function EntityDetail() {
                 </TabsContent>
 
                 <TabsContent value="preview" className="space-y-4">
-                  <Card>
+                  <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                     <CardHeader>
                       <CardTitle>Contract Preview</CardTitle>
                       <CardDescription>
@@ -1896,7 +1964,7 @@ export default function EntityDetail() {
           )}
 
           <TabsContent value="identifiers" className="space-y-6">
-            <Card>
+            <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
               <CardHeader>
                 <CardTitle>Identification Codes</CardTitle>
                 <CardDescription>Tracking identifiers for this entity</CardDescription>
@@ -1926,7 +1994,7 @@ export default function EntityDetail() {
           </TabsContent>
 
           <TabsContent value="contracts" className="space-y-6">
-            <Card>
+            <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
               <CardHeader>
                 <CardTitle>Associated Contracts</CardTitle>
                 <CardDescription>Contracts and agreements with this entity</CardDescription>
@@ -1941,7 +2009,7 @@ export default function EntityDetail() {
                 ) : (
                   <div className="space-y-4">
                     {contracts.map((contract) => (
-                      <Card key={contract.id} className="overflow-hidden">
+                      <Card key={contract.id} className="overflow-hidden backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                         <CardHeader className="pb-3">
                           <div className="flex items-start justify-between">
                             <div>
@@ -2105,7 +2173,7 @@ export default function EntityDetail() {
           </TabsContent>
 
           <TabsContent value="financial" className="space-y-6">
-            <Card>
+            <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
               <CardHeader>
                 <CardTitle>Financial Information</CardTitle>
                 <CardDescription>Banking and payment details</CardDescription>
@@ -2117,7 +2185,7 @@ export default function EntityDetail() {
           </TabsContent>
 
           <TabsContent value="activity" className="space-y-6">
-            <Card>
+            <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
               <CardHeader>
                 <CardTitle>Activity Log</CardTitle>
                 <CardDescription>Recent activities and changes</CardDescription>
@@ -2144,7 +2212,7 @@ export default function EntityDetail() {
               {entity.social_media_accounts && entity.social_media_accounts.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {entity.social_media_accounts.map((account) => (
-                    <Card key={account.id} className="hover:shadow-lg transition-shadow">
+                    <Card key={account.id} className="hover:shadow-lg transition-shadow backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                       <CardHeader className="pb-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
@@ -2212,7 +2280,7 @@ export default function EntityDetail() {
                   ))}
                 </div>
               ) : (
-                <Card>
+                <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                   <CardContent className="py-12">
                     <div className="text-center space-y-3">
                       <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center">
@@ -2237,7 +2305,7 @@ export default function EntityDetail() {
 
           {entity.kind === 'PF' && (
             <TabsContent value="sensitive" className="space-y-6">
-              <Card>
+              <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                 <CardHeader>
                   <CardTitle>Sensitive Information</CardTitle>
                   <CardDescription>Personal identification data</CardDescription>

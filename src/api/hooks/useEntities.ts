@@ -22,6 +22,7 @@ export const entityKeys = {
   artists: () => [...entityKeys.all, 'artists'] as const,
   writers: () => [...entityKeys.all, 'writers'] as const,
   producers: () => [...entityKeys.all, 'producers'] as const,
+  business: (params?: EntitySearchParams) => [...entityKeys.all, 'business', params] as const,
   stats: () => [...entityKeys.all, 'stats'] as const,
   sensitiveIdentity: (entityId: number) => ['sensitiveIdentity', entityId] as const,
   contactPersons: (entityId?: number) => ['contactPersons', entityId] as const,
@@ -90,6 +91,14 @@ export const useProducers = () => {
   return useQuery({
     queryKey: entityKeys.producers(),
     queryFn: () => entitiesService.getProducers(),
+  });
+};
+
+export const useBusinessEntities = (params?: EntitySearchParams, enabled = true) => {
+  return useQuery({
+    queryKey: entityKeys.business(params),
+    queryFn: () => entitiesService.getBusinessEntities(params),
+    enabled: enabled && (params?.search ? params.search.length > 0 : true),
   });
 };
 

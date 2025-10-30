@@ -86,18 +86,35 @@ export function CampaignCard({ campaign, onEdit, onDelete, onClick }: CampaignCa
         </div>
 
         {/* Artist */}
-        <div className="flex items-center gap-2">
-          <Avatar className="h-6 w-6">
-            <AvatarFallback className="text-xs">
-              {getInitials(campaign.artist.display_name)}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex items-center gap-1 text-sm">
-            {getEntityIcon(campaign.artist.kind)}
-            <span className="text-muted-foreground">Artist:</span>
-            <span className="font-medium">{campaign.artist.display_name}</span>
+        {campaign.artist && (
+          <div className="flex items-center gap-2">
+            <Avatar className="h-6 w-6">
+              <AvatarFallback className="text-xs">
+                {getInitials(campaign.artist.display_name)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex items-center gap-1 text-sm">
+              {getEntityIcon(campaign.artist.kind)}
+              <span className="text-muted-foreground">Artist:</span>
+              <span className="font-medium">{campaign.artist.display_name}</span>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Song */}
+        {campaign.song && (
+          <div className="flex items-center gap-2">
+            <Avatar className="h-6 w-6">
+              <AvatarFallback className="text-xs bg-purple-100 dark:bg-purple-900">
+                🎵
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex items-center gap-1 text-sm">
+              <span className="text-muted-foreground">Song:</span>
+              <span className="font-medium">{campaign.song.title}</span>
+            </div>
+          </div>
+        )}
 
         {/* Brand */}
         <div>

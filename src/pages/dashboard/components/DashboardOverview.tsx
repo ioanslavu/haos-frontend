@@ -9,11 +9,21 @@ import { DollarSign, FileText, PenTool, Music } from 'lucide-react';
 
 export const DashboardOverview: React.FC = () => {
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Overview</h1>
-        <p className="text-muted-foreground mt-1">Welcome back! Here's what's happening in your studio.</p>
+    <div className="space-y-8 pb-8">
+      {/* Modern Glassmorphic Header with Gradient */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-pink-500/10 backdrop-blur-xl border border-white/20 dark:border-white/10 p-8 shadow-2xl">
+        {/* Animated gradient orbs */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-400/30 to-purple-500/30 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-pink-400/30 to-orange-500/30 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+
+        <div className="relative z-10">
+          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
+            Overview
+          </h1>
+          <p className="text-muted-foreground text-lg mt-2">
+            Welcome back! Here's what's happening in your studio.
+          </p>
+        </div>
       </div>
 
       {/* Setup Progress Card - Only shows for digital/sales departments */}

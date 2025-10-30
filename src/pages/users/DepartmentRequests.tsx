@@ -87,7 +87,7 @@ export default function DepartmentRequests() {
     const StatusIcon = statusIcons[request.status];
 
     return (
-      <Card className="hover:shadow-md transition-shadow">
+      <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-[1.01] rounded-2xl">
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
@@ -183,11 +183,21 @@ export default function DepartmentRequests() {
 
   return (
     <AppLayout>
-      <div className="container mx-auto py-6 space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Department Requests</h1>
-          <p className="text-muted-foreground">Review and manage department access requests</p>
+      <div className="space-y-8 pb-8">
+        {/* Modern Glassmorphic Header with Gradient */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500/10 via-yellow-500/10 to-orange-500/10 backdrop-blur-xl border border-white/20 dark:border-white/10 p-8 shadow-2xl">
+          {/* Animated gradient orbs */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-amber-400/30 to-yellow-500/30 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-orange-400/30 to-red-500/30 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+
+          <div className="relative z-10">
+            <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
+              Department Requests
+            </h1>
+            <p className="text-muted-foreground text-lg mt-2">
+              Review and manage department access requests
+            </p>
+          </div>
         </div>
 
       {/* Tabs */}
@@ -218,7 +228,7 @@ export default function DepartmentRequests() {
               ))}
             </div>
           ) : (
-            <Card>
+            <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
               <CardContent className="flex flex-col items-center justify-center py-12 text-center">
                 <Clock className="h-12 w-12 text-muted-foreground mb-4" />
                 <h3 className="font-medium text-lg">No pending requests</h3>
@@ -243,7 +253,7 @@ export default function DepartmentRequests() {
               ))}
             </div>
           ) : (
-            <Card>
+            <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
               <CardContent className="flex flex-col items-center justify-center py-12 text-center">
                 <CheckCircle2 className="h-12 w-12 text-muted-foreground mb-4" />
                 <h3 className="font-medium text-lg">No approved requests</h3>
@@ -268,7 +278,7 @@ export default function DepartmentRequests() {
               ))}
             </div>
           ) : (
-            <Card>
+            <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
               <CardContent className="flex flex-col items-center justify-center py-12 text-center">
                 <XCircle className="h-12 w-12 text-muted-foreground mb-4" />
                 <h3 className="font-medium text-lg">No rejected requests</h3>

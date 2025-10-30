@@ -211,26 +211,50 @@ export function CampaignDetailsSheet({
                 </div>
 
                 {/* Artist */}
-                <div className="space-y-2">
-                  <div className="text-xs text-muted-foreground">Artist</div>
-                  <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-                    {getEntityIcon(campaign.artist.kind)}
-                    <div className="flex-1">
-                      <div className="font-medium">{campaign.artist.display_name}</div>
-                      {campaign.artist.email && (
-                        <div className="text-xs text-muted-foreground">{campaign.artist.email}</div>
-                      )}
+                {campaign.artist && (
+                  <div className="space-y-2">
+                    <div className="text-xs text-muted-foreground">Artist</div>
+                    <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                      {getEntityIcon(campaign.artist.kind)}
+                      <div className="flex-1">
+                        <div className="font-medium">{campaign.artist.display_name}</div>
+                        {campaign.artist.email && (
+                          <div className="text-xs text-muted-foreground">{campaign.artist.email}</div>
+                        )}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleViewEntity(campaign.artist.id)}
+                        title="View details"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleViewEntity(campaign.artist.id)}
-                      title="View details"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </Button>
                   </div>
-                </div>
+                )}
+
+                {/* Song/Recording */}
+                {campaign.song && (
+                  <div className="space-y-2">
+                    <div className="text-xs text-muted-foreground">Song / Recording</div>
+                    <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
+                      <Package className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex-1">
+                        <div className="font-medium">{campaign.song.title}</div>
+                        <div className="text-xs text-muted-foreground space-x-2">
+                          {campaign.song.work_title && <span>{campaign.song.work_title}</span>}
+                          {campaign.song.isrc && (
+                            <>
+                              {campaign.song.work_title && <span>•</span>}
+                              <span className="font-mono">{campaign.song.isrc}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Brand */}
                 <div className="space-y-2">

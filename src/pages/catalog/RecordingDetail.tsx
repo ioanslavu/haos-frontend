@@ -55,7 +55,7 @@ export default function RecordingDetail() {
           {/* Stats Cards Skeleton */}
           <div className="grid gap-4 md:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <Card key={i}>
+              <Card key={i} className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                 <CardHeader className="pb-2">
                   <Skeleton className="h-4 w-20" />
                 </CardHeader>
@@ -68,7 +68,7 @@ export default function RecordingDetail() {
           </div>
 
           {/* Content Skeleton */}
-          <Card>
+          <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
             <CardHeader>
               <Skeleton className="h-6 w-32" />
             </CardHeader>
@@ -119,9 +119,9 @@ export default function RecordingDetail() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold tracking-tight">{recording.title}</h1>
+            <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">{recording.title}</h1>
             {recording.version && (
-              <p className="text-muted-foreground">{recording.version}</p>
+              <p className="text-muted-foreground text-base">{recording.version}</p>
             )}
           </div>
           <div className="flex gap-2">
@@ -142,7 +142,7 @@ export default function RecordingDetail() {
 
         {/* Recording Info Cards */}
         <div className="grid gap-4 md:grid-cols-4">
-          <Card>
+          <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">ISRC</CardTitle>
               <FileAudio className="h-4 w-4 text-muted-foreground" />
@@ -161,7 +161,7 @@ export default function RecordingDetail() {
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Type</CardTitle>
               <Badge variant="outline">{recording.type?.replace('_', ' ')}</Badge>
@@ -173,7 +173,7 @@ export default function RecordingDetail() {
               )}
             </CardContent>
           </Card>
-          <Card>
+          <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Releases</CardTitle>
               <Mic className="h-4 w-4 text-muted-foreground" />
@@ -183,7 +183,7 @@ export default function RecordingDetail() {
               <p className="text-xs text-muted-foreground">{stats.total_assets} assets</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Publications</CardTitle>
               <Badge variant="outline">{stats.total_publications}</Badge>
@@ -197,7 +197,7 @@ export default function RecordingDetail() {
 
         {/* Work Info */}
         {work && (
-          <Card>
+          <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
             <CardHeader>
               <CardTitle>Musical Work</CardTitle>
             </CardHeader>
@@ -229,7 +229,7 @@ export default function RecordingDetail() {
 
           {/* Releases Tab */}
           <TabsContent value="releases">
-            <Card>
+            <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
               <CardHeader>
                 <CardTitle>Releases</CardTitle>
               </CardHeader>
@@ -283,7 +283,7 @@ export default function RecordingDetail() {
 
           {/* Credits Tab */}
           <TabsContent value="credits">
-            <Card>
+            <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Credits</CardTitle>
                 <Button size="sm" onClick={() => setCreditDialogOpen(true)}>
@@ -326,7 +326,7 @@ export default function RecordingDetail() {
 
           {/* Master Splits Tab */}
           <TabsContent value="splits">
-            <Card>
+            <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Master Splits</CardTitle>
                 <Button size="sm" onClick={() => setMasterSplitDialogOpen(true)}>
@@ -387,7 +387,7 @@ export default function RecordingDetail() {
 
           {/* Assets Tab */}
           <TabsContent value="assets">
-            <Card>
+            <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Assets</CardTitle>
                 <Button size="sm">
@@ -438,7 +438,7 @@ export default function RecordingDetail() {
 
           {/* Publications Tab */}
           <TabsContent value="publications">
-            <Card>
+            <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
               <CardHeader>
                 <CardTitle>Publications</CardTitle>
               </CardHeader>

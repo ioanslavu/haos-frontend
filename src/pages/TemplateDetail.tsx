@@ -166,7 +166,7 @@ export default function TemplateDetail() {
               Back
             </Button>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Edit Template</h1>
+              <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">Edit Template</h1>
               <p className="text-muted-foreground mt-1">
                 Manage template details and placeholders
               </p>
@@ -197,7 +197,7 @@ export default function TemplateDetail() {
         </div>
 
         {/* Template Information */}
-        <Card>
+        <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
           <CardHeader>
             <CardTitle>Template Information</CardTitle>
             <CardDescription>Basic details about this contract template</CardDescription>
@@ -303,7 +303,7 @@ export default function TemplateDetail() {
         </Card>
 
         {/* Placeholders */}
-        <Card>
+        <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
@@ -400,7 +400,7 @@ export default function TemplateDetail() {
         </Card>
 
         {/* Google Drive Information */}
-        <Card>
+        <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
           <CardHeader>
             <CardTitle>Google Drive Integration</CardTitle>
             <CardDescription>Connected Google Drive files and folders</CardDescription>

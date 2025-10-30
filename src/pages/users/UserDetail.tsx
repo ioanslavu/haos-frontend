@@ -286,16 +286,16 @@ export default function UserDetailPage() {
         </div>
         
         {/* User Header Card */}
-        <Card>
+        <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
           <CardContent className="pt-6">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-medium">
+                <div className="w-20 h-20 bg-gradient-to-br from-blue-500/80 to-purple-600/80 rounded-2xl flex items-center justify-center text-white text-2xl font-medium shadow-lg">
                   {user.first_name.charAt(0)}
                   {user.last_name.charAt(0)}
                 </div>
                 <div>
-                  <h1 className="text-2xl font-semibold">{user.full_name}</h1>
+                  <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">{user.full_name}</h1>
                   <p className="text-muted-foreground flex items-center gap-2 mt-1">
                     <Mail className="h-4 w-4" />
                     {user.email}

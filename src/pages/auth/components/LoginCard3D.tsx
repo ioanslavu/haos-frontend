@@ -33,9 +33,9 @@ export const LoginCard3D: React.FC<LoginCard3DProps> = ({ appName }) => {
           }}
         />
 
-        <Card className="relative glass-morphism border-purple-500/20 shadow-2xl overflow-hidden" style={{ pointerEvents: 'auto' }}>
+        <Card className="relative backdrop-blur-2xl bg-white/10 dark:bg-slate-900/20 border-white/20 dark:border-white/10 shadow-2xl overflow-hidden rounded-3xl" style={{ pointerEvents: 'auto' }}>
           {/* Animated border gradient */}
-          <div className="absolute inset-0 rounded-lg opacity-30 pointer-events-none">
+          <div className="absolute inset-0 rounded-3xl opacity-30 pointer-events-none">
             <div className="absolute inset-0 bg-gradient-to-r from-purple-600 via-pink-600 to-cyan-600 animate-gradient-shift" />
           </div>
 

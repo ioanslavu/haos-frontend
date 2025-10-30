@@ -120,7 +120,7 @@ export function NoCampaignsEmptyState(props: PresetProps) {
       primaryAction={
         props.onPrimaryAction
           ? {
-              label: "Create Campaign",
+              label: "New Campaign",
               onClick: props.onPrimaryAction,
               icon: Plus,
             }

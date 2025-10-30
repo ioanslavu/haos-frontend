@@ -94,8 +94,8 @@ export default function Recordings() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Recordings</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">Recordings</h1>
+          <p className="text-muted-foreground text-base">
             Manage master recordings, demos, and versions
           </p>
         </div>
@@ -118,7 +118,7 @@ export default function Recordings() {
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Recordings</CardTitle>
             <Mic className="h-4 w-4 text-muted-foreground" />
@@ -127,7 +127,7 @@ export default function Recordings() {
             <div className="text-2xl font-bold">{recordingsData?.count || 0}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Masters</CardTitle>
             <Badge variant="default">Production</Badge>
@@ -138,7 +138,7 @@ export default function Recordings() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">With ISRC</CardTitle>
             <Badge variant="outline">Standard</Badge>
@@ -149,7 +149,7 @@ export default function Recordings() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Released</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -374,7 +374,7 @@ export default function Recordings() {
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {Array.from({ length: 8 }).map((_, i) => (
-                <Card key={i} className="p-4">
+                <Card key={i} className="p-4 backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                   <Skeleton className="h-6 w-3/4 mb-2" />
                   <Skeleton className="h-4 w-1/2 mb-4" />
                   <div className="space-y-2">
@@ -409,7 +409,7 @@ export default function Recordings() {
                 return (
                   <Card
                     key={recording.id}
-                    className="hover-lift transition-smooth cursor-pointer"
+                    className="hover-lift transition-smooth cursor-pointer backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl"
                     onClick={() => handleViewRecording(recording.id)}
                   >
                     <CardHeader>

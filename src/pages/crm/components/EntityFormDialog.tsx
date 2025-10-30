@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -69,9 +69,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useCreateEntity, useUpdateEntity } from '@/api/hooks/useEntities';
+import { useCreateEntity, useUpdateEntity, entityKeys } from '@/api/hooks/useEntities';
 import { Entity } from '@/api/services/entities.service';
-import { Loader2 } from 'lucide-react';
+import entitiesService from '@/api/services/entities.service';
+import { Loader2, Upload, X, Camera } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useQueryClient } from '@tanstack/react-query';
 
 const entityFormSchema = z.object({
   kind: z.enum(['PF', 'PJ']),
@@ -108,7 +111,10 @@ const entityFormSchema = z.object({
   bank_name: z.string().optional(),
   bank_branch: z.string().optional(),
   notes: z.string().optional(),
-  roles: z.array(z.string()).optional(),
+  roles: z.array(z.object({
+    role: z.string(),
+    is_internal: z.boolean().optional()
+  })).optional(),
   primary_role: z.string().optional(),
 }).refine((data) => {
   // For PF entities, require first_name and last_name
@@ -139,9 +145,13 @@ export function EntityFormDialog({
   role = 'artist',
   onSuccess,
 }: EntityFormDialogProps) {
+  const queryClient = useQueryClient();
   const createEntity = useCreateEntity();
   const updateEntity = useUpdateEntity();
   const isEditing = !!entity;
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const form = useForm<EntityFormValues>({
     resolver: zodResolver(entityFormSchema),
@@ -178,7 +188,7 @@ export function EntityFormDialog({
       bank_name: '',
       bank_branch: '',
       notes: '',
-      roles: [role],
+      roles: [{ role, is_internal: false }],
       primary_role: role,
     },
   });
@@ -247,11 +257,38 @@ export function EntityFormDialog({
         bank_name: entity.bank_name || '',
         bank_branch: entity.bank_branch || '',
         notes: entity.notes || '',
-        roles: entity.entity_roles?.map(r => r.role) || [role],
+        roles: entity.entity_roles?.map(r => ({ role: r.role, is_internal: r.is_internal })) || [{ role, is_internal: false }],
         primary_role: entity.entity_roles?.find(r => r.primary_role)?.role || entity.entity_roles?.[0]?.role || role,
       });
     }
   }, [entity, form, role]);
+
+  // Load existing image when editing
+  useEffect(() => {
+    if (entity?.image_url) {
+      setImagePreview(entity.image_url);
+    } else {
+      setImagePreview(null);
+    }
+    setSelectedImage(null);
+  }, [entity]);
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+  };
 
   const onSubmit = async (values: EntityFormValues) => {
     try {
@@ -268,7 +305,24 @@ export function EntityFormDialog({
         savedEntity = await createEntity.mutateAsync(payload as any);
       }
 
+      // Upload image if one was selected
+      if (selectedImage && savedEntity) {
+        setUploadingImage(true);
+        try {
+          savedEntity = await entitiesService.uploadEntityImage(savedEntity.id, selectedImage);
+          // Invalidate queries to refresh the entity list with new image
+          queryClient.invalidateQueries({ queryKey: entityKeys.lists() });
+          queryClient.invalidateQueries({ queryKey: entityKeys.detail(savedEntity.id) });
+        } catch (error) {
+          console.error('Failed to upload image:', error);
+        } finally {
+          setUploadingImage(false);
+        }
+      }
+
       form.reset();
+      setSelectedImage(null);
+      setImagePreview(null);
       onOpenChange(false);
 
       // Call onSuccess callback if provided
@@ -280,7 +334,7 @@ export function EntityFormDialog({
     }
   };
 
-  const isSubmitting = createEntity.isPending || updateEntity.isPending;
+  const isSubmitting = createEntity.isPending || updateEntity.isPending || uploadingImage;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -350,6 +404,55 @@ export function EntityFormDialog({
                   )}
                 />
 
+                {/* Image Upload */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Photo (Optional)</label>
+                  <div className="flex items-start gap-4">
+                    <Avatar className="h-24 w-24">
+                      <AvatarImage src={imagePreview || undefined} />
+                      <AvatarFallback className="text-2xl bg-muted">
+                        <Camera className="h-10 w-10 text-muted-foreground" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => document.getElementById('entity-image-upload')?.click()}
+                          disabled={uploadingImage}
+                        >
+                          <Upload className="h-4 w-4 mr-2" />
+                          {imagePreview ? 'Change Photo' : 'Upload Photo'}
+                        </Button>
+                        {imagePreview && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleRemoveImage}
+                            disabled={uploadingImage}
+                          >
+                            <X className="h-4 w-4 mr-2" />
+                            Remove
+                          </Button>
+                        )}
+                      </div>
+                      <input
+                        id="entity-image-upload"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageSelect}
+                        className="hidden"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Recommended: Square image, at least 400x400px. JPG or PNG.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 {kind === 'PF' && (
                   <>
                     <div className="grid grid-cols-2 gap-4">
@@ -364,16 +467,8 @@ export function EntityFormDialog({
                                 {...field}
                                 placeholder="John"
                                 onChange={(e) => {
-                                  const value = e.target.value;
-                                  // Capitalize first letter of each word
-                                  const capitalized = value
-                                    .split(' ')
-                                    .map(word => {
-                                      if (word.length === 0) return '';
-                                      return word.charAt(0).toUpperCase() + word.slice(1);
-                                    })
-                                    .join(' ');
-                                  field.onChange(capitalized);
+                                  const uppercase = e.target.value.toUpperCase();
+                                  field.onChange(uppercase);
                                 }}
                               />
                             </FormControl>
@@ -392,16 +487,8 @@ export function EntityFormDialog({
                                 {...field}
                                 placeholder="Doe"
                                 onChange={(e) => {
-                                  const value = e.target.value;
-                                  // Capitalize first letter of each word
-                                  const capitalized = value
-                                    .split(' ')
-                                    .map(word => {
-                                      if (word.length === 0) return '';
-                                      return word.charAt(0).toUpperCase() + word.slice(1);
-                                    })
-                                    .join(' ');
-                                  field.onChange(capitalized);
+                                  const uppercase = e.target.value.toUpperCase();
+                                  field.onChange(uppercase);
                                 }}
                               />
                             </FormControl>
@@ -659,7 +746,7 @@ export function EntityFormDialog({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Roles (Select all that apply)</FormLabel>
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                           <p className="text-xs text-muted-foreground mb-2">Creative Roles</p>
                           {[
                             { value: 'artist', label: 'Artist' },
@@ -667,25 +754,56 @@ export function EntityFormDialog({
                             { value: 'composer', label: 'Composer' },
                             { value: 'lyricist', label: 'Lyricist' },
                             { value: 'audio_editor', label: 'Audio Editor' },
-                          ].map((roleOption) => (
-                            <div key={roleOption.value} className="flex items-center space-x-2">
-                              <input
-                                type="checkbox"
-                                id={`role-${roleOption.value}`}
-                                checked={field.value?.includes(roleOption.value)}
-                                onChange={(e) => {
-                                  const newRoles = e.target.checked
-                                    ? [...(field.value || []), roleOption.value]
-                                    : (field.value || []).filter(r => r !== roleOption.value);
-                                  field.onChange(newRoles);
-                                }}
-                                className="h-4 w-4"
-                              />
-                              <label htmlFor={`role-${roleOption.value}`} className="text-sm">
-                                {roleOption.label}
-                              </label>
-                            </div>
-                          ))}
+                          ].map((roleOption) => {
+                            const existingRole = field.value?.find(r => r.role === roleOption.value);
+                            const isChecked = !!existingRole;
+
+                            return (
+                              <div key={roleOption.value} className="flex items-center justify-between space-x-4 py-1">
+                                <div className="flex items-center space-x-2">
+                                  <input
+                                    type="checkbox"
+                                    id={`role-${roleOption.value}`}
+                                    checked={isChecked}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        const newRoles = [...(field.value || []), { role: roleOption.value, is_internal: false }];
+                                        field.onChange(newRoles);
+                                      } else {
+                                        const newRoles = (field.value || []).filter(r => r.role !== roleOption.value);
+                                        field.onChange(newRoles);
+                                      }
+                                    }}
+                                    className="h-4 w-4"
+                                  />
+                                  <label htmlFor={`role-${roleOption.value}`} className="text-sm">
+                                    {roleOption.label}
+                                  </label>
+                                </div>
+                                {isChecked && (
+                                  <div className="flex items-center space-x-2">
+                                    <input
+                                      type="checkbox"
+                                      id={`internal-${roleOption.value}`}
+                                      checked={existingRole?.is_internal || false}
+                                      onChange={(e) => {
+                                        const newRoles = (field.value || []).map(r =>
+                                          r.role === roleOption.value
+                                            ? { ...r, is_internal: e.target.checked }
+                                            : r
+                                        );
+                                        field.onChange(newRoles);
+                                      }}
+                                      className="h-4 w-4"
+                                    />
+                                    <label htmlFor={`internal-${roleOption.value}`} className="text-xs text-muted-foreground">
+                                      Signed Artist
+                                    </label>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                           <p className="text-xs text-muted-foreground mb-2 mt-4">Business Roles</p>
                           {[
                             { value: 'label', label: 'Label' },
@@ -695,25 +813,56 @@ export function EntityFormDialog({
                             { value: 'productie', label: 'Productie' },
                             { value: 'new_business', label: 'New Business' },
                             { value: 'digital', label: 'Digital' },
-                          ].map((roleOption) => (
-                            <div key={roleOption.value} className="flex items-center space-x-2">
-                              <input
-                                type="checkbox"
-                                id={`role-${roleOption.value}`}
-                                checked={field.value?.includes(roleOption.value)}
-                                onChange={(e) => {
-                                  const newRoles = e.target.checked
-                                    ? [...(field.value || []), roleOption.value]
-                                    : (field.value || []).filter(r => r !== roleOption.value);
-                                  field.onChange(newRoles);
-                                }}
-                                className="h-4 w-4"
-                              />
-                              <label htmlFor={`role-${roleOption.value}`} className="text-sm">
-                                {roleOption.label}
-                              </label>
-                            </div>
-                          ))}
+                          ].map((roleOption) => {
+                            const existingRole = field.value?.find(r => r.role === roleOption.value);
+                            const isChecked = !!existingRole;
+
+                            return (
+                              <div key={roleOption.value} className="flex items-center justify-between space-x-4 py-1">
+                                <div className="flex items-center space-x-2">
+                                  <input
+                                    type="checkbox"
+                                    id={`role-${roleOption.value}`}
+                                    checked={isChecked}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        const newRoles = [...(field.value || []), { role: roleOption.value, is_internal: false }];
+                                        field.onChange(newRoles);
+                                      } else {
+                                        const newRoles = (field.value || []).filter(r => r.role !== roleOption.value);
+                                        field.onChange(newRoles);
+                                      }
+                                    }}
+                                    className="h-4 w-4"
+                                  />
+                                  <label htmlFor={`role-${roleOption.value}`} className="text-sm">
+                                    {roleOption.label}
+                                  </label>
+                                </div>
+                                {isChecked && (
+                                  <div className="flex items-center space-x-2">
+                                    <input
+                                      type="checkbox"
+                                      id={`internal-${roleOption.value}`}
+                                      checked={existingRole?.is_internal || false}
+                                      onChange={(e) => {
+                                        const newRoles = (field.value || []).map(r =>
+                                          r.role === roleOption.value
+                                            ? { ...r, is_internal: e.target.checked }
+                                            : r
+                                        );
+                                        field.onChange(newRoles);
+                                      }}
+                                      className="h-4 w-4"
+                                    />
+                                    <label htmlFor={`internal-${roleOption.value}`} className="text-xs text-muted-foreground">
+                                      Signed Artist
+                                    </label>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                         <FormMessage />
                       </FormItem>

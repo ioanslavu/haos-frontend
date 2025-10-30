@@ -65,6 +65,9 @@ export interface Entity {
   stage_name?: string; // For PF
   nationality?: string; // For PF
   gender?: 'M' | 'F' | 'O'; // For PF
+  image?: string; // Image file path
+  image_url?: string; // Full URL to image
+  profile_photo?: string; // Profile photo path
   email?: string;
   phone?: string;
   address?: string;
@@ -95,6 +98,7 @@ export interface EntityRole {
   role: 'artist' | 'writer' | 'producer' | 'label' | 'publisher' | 'performer' | 'engineer' | 'client' | 'vendor' | 'employee';
   role_display?: string;
   primary_role: boolean;
+  is_internal: boolean;
   created_at: string;
 }
 
@@ -135,10 +139,18 @@ export interface EntityListItem {
   first_name?: string;
   last_name?: string;
   stage_name?: string;
+  image?: string;
+  image_url?: string;
+  profile_photo?: string;
   email?: string;
   phone?: string;
   roles?: string[];
   created_at: string;
+}
+
+export interface RoleData {
+  role: string;
+  is_internal?: boolean;
 }
 
 export interface CreateEntityPayload {
@@ -160,7 +172,7 @@ export interface CreateEntityPayload {
   bank_name?: string;
   bank_branch?: string;
   notes?: string;
-  roles?: string[];
+  roles?: (string | RoleData)[]; // Can be simple strings or objects with is_internal
   primary_role?: string;
 }
 
@@ -169,6 +181,7 @@ export type UpdateEntityPayload = Partial<CreateEntityPayload>;
 export interface EntitySearchParams {
   kind?: 'PF' | 'PJ';
   has_role?: string;
+  is_internal?: boolean;
   search?: string;
   created_after?: string;
   created_before?: string;
@@ -268,6 +281,31 @@ class EntitiesService {
     await apiClient.delete(`${this.BASE_PATH}/entities/${id}/`);
   }
 
+  // Upload entity image
+  async uploadEntityImage(id: number, file: File): Promise<Entity> {
+    const formData = new FormData();
+    formData.append('image', file);
+    const { data } = await apiClient.patch<Entity>(
+      `${this.BASE_PATH}/entities/${id}/`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return data;
+  }
+
+  // Delete entity image
+  async deleteEntityImage(id: number): Promise<Entity> {
+    const { data } = await apiClient.patch<Entity>(
+      `${this.BASE_PATH}/entities/${id}/`,
+      { image: null }
+    );
+    return data;
+  }
+
   // Get entity placeholders for contract generation (backward compatible)
   async getEntityPlaceholders(id: number): Promise<Record<string, string>> {
     const { data } = await apiClient.get<Record<string, string>>(
@@ -298,6 +336,15 @@ class EntitiesService {
       `${this.BASE_PATH}/entities/producers/`
     );
     return data.results;
+  }
+
+  // Get business entities (for both client and brand searches)
+  async getBusinessEntities(params?: EntitySearchParams): Promise<PaginatedResponse<EntityListItem>> {
+    const { data } = await apiClient.get<PaginatedResponse<EntityListItem>>(
+      `${this.BASE_PATH}/entities/business/`,
+      { params }
+    );
+    return data;
   }
 
   // Get entity stats

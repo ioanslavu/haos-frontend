@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Check, ChevronsUpDown, Loader2, X, Building2, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
-import { useSearchEntities } from '@/api/hooks/useEntities';
+import { useSearchEntities, useBusinessEntities, useEntity } from '@/api/hooks/useEntities';
 import { EntityListItem } from '@/api/services/entities.service';
 
 interface EntitySearchComboboxProps {
@@ -15,6 +15,12 @@ interface EntitySearchComboboxProps {
     kind?: 'PF' | 'PJ';
     has_role?: string;
   };
+  /**
+   * Use business endpoint - returns all entities with business roles
+   * (client, brand, label, booking, etc.)
+   * Set to true for client/brand searches to ensure same list
+   */
+  useBusinessEndpoint?: boolean;
 }
 
 export function EntitySearchCombobox({
@@ -24,6 +30,7 @@ export function EntitySearchCombobox({
   placeholder = 'Select entity...',
   className,
   filter,
+  useBusinessEndpoint = false,
 }: EntitySearchComboboxProps) {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -31,23 +38,54 @@ export function EntitySearchCombobox({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
-  const { data: entities = [], isLoading } = useSearchEntities(
+  // Fetch selected entity if value is provided (for edit mode)
+  const { data: initialEntity } = useEntity(value || 0, !!value && value > 0 && !selectedEntity);
+
+  // Update selected entity when initial entity is fetched
+  useEffect(() => {
+    if (initialEntity && value && !selectedEntity) {
+      setSelectedEntity(initialEntity);
+    }
+  }, [initialEntity, value, selectedEntity]);
+
+  // Clear selected entity when value is cleared from outside
+  useEffect(() => {
+    if (!value && selectedEntity) {
+      setSelectedEntity(null);
+    }
+  }, [value, selectedEntity]);
+
+  // Use business endpoint or general search based on prop
+  const { data: searchEntitiesData = [], isLoading: searchLoading } = useSearchEntities(
     searchQuery,
-    searchQuery.length > 0
+    !useBusinessEndpoint && searchQuery.length > 0
   );
 
-  // Filter entities based on provided filters
-  const filteredEntities = entities.filter((entity) => {
-    if (filter?.kind && entity.kind !== filter.kind) return false;
-    if (filter?.has_role) {
-      // Case-insensitive role matching (backend returns display names like "Artist", we filter by codes like "artist")
-      const hasRole = entity.roles?.some(role =>
-        role.toLowerCase() === filter.has_role?.toLowerCase()
-      );
-      if (!hasRole) return false;
-    }
-    return true;
-  });
+  const { data: businessEntitiesData, isLoading: businessLoading } = useBusinessEntities(
+    {
+      search: searchQuery,
+      page_size: 50,
+      ...filter,
+    },
+    useBusinessEndpoint
+  );
+
+  const entities = useBusinessEndpoint ? (businessEntitiesData?.results || []) : searchEntitiesData;
+  const isLoading = useBusinessEndpoint ? businessLoading : searchLoading;
+
+  // Filter entities based on provided filters (only for non-business endpoint)
+  const filteredEntities = useBusinessEndpoint
+    ? entities // Business endpoint already filters
+    : entities.filter((entity) => {
+        if (filter?.kind && entity.kind !== filter.kind) return false;
+        if (filter?.has_role) {
+          const hasRole = entity.roles?.some(role =>
+            role.toLowerCase() === filter.has_role?.toLowerCase()
+          );
+          if (!hasRole) return false;
+        }
+        return true;
+      });
 
   // Close dropdown when clicking outside
   useEffect(() => {

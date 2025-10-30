@@ -120,35 +120,41 @@ export default function CompanySettings() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-              <Building2 className="h-8 w-8" />
-              Company Settings
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Manage your company information and system preferences
-            </p>
+      <div className="space-y-8 pb-8">
+        {/* Modern Glassmorphic Header with Gradient */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-teal-500/10 via-emerald-500/10 to-green-500/10 backdrop-blur-xl border border-white/20 dark:border-white/10 p-8 shadow-2xl">
+          {/* Animated gradient orbs */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-teal-400/30 to-emerald-500/30 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-green-400/30 to-lime-500/30 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+
+          <div className="relative z-10 flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text flex items-center gap-3">
+                <Building2 className="h-10 w-10" />
+                Company Settings
+              </h1>
+              <p className="text-muted-foreground text-lg mt-2">
+                Manage your company information and system preferences
+              </p>
+            </div>
+            <Button onClick={handleSave} disabled={!hasChanges || updateCompanySettings.isPending} className="shadow-lg">
+              {updateCompanySettings.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Changes
+                </>
+              )}
+            </Button>
           </div>
-          <Button onClick={handleSave} disabled={!hasChanges || updateCompanySettings.isPending}>
-            {updateCompanySettings.isPending ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                Save Changes
-              </>
-            )}
-          </Button>
         </div>
 
         {/* Basic Information */}
-        <Card>
+        <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
           <CardHeader>
             <div className="flex items-center gap-2">
               <Building2 className="h-5 w-5" />
@@ -235,7 +241,7 @@ export default function CompanySettings() {
         </Card>
 
         {/* Contact Information */}
-        <Card>
+        <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
           <CardHeader>
             <div className="flex items-center gap-2">
               <Mail className="h-5 w-5" />
@@ -279,7 +285,7 @@ export default function CompanySettings() {
         </Card>
 
         {/* Address */}
-        <Card>
+        <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
           <CardHeader>
             <div className="flex items-center gap-2">
               <MapPin className="h-5 w-5" />
@@ -339,7 +345,7 @@ export default function CompanySettings() {
         </Card>
 
         {/* Bank Details */}
-        <Card>
+        <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
           <CardHeader>
             <div className="flex items-center gap-2">
               <CreditCard className="h-5 w-5" />
@@ -381,7 +387,7 @@ export default function CompanySettings() {
         </Card>
 
         {/* System Settings */}
-        <Card>
+        <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
           <CardHeader>
             <div className="flex items-center gap-2">
               <Globe className="h-5 w-5" />

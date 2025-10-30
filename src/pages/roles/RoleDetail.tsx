@@ -131,7 +131,7 @@ export default function RoleDetail() {
             </Button>
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-3xl font-bold tracking-tight">
+                <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
                   {role.name.replace(/_/g, ' ')}
                 </h1>
                 <Badge variant={getRoleBadgeColor(role.name)}>
@@ -139,7 +139,7 @@ export default function RoleDetail() {
                   Role
                 </Badge>
               </div>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground text-base">
                 Manage role permissions and view assigned users
               </p>
             </div>
@@ -182,7 +182,7 @@ export default function RoleDetail() {
           <TabsContent value="overview" className="space-y-4">
             {/* Statistics Cards */}
             <div className="grid gap-4 md:grid-cols-3">
-              <Card>
+              <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Role Name</CardTitle>
                   <Shield className="h-4 w-4 text-muted-foreground" />
@@ -195,7 +195,7 @@ export default function RoleDetail() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Assigned Users</CardTitle>
                   <Users className="h-4 w-4 text-muted-foreground" />
@@ -208,7 +208,7 @@ export default function RoleDetail() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Permissions</CardTitle>
                   <Key className="h-4 w-4 text-muted-foreground" />
@@ -223,11 +223,11 @@ export default function RoleDetail() {
             </div>
 
             {/* All Users */}
-            <Card>
+            <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
               <CardHeader>
                 <CardTitle>Users with this Role</CardTitle>
                 <CardDescription>
-                  {role.users && role.users.length > 0 
+                  {role.users && role.users.length > 0
                     ? `${role.users.length} user${role.users.length !== 1 ? 's' : ''} assigned to this role`
                     : 'No users assigned to this role yet'
                   }

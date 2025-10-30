@@ -12,7 +12,7 @@ export function ImpersonationBanner() {
   const { toast } = useToast();
 
   // Check if currently impersonating (test user)
-  const isImpersonating = user?.email?.includes('test-');
+  const isImpersonating = user?.email?.startsWith('test.');
 
   if (!isImpersonating) {
     return null;
@@ -25,6 +25,8 @@ export function ImpersonationBanner() {
     digital_employee: 'Digital Employee',
     sales_manager: 'Sales Manager',
     sales_employee: 'Sales Employee',
+    publishing_manager: 'Publishing Manager',
+    publishing_employee: 'Publishing Employee',
   };
 
   const roleName = user?.role ? roleLabels[user.role] || user.role : 'Unknown Role';

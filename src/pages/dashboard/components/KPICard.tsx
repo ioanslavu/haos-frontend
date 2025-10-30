@@ -39,44 +39,60 @@ export const KPICard: React.FC<KPICardProps> = ({
 
   return (
     <Card className={cn(
-      "transition-all duration-200 hover:shadow-md",
-      variant === 'warning' && "border-amber-200 bg-amber-50/30"
+      "relative overflow-hidden rounded-2xl backdrop-blur-xl border-white/20 dark:border-white/10 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02]",
+      variant === 'warning'
+        ? "bg-gradient-to-br from-amber-500/10 to-orange-500/10"
+        : "bg-gradient-to-br from-blue-500/10 to-purple-500/10"
     )}>
-      <CardContent className="p-6">
+      {/* Gradient accent */}
+      <div className={cn(
+        "absolute inset-0 bg-gradient-to-br to-transparent",
+        variant === 'warning' ? "from-amber-400/20" : "from-blue-400/20"
+      )} />
+
+      <CardContent className="p-6 relative">
         <div className="flex items-center justify-between">
           <div className="flex-1">
-            <p className="text-sm font-medium text-slate-600 mb-2">{title}</p>
+            <p className="text-sm font-semibold text-muted-foreground mb-3">{title}</p>
             <div>
-              <p className="text-2xl font-semibold text-slate-900">{value}</p>
+              <p className={cn(
+                "text-3xl font-bold",
+                variant === 'warning'
+                  ? "bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent"
+                  : "bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"
+              )}>{value}</p>
               {valueSubtext && (
-                <p className="text-sm text-slate-500 mt-1">{valueSubtext}</p>
+                <p className="text-sm text-muted-foreground mt-1 font-medium">{valueSubtext}</p>
               )}
             </div>
           </div>
           <div className={cn(
-            "w-12 h-12 rounded-lg flex items-center justify-center",
-            variant === 'warning' 
-              ? "bg-amber-100 text-amber-600" 
-              : "bg-blue-100 text-blue-600"
+            "w-14 h-14 rounded-2xl flex items-center justify-center backdrop-blur-sm shadow-lg",
+            variant === 'warning'
+              ? "bg-gradient-to-br from-amber-500/20 to-orange-500/20"
+              : "bg-gradient-to-br from-blue-500/20 to-purple-500/20"
           )}>
-            <Icon className="h-6 w-6" />
+            <Icon className={cn(
+              "h-7 w-7",
+              variant === 'warning' ? "text-amber-600 dark:text-amber-400" : "text-blue-600 dark:text-blue-400"
+            )} />
           </div>
         </div>
 
         <div className="flex items-center gap-2 mt-4">
-          <Badge 
-            variant="outline" 
+          <Badge
+            variant="outline"
             className={cn(
-              "flex items-center gap-1",
-              changeType === 'positive' && "border-green-200 bg-green-50 text-green-700",
-              changeType === 'negative' && "border-red-200 bg-red-50 text-red-700",
-              changeType === 'neutral' && "border-slate-200 bg-slate-50 text-slate-700"
+              "flex items-center gap-1.5 px-3 py-1 rounded-full backdrop-blur-sm font-semibold border-0",
+              changeType === 'positive' && "bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-600 dark:text-emerald-400",
+              changeType === 'negative' && "bg-gradient-to-r from-red-500/20 to-pink-500/20 text-red-600 dark:text-red-400",
+              changeType === 'neutral' && "bg-muted/50 text-muted-foreground"
             )}
           >
-            <TrendIcon className="h-3 w-3" />
+            <TrendIcon className="h-3.5 w-3.5" />
             {change}
           </Badge>
-          <span className="text-xs text-slate-500">vs last month</span>
+          <span className="text-xs text-muted-foreground font-medium">vs last month</span>
         </div>
       </CardContent>
     </Card>

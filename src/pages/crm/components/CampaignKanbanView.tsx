@@ -186,16 +186,32 @@ export function CampaignKanbanView({
                         </div>
 
                         {/* Artist */}
-                        <div className="flex items-center gap-2 text-xs">
-                          <Avatar className="h-5 w-5">
-                            <AvatarFallback className="text-xs">
-                              {getInitials(campaign.artist.display_name)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-muted-foreground truncate">
-                            {campaign.artist.display_name}
-                          </span>
-                        </div>
+                        {campaign.artist && (
+                          <div className="flex items-center gap-2 text-xs">
+                            <Avatar className="h-5 w-5">
+                              <AvatarFallback className="text-xs">
+                                {getInitials(campaign.artist.display_name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-muted-foreground truncate">
+                              {campaign.artist.display_name}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Song */}
+                        {campaign.song && (
+                          <div className="flex items-center gap-2 text-xs">
+                            <Avatar className="h-5 w-5">
+                              <AvatarFallback className="text-xs bg-purple-100 dark:bg-purple-900">
+                                🎵
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-muted-foreground truncate">
+                              {campaign.song.title}
+                            </span>
+                          </div>
+                        )}
 
                         {/* Confirmed date */}
                         {campaign.confirmed_at && (

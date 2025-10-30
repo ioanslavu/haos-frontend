@@ -299,40 +299,52 @@ export default function ContractsModern() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-foreground">Contracts</h1>
-            <p className="text-muted-foreground">Manage generated contracts and signatures</p>
-          </div>
-          <div className="flex gap-3">
-            {templates && templates.length > 0 && (
-              <Select onValueChange={(value) => {
-                const template = templates.find(t => t.id.toString() === value);
-                if (template) handleGenerateFromTemplate(template);
-              }}>
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Generate from template..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {templates.filter(t => t.is_active).map((template) => (
-                    <SelectItem key={template.id} value={template.id.toString()}>
-                      {template.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+      <div className="space-y-8 pb-8">
+        {/* Modern Glassmorphic Header with Gradient */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-500/10 via-teal-500/10 to-cyan-500/10 backdrop-blur-xl border border-white/20 dark:border-white/10 p-8 shadow-2xl">
+          {/* Animated gradient orbs */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-emerald-400/30 to-teal-500/30 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-cyan-400/30 to-blue-500/30 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+
+          <div className="relative z-10">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
+                  Contracts
+                </h1>
+                <p className="text-muted-foreground text-lg mt-2">
+                  Manage generated contracts and signatures
+                </p>
+              </div>
+              <div className="flex gap-3">
+                {templates && templates.length > 0 && (
+                  <Select onValueChange={(value) => {
+                    const template = templates.find(t => t.id.toString() === value);
+                    if (template) handleGenerateFromTemplate(template);
+                  }}>
+                    <SelectTrigger className="w-[200px] backdrop-blur-sm bg-white/50 dark:bg-white/10 hover:bg-white/80 dark:hover:bg-white/20 border-white/20">
+                      <SelectValue placeholder="Generate from template..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {templates.filter(t => t.is_active).map((template) => (
+                        <SelectItem key={template.id} value={template.id.toString()}>
+                          {template.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Filter */}
-        <Card className="p-4">
+        <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl p-4">
           <div className="flex gap-4 items-center">
-            <label className="text-sm font-medium">Status:</label>
+            <label className="text-sm font-semibold">Status:</label>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[200px]">
+              <SelectTrigger className="w-[200px] backdrop-blur-sm bg-background/50 border-white/20 dark:border-white/10">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -370,7 +382,7 @@ export default function ContractsModern() {
               }}
             />
           ) : (
-            <Card>
+            <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
               <DataTable
                 columns={columns}
                 data={filteredContracts}

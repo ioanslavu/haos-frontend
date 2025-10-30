@@ -1,11 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Search, LayoutGrid, LayoutList, Loader2, Phone, Mail, Building2, Calendar, Package, DollarSign, User, Music } from 'lucide-react';
+import { Plus, Search, LayoutGrid, LayoutList, Building2, User, Package, Music, Target, TrendingUp, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -35,16 +35,15 @@ import { useEntities } from '@/api/hooks/useEntities';
 import { useCampaigns, useDeleteCampaign, useUpdateCampaign, useCampaignStats } from '@/api/hooks/useCampaigns';
 import { EntityFormDialog } from './crm/components/EntityFormDialog';
 import { EntityDetailsSheet } from './crm/components/EntityDetailsSheet';
-import { CampaignFormDialog } from './crm/components/CampaignFormDialog';
 import { CampaignDetailsSheet } from './crm/components/CampaignDetailsSheet';
-import { ModernCampaignKanban } from './crm/components/ModernCampaignKanban';
+import { ShadcnCampaignKanban } from './crm/components/ShadcnCampaignKanban';
 import { CampaignTableView } from './crm/components/CampaignTableView';
 import { BrandAnalytics } from './crm/components/BrandAnalytics';
 import { ArtistAnalytics } from './crm/components/ArtistAnalytics';
-import { ClientAnalytics } from './crm/components/ClientAnalytics';
+import { EnhancedClientAnalytics } from './crm/components/EnhancedClientAnalytics';
 import { Campaign, CampaignStatus, CAMPAIGN_STATUS_LABELS } from '@/types/campaign';
-import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 export default function CRM() {
   const navigate = useNavigate();
@@ -69,9 +68,8 @@ export default function CRM() {
     setSelectedBrandId(brandIdFromUrl);
     setSelectedArtistId(artistIdFromUrl);
   }, [tabFromUrl, clientIdFromUrl, brandIdFromUrl, artistIdFromUrl]);
+
   const [formDialogOpen, setFormDialogOpen] = useState(false);
-  const [campaignFormOpen, setCampaignFormOpen] = useState(false);
-  const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [campaignToDelete, setCampaignToDelete] = useState<Campaign | null>(null);
   const [campaignDetailsId, setCampaignDetailsId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -144,8 +142,7 @@ export default function CRM() {
 
   // Handlers
   const handleEditCampaign = (campaign: Campaign) => {
-    setSelectedCampaign(campaign);
-    setCampaignFormOpen(true);
+    navigate(`/crm/campaigns/${campaign.id}/edit`);
   };
 
   const handleDeleteCampaign = (campaign: Campaign) => {
@@ -177,13 +174,7 @@ export default function CRM() {
   };
 
   const handleNewCampaign = () => {
-    setSelectedCampaign(null);
-    setCampaignFormOpen(true);
-  };
-
-  const handleCloseCampaignForm = () => {
-    setSelectedCampaign(null);
-    setCampaignFormOpen(false);
+    navigate('/crm/campaigns/create');
   };
 
   const handleCampaignClick = (campaign: Campaign) => {
@@ -201,114 +192,150 @@ export default function CRM() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-foreground">CRM</h1>
-            <p className="text-muted-foreground">Manage clients, campaigns, and brands</p>
-          </div>
-          <div className="flex gap-3">
-            {activeTab === 'clients' && (
-              <Button size="sm" onClick={() => setFormDialogOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Client
-              </Button>
-            )}
-            {activeTab === 'campaigns' && (
-              <Button size="sm" onClick={handleNewCampaign}>
-                <Plus className="h-4 w-4 mr-2" />
-                New Campaign
-              </Button>
-            )}
-            {activeTab === 'brands' && (
-              <Button size="sm" onClick={() => setFormDialogOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Brand
-              </Button>
-            )}
-            {activeTab === 'artists' && (
-              <Button size="sm" onClick={() => setFormDialogOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Artist
-              </Button>
-            )}
+      <div className="space-y-8 pb-8">
+        {/* Modern Glassmorphic Header with Gradient */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-pink-500/10 backdrop-blur-xl border border-white/20 dark:border-white/10 p-8 shadow-2xl">
+          {/* Animated gradient orbs */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-400/30 to-purple-500/30 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-pink-400/30 to-orange-500/30 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+
+          <div className="relative z-10 flex items-center justify-between">
+            <div className="space-y-2">
+              <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
+                CRM
+              </h1>
+              <p className="text-muted-foreground text-lg">
+                Manage campaigns, clients, artists, and brands
+              </p>
+            </div>
+            <Button
+              onClick={() => {
+                if (activeTab === 'campaigns') handleNewCampaign();
+                else setFormDialogOpen(true);
+              }}
+              size="lg"
+              className="h-12 px-6 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              New {activeTab === 'campaigns' ? 'Campaign' : activeTab === 'clients' ? 'Client' : activeTab === 'artists' ? 'Artist' : 'Brand'}
+            </Button>
           </div>
         </div>
 
-        {/* Main Tabs */}
+        {/* Modern iOS-style Tabs */}
         <Tabs value={activeTab} onValueChange={(v) => {
           setActiveTab(v as any);
+          setSearchQuery('');
           navigate(`/crm?tab=${v}`);
         }}>
-          <TabsList>
-            <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
-            <TabsTrigger value="clients">Clients</TabsTrigger>
-            <TabsTrigger value="artists">Artists</TabsTrigger>
-            <TabsTrigger value="brands">Brands</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4 p-2 bg-muted/50 backdrop-blur-xl rounded-2xl border border-white/10 h-14 shadow-lg">
+            <TabsTrigger
+              value="campaigns"
+              className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
+            >
+              Campaigns
+            </TabsTrigger>
+            <TabsTrigger
+              value="clients"
+              className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
+            >
+              Clients
+            </TabsTrigger>
+            <TabsTrigger
+              value="artists"
+              className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
+            >
+              Artists
+            </TabsTrigger>
+            <TabsTrigger
+              value="brands"
+              className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
+            >
+              Brands
+            </TabsTrigger>
           </TabsList>
 
           {/* CAMPAIGNS TAB */}
-          <TabsContent value="campaigns" className="space-y-4">
-            {/* Stats Cards */}
+          <TabsContent value="campaigns" className="space-y-6 mt-8">
+            {/* Glassmorphic Stats Cards */}
             {campaignStats && (
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Campaigns</CardTitle>
-                    <Package className="h-4 w-4 text-muted-foreground" />
+                <Card className="relative overflow-hidden rounded-2xl border-white/20 dark:border-white/10 bg-gradient-to-br from-blue-500/10 to-purple-500/10 backdrop-blur-xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 to-transparent" />
+                  <CardHeader className="relative flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Total Campaigns</CardTitle>
+                    <div className="p-2 rounded-xl bg-blue-500/20 backdrop-blur-sm">
+                      <Target className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    </div>
                   </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{campaignStats.total_campaigns}</div>
+                  <CardContent className="relative">
+                    <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                      {campaignStats.total_campaigns}
+                    </div>
                   </CardContent>
                 </Card>
 
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Value</CardTitle>
-                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <Card className="relative overflow-hidden rounded-2xl border-white/20 dark:border-white/10 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 backdrop-blur-xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-400/20 to-transparent" />
+                  <CardHeader className="relative flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Total Value</CardTitle>
+                    <div className="p-2 rounded-xl bg-emerald-500/20 backdrop-blur-sm">
+                      <DollarSign className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    </div>
                   </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
+                  <CardContent className="relative">
+                    <div className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
                       ${parseFloat(campaignStats.total_value).toLocaleString()}
                     </div>
                   </CardContent>
                 </Card>
 
-                {Object.entries(campaignStats.by_status).slice(0, 2).map(([status, count]) => (
-                  <Card key={status}>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">
-                        {CAMPAIGN_STATUS_LABELS[status as CampaignStatus]}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">{count as number}</div>
-                    </CardContent>
-                  </Card>
-                ))}
+                {Object.entries(campaignStats.by_status).slice(0, 2).map(([status, count], idx) => {
+                  const gradients = [
+                    { from: 'from-orange-500/10', to: 'to-red-500/10', text: 'from-orange-600 to-red-600', bg: 'bg-orange-500/20', icon: 'text-orange-600 dark:text-orange-400', accent: 'from-orange-400/20' },
+                    { from: 'from-pink-500/10', to: 'to-purple-500/10', text: 'from-pink-600 to-purple-600', bg: 'bg-pink-500/20', icon: 'text-pink-600 dark:text-pink-400', accent: 'from-pink-400/20' }
+                  ];
+                  const gradient = gradients[idx];
+
+                  return (
+                    <Card key={status} className={cn("relative overflow-hidden rounded-2xl border-white/20 dark:border-white/10 backdrop-blur-xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 bg-gradient-to-br", gradient.from, gradient.to)}>
+                      <div className={cn("absolute inset-0 bg-gradient-to-br to-transparent", gradient.accent)} />
+                      <CardHeader className="relative flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">
+                          {CAMPAIGN_STATUS_LABELS[status as CampaignStatus]}
+                        </CardTitle>
+                        <div className={cn("p-2 rounded-xl backdrop-blur-sm", gradient.bg)}>
+                          <TrendingUp className={cn("h-4 w-4", gradient.icon)} />
+                        </div>
+                      </CardHeader>
+                      <CardContent className="relative">
+                        <div className={cn("text-3xl font-bold bg-gradient-to-r bg-clip-text text-transparent", gradient.text)}>
+                          {count as number}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
 
-            {/* Filters and View Toggle */}
-            <div className="flex items-center gap-4">
-              <div className="flex-1 max-w-md">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search campaigns..."
-                    className="pl-10"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
+            {/* Modern Glassmorphic Filters */}
+            <div className="flex items-center gap-3 p-4 rounded-2xl bg-background/50 backdrop-blur-xl border border-white/10 shadow-lg">
+              <div className="relative flex-1">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input
+                  placeholder="Search campaigns..."
+                  className="pl-12 h-12 rounded-xl bg-background/50 border-white/10 focus:border-blue-500/50 transition-all duration-300"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
               </div>
 
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filter by status" />
+                <SelectTrigger className="w-[200px] h-12 rounded-xl bg-background/50 border-white/10">
+                  <SelectValue placeholder="All statuses" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-xl border-white/10">
                   <SelectItem value="all">All Statuses</SelectItem>
                   {Object.entries(CAMPAIGN_STATUS_LABELS).map(([value, label]) => (
                     <SelectItem key={value} value={value}>
@@ -318,18 +345,30 @@ export default function CRM() {
                 </SelectContent>
               </Select>
 
-              <div className="flex gap-1">
+              <div className="flex gap-2 p-1.5 rounded-xl bg-muted/50 backdrop-blur-sm border border-white/10">
                 <Button
-                  variant={campaignViewMode === 'kanban' ? 'default' : 'outline'}
-                  size="icon"
+                  variant={campaignViewMode === 'kanban' ? 'default' : 'ghost'}
+                  size="sm"
                   onClick={() => setCampaignViewMode('kanban')}
+                  className={cn(
+                    "h-9 px-4 rounded-lg transition-all duration-300",
+                    campaignViewMode === 'kanban'
+                      ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg"
+                      : "hover:bg-background/50"
+                  )}
                 >
                   <LayoutGrid className="h-4 w-4" />
                 </Button>
                 <Button
-                  variant={campaignViewMode === 'table' ? 'default' : 'outline'}
-                  size="icon"
+                  variant={campaignViewMode === 'table' ? 'default' : 'ghost'}
+                  size="sm"
                   onClick={() => setCampaignViewMode('table')}
+                  className={cn(
+                    "h-9 px-4 rounded-lg transition-all duration-300",
+                    campaignViewMode === 'table'
+                      ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg"
+                      : "hover:bg-background/50"
+                  )}
                 >
                   <LayoutList className="h-4 w-4" />
                 </Button>
@@ -338,40 +377,18 @@ export default function CRM() {
 
             {/* Campaigns View */}
             {campaignsLoading ? (
-              campaignViewMode === 'kanban' ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {Array.from({ length: 3 }).map((_, colIndex) => (
-                    <div key={colIndex} className="space-y-4">
-                      {Array.from({ length: 2 }).map((_, cardIndex) => (
-                        <Card key={cardIndex} className="hover-lift">
-                          <CardHeader>
-                            <Skeleton className="h-5 w-32 mb-2" />
-                            <Skeleton className="h-4 w-24" />
-                          </CardHeader>
-                          <CardContent className="space-y-3">
-                            <Skeleton className="h-12 w-full" />
-                            <Skeleton className="h-4 w-full" />
-                            <Skeleton className="h-4 w-3/4" />
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Card key={i}>
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <Skeleton className="h-5 w-48" />
-                          <Skeleton className="h-8 w-24" />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Card key={i}>
+                    <CardHeader>
+                      <Skeleton className="h-5 w-32" />
+                    </CardHeader>
+                    <CardContent>
+                      <Skeleton className="h-20 w-full" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             ) : filteredCampaigns.length === 0 ? (
               searchQuery || statusFilter !== 'all' ? (
                 <NoSearchResultsEmptyState
@@ -382,12 +399,10 @@ export default function CRM() {
                   }}
                 />
               ) : (
-                <NoCampaignsEmptyState
-                  onPrimaryAction={handleNewCampaign}
-                />
+                <NoCampaignsEmptyState onPrimaryAction={handleNewCampaign} />
               )
             ) : campaignViewMode === 'kanban' ? (
-              <ModernCampaignKanban
+              <ShadcnCampaignKanban
                 campaigns={filteredCampaigns}
                 onEdit={handleEditCampaign}
                 onDelete={handleDeleteCampaign}
@@ -405,7 +420,7 @@ export default function CRM() {
           </TabsContent>
 
           {/* CLIENTS TAB */}
-          <TabsContent value="clients" className="space-y-4">
+          <TabsContent value="clients" className="space-y-6 mt-6">
             {selectedClientId ? (
               <div>
                 <Button
@@ -419,7 +434,7 @@ export default function CRM() {
                 >
                   ← Back to Clients
                 </Button>
-                <ClientAnalytics
+                <EnhancedClientAnalytics
                   clientId={selectedClientId}
                   onCampaignEdit={handleEditCampaign}
                   onCampaignDelete={handleDeleteCampaign}
@@ -428,38 +443,25 @@ export default function CRM() {
               </div>
             ) : (
               <>
-                <div className="flex gap-4">
-                  <div className="flex-1 max-w-md">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search clients..."
-                        className="pl-10"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                      />
-                    </div>
-                  </div>
+                {/* Search */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search clients..."
+                    className="pl-10"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
                 </div>
 
                 {clientsLoading ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {Array.from({ length: 6 }).map((_, i) => (
-                      <Card key={i} className="hover-lift">
+                      <Card key={i}>
                         <CardHeader>
-                          <div className="flex items-center gap-3">
-                            <Skeleton className="h-12 w-12 rounded-full" />
-                            <div className="space-y-2">
-                              <Skeleton className="h-5 w-32" />
-                              <Skeleton className="h-4 w-20" />
-                            </div>
-                          </div>
+                          <Skeleton className="h-12 w-12 rounded-full" />
+                          <Skeleton className="h-5 w-32 mt-2" />
                         </CardHeader>
-                        <CardContent className="space-y-3">
-                          <Skeleton className="h-4 w-full" />
-                          <Skeleton className="h-4 w-full" />
-                          <Skeleton className="h-4 w-3/4" />
-                        </CardContent>
                       </Card>
                     ))}
                   </div>
@@ -470,91 +472,45 @@ export default function CRM() {
                       onClearSearch={() => setSearchQuery('')}
                     />
                   ) : (
-                    <NoClientsEmptyState
-                      onPrimaryAction={() => setFormDialogOpen(true)}
-                    />
+                    <NoClientsEmptyState onPrimaryAction={() => setFormDialogOpen(true)} />
                   )
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredClients.map((client) => (
                       <Card
                         key={client.id}
-                        className="hover-lift transition-smooth cursor-pointer"
+                        className="cursor-pointer hover:shadow-lg transition-shadow"
                         onClick={() => {
                           setSelectedClientId(client.id);
                           navigate(`/crm?tab=clients&clientId=${client.id}`);
                         }}
                       >
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-12 w-12">
-                            <AvatarImage
-                              src={`https://avatar.vercel.sh/${client.display_name}`}
-                            />
-                            <AvatarFallback>{getInitials(client.display_name)}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <CardTitle className="text-lg">{client.display_name}</CardTitle>
-                            {client.kind === 'PJ' && (
-                              <CardDescription className="mt-1">
-                                <div className="flex items-center gap-1">
-                                  <Building2 className="h-3 w-3" />
-                                  <span>Company</span>
-                                </div>
-                              </CardDescription>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        {client.email && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Mail className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-muted-foreground truncate">{client.email}</span>
-                          </div>
-                        )}
-                        {client.phone && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Phone className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-muted-foreground">{client.phone}</span>
-                          </div>
-                        )}
-                        {client.contact_persons && client.contact_persons.length > 0 && (
-                          <div className="space-y-2 pt-2 border-t">
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <User className="h-3 w-3" />
-                              <span className="font-medium">Contacts ({client.contact_persons.length})</span>
-                            </div>
-                            <div className="space-y-1.5">
-                              {client.contact_persons.slice(0, 3).map((contact: any) => (
-                                <div key={contact.id} className="text-xs">
-                                  <div className="font-medium text-foreground">{contact.name}</div>
-                                  {contact.emails && contact.emails.length > 0 && (
-                                    <div className="text-muted-foreground truncate">
-                                      {contact.emails[0].email}
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                              {client.contact_persons.length > 3 && (
-                                <div className="text-xs text-muted-foreground italic">
-                                  +{client.contact_persons.length - 3} more
-                                </div>
+                        <CardHeader>
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-12 w-12">
+                              <AvatarFallback className="bg-primary/10 font-semibold">
+                                {getInitials(client.display_name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold truncate">{client.display_name}</h3>
+                              {client.kind === 'PJ' && (
+                                <Badge variant="secondary" className="mt-1">
+                                  <Building2 className="h-3 w-3 mr-1" />
+                                  Company
+                                </Badge>
                               )}
                             </div>
                           </div>
+                        </CardHeader>
+                        {client.contact_persons && client.contact_persons.length > 0 && (
+                          <CardContent>
+                            <div className="text-sm text-muted-foreground">
+                              <User className="h-3 w-3 inline mr-1" />
+                              {client.contact_persons.length} contact{client.contact_persons.length > 1 ? 's' : ''}
+                            </div>
+                          </CardContent>
                         )}
-                        <div className="flex items-center gap-2 text-sm pt-2 border-t">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-muted-foreground text-xs">
-                            Added {format(new Date(client.created_at), 'PP')}
-                          </span>
-                        </div>
-                      </div>
-                    </CardContent>
                       </Card>
                     ))}
                   </div>
@@ -564,7 +520,7 @@ export default function CRM() {
           </TabsContent>
 
           {/* ARTISTS TAB */}
-          <TabsContent value="artists" className="space-y-4">
+          <TabsContent value="artists" className="space-y-6 mt-6">
             {selectedArtistId ? (
               <div>
                 <Button
@@ -587,36 +543,23 @@ export default function CRM() {
               </div>
             ) : (
               <>
-                <div className="flex gap-4">
-                  <div className="flex-1 max-w-md">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search artists..."
-                        className="pl-10"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                      />
-                    </div>
-                  </div>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search artists..."
+                    className="pl-10"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
                 </div>
 
                 {artistsLoading ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {Array.from({ length: 6 }).map((_, i) => (
-                      <Card key={i} className="hover-lift">
+                      <Card key={i}>
                         <CardHeader>
-                          <div className="flex items-center gap-3">
-                            <Skeleton className="h-12 w-12 rounded-full" />
-                            <div className="space-y-2">
-                              <Skeleton className="h-5 w-32" />
-                              <Skeleton className="h-4 w-16" />
-                            </div>
-                          </div>
+                          <Skeleton className="h-12 w-12 rounded-full" />
                         </CardHeader>
-                        <CardContent>
-                          <Skeleton className="h-4 w-full" />
-                        </CardContent>
                       </Card>
                     ))}
                   </div>
@@ -629,25 +572,16 @@ export default function CRM() {
                   ) : (
                     <NoClientsEmptyState
                       title="No artists yet"
-                      description="Start building your artist roster by adding your first artist."
-                      icon={Music}
-                      primaryAction={{
-                        label: 'Add First Artist',
-                        onClick: () => setFormDialogOpen(true),
-                      }}
-                      tips={[
-                        'Artists can be linked to campaigns for promotion tracking',
-                        'Track artist performance and engagement',
-                        'Manage artist contracts and agreements',
-                      ]}
+                      description="Start building your artist roster"
+                      onPrimaryAction={() => setFormDialogOpen(true)}
                     />
                   )
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredArtists.map((artist) => (
                       <Card
                         key={artist.id}
-                        className="hover-lift transition-smooth cursor-pointer"
+                        className="cursor-pointer hover:shadow-lg transition-shadow"
                         onClick={() => {
                           setSelectedArtistId(artist.id);
                           navigate(`/crm?tab=artists&artistId=${artist.id}`);
@@ -656,22 +590,19 @@ export default function CRM() {
                         <CardHeader>
                           <div className="flex items-center gap-3">
                             <Avatar className="h-12 w-12">
-                              <AvatarImage src={`https://avatar.vercel.sh/${artist.display_name}`} />
-                              <AvatarFallback>{getInitials(artist.display_name)}</AvatarFallback>
+                              <AvatarFallback className="bg-primary/10 font-semibold">
+                                {getInitials(artist.display_name)}
+                              </AvatarFallback>
                             </Avatar>
-                            <div>
-                              <CardTitle className="text-lg">{artist.display_name}</CardTitle>
-                              <CardDescription>
-                                <Badge variant="secondary" icon={Music} size="sm">Artist</Badge>
-                              </CardDescription>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold truncate">{artist.display_name}</h3>
+                              <Badge variant="secondary" className="mt-1">
+                                <Music className="h-3 w-3 mr-1" />
+                                Artist
+                              </Badge>
                             </div>
                           </div>
                         </CardHeader>
-                        <CardContent>
-                          <div className="text-sm text-muted-foreground">
-                            Click to view analytics
-                          </div>
-                        </CardContent>
                       </Card>
                     ))}
                   </div>
@@ -681,7 +612,7 @@ export default function CRM() {
           </TabsContent>
 
           {/* BRANDS TAB */}
-          <TabsContent value="brands" className="space-y-4">
+          <TabsContent value="brands" className="space-y-6 mt-6">
             {selectedBrandId ? (
               <div>
                 <Button
@@ -704,36 +635,23 @@ export default function CRM() {
               </div>
             ) : (
               <>
-                <div className="flex gap-4">
-                  <div className="flex-1 max-w-md">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search brands..."
-                        className="pl-10"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                      />
-                    </div>
-                  </div>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search brands..."
+                    className="pl-10"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
                 </div>
 
                 {brandsLoading ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {Array.from({ length: 6 }).map((_, i) => (
-                      <Card key={i} className="hover-lift">
+                      <Card key={i}>
                         <CardHeader>
-                          <div className="flex items-center gap-3">
-                            <Skeleton className="h-12 w-12 rounded-full" />
-                            <div className="space-y-2">
-                              <Skeleton className="h-5 w-32" />
-                              <Skeleton className="h-4 w-16" />
-                            </div>
-                          </div>
+                          <Skeleton className="h-12 w-12 rounded-full" />
                         </CardHeader>
-                        <CardContent>
-                          <Skeleton className="h-4 w-full" />
-                        </CardContent>
                       </Card>
                     ))}
                   </div>
@@ -746,25 +664,16 @@ export default function CRM() {
                   ) : (
                     <NoClientsEmptyState
                       title="No brands yet"
-                      description="Start managing your brand partnerships by adding your first brand."
-                      icon={Package}
-                      primaryAction={{
-                        label: 'Add First Brand',
-                        onClick: () => setFormDialogOpen(true),
-                      }}
-                      tips={[
-                        'Brands can be linked to sponsorship campaigns',
-                        'Track brand partnerships and deals',
-                        'Manage brand contracts and deliverables',
-                      ]}
+                      description="Start managing brand partnerships"
+                      onPrimaryAction={() => setFormDialogOpen(true)}
                     />
                   )
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredBrands.map((brand) => (
                       <Card
                         key={brand.id}
-                        className="hover-lift transition-smooth cursor-pointer"
+                        className="cursor-pointer hover:shadow-lg transition-shadow"
                         onClick={() => {
                           setSelectedBrandId(brand.id);
                           navigate(`/crm?tab=brands&brandId=${brand.id}`);
@@ -773,22 +682,19 @@ export default function CRM() {
                         <CardHeader>
                           <div className="flex items-center gap-3">
                             <Avatar className="h-12 w-12">
-                              <AvatarImage src={`https://avatar.vercel.sh/${brand.display_name}`} />
-                              <AvatarFallback>{getInitials(brand.display_name)}</AvatarFallback>
+                              <AvatarFallback className="bg-primary/10 font-semibold">
+                                {getInitials(brand.display_name)}
+                              </AvatarFallback>
                             </Avatar>
-                            <div>
-                              <CardTitle className="text-lg">{brand.display_name}</CardTitle>
-                              <CardDescription>
-                                <Badge variant="secondary" icon={Package} size="sm">Brand</Badge>
-                              </CardDescription>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold truncate">{brand.display_name}</h3>
+                              <Badge variant="secondary" className="mt-1">
+                                <Package className="h-3 w-3 mr-1" />
+                                Brand
+                              </Badge>
                             </div>
                           </div>
                         </CardHeader>
-                        <CardContent>
-                          <div className="text-sm text-muted-foreground">
-                            Click to view analytics
-                          </div>
-                        </CardContent>
                       </Card>
                     ))}
                   </div>
@@ -803,12 +709,6 @@ export default function CRM() {
           open={formDialogOpen}
           onOpenChange={setFormDialogOpen}
           role={activeTab === 'clients' ? 'client' : activeTab === 'artists' ? 'artist' : 'brand'}
-        />
-
-        <CampaignFormDialog
-          open={campaignFormOpen}
-          onOpenChange={handleCloseCampaignForm}
-          campaign={selectedCampaign}
         />
 
         <EntityDetailsSheet
@@ -830,8 +730,7 @@ export default function CRM() {
             <AlertDialogHeader>
               <AlertDialogTitle>Delete Campaign</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete "{campaignToDelete?.campaign_name}"? This action
-                cannot be undone.
+                Are you sure you want to delete "{campaignToDelete?.campaign_name}"? This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

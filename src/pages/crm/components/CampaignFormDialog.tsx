@@ -32,6 +32,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { EntitySearchCombobox } from '@/components/entities/EntitySearchCombobox'
+import { RecordingSearchCombobox } from '@/components/catalog/RecordingSearchCombobox'
 import { EntityFormDialog } from './EntityFormDialog'
 import { ContactPersonFormDialog } from './ContactPersonFormDialog'
 import { useCreateCampaign, useUpdateCampaign } from '@/api/hooks/useCampaigns'
@@ -50,8 +51,9 @@ const handlerSchema = z.object({
 const campaignFormSchema = z.object({
   campaign_name: z.string().min(1, 'Campaign name is required'),
   client: z.number({ required_error: 'Client is required' }),
-  artist: z.number({ required_error: 'Artist is required' }),
+  artist: z.number().optional().nullable(),
   brand: z.number({ required_error: 'Brand is required' }),
+  song: z.number().optional().nullable(),
   contact_person: z.number().optional().nullable(),
   value: z.string().min(1, 'Value is required').regex(/^\d+(\.\d{1,2})?$/, 'Invalid value format'),
   status: z.enum(['lead', 'negotiation', 'confirmed', 'active', 'completed', 'lost']),
@@ -91,8 +93,9 @@ export function CampaignFormDialog({ open, onOpenChange, campaign }: CampaignFor
     defaultValues: {
       campaign_name: '',
       client: undefined,
-      artist: undefined,
+      artist: null,
       brand: undefined,
+      song: null,
       contact_person: null,
       value: '',
       status: 'lead',
@@ -123,8 +126,9 @@ export function CampaignFormDialog({ open, onOpenChange, campaign }: CampaignFor
         form.reset({
           campaign_name: campaign.campaign_name,
           client: campaign.client.id,
-          artist: campaign.artist.id,
+          artist: campaign.artist?.id || null,
           brand: campaign.brand.id,
+          song: campaign.song?.id || null,
           contact_person: campaign.contact_person?.id || null,
           value: campaign.value,
           status: campaign.status,
@@ -136,8 +140,9 @@ export function CampaignFormDialog({ open, onOpenChange, campaign }: CampaignFor
         form.reset({
           campaign_name: '',
           client: undefined,
-          artist: undefined,
+          artist: null,
           brand: undefined,
+          song: null,
           contact_person: null,
           value: '',
           status: 'lead',
@@ -314,7 +319,7 @@ export function CampaignFormDialog({ open, onOpenChange, campaign }: CampaignFor
                 name="artist"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Artist *</FormLabel>
+                    <FormLabel>Artist (Optional)</FormLabel>
                     <div className="flex gap-2">
                       <FormControl className="flex-1">
                         <EntitySearchCombobox
@@ -334,6 +339,28 @@ export function CampaignFormDialog({ open, onOpenChange, campaign }: CampaignFor
                         <Plus className="h-4 w-4" />
                       </Button>
                     </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Song */}
+              <FormField
+                control={form.control}
+                name="song"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Song (Optional)</FormLabel>
+                    <FormControl>
+                      <RecordingSearchCombobox
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        placeholder="Search for song..."
+                      />
+                    </FormControl>
+                    <FormDescription className="text-xs">
+                      Search by song title or ISRC code
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

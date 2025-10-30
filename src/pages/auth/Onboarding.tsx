@@ -66,14 +66,18 @@ export default function Onboarding() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/20 p-4">
-      <div className="w-full max-w-md space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-purple-50/30 to-blue-50/30 dark:from-slate-900 dark:via-purple-900/20 dark:to-slate-900 p-4 relative overflow-hidden">
+      {/* Animated gradient orbs */}
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-br from-purple-400/20 to-pink-500/20 rounded-full blur-3xl animate-pulse" />
+      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-gradient-to-tr from-blue-400/20 to-cyan-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+
+      <div className="w-full max-w-md space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 relative z-10">
         {/* Header */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
-            <User className="h-8 w-8 text-primary" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 backdrop-blur-sm mb-4 shadow-lg">
+            <User className="h-8 w-8 text-purple-600 dark:text-purple-400" />
           </div>
-          <h1 className="text-3xl font-semibold tracking-tight">Welcome to HaHaHa Production</h1>
+          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">Welcome to HaHaHa Production</h1>
           <p className="text-muted-foreground">Let's set up your profile to get started</p>
         </div>
 
@@ -88,7 +92,7 @@ export default function Onboarding() {
         <p className="text-center text-xs text-muted-foreground">Step 1 of 2</p>
 
         {/* Main card */}
-        <Card className="p-6 space-y-6 border-2">
+        <Card className="p-6 space-y-6 backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-2xl rounded-3xl">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {/* Profile Picture Upload */}
             <div className="flex flex-col items-center space-y-4">

@@ -47,59 +47,68 @@ export function StatusBadge({
 }) {
   const statusConfig: Record<
     typeof status,
-    { label: string; icon: typeof CheckCircle2; badgeVariant: any }
+    { label: string; icon: typeof CheckCircle2; badgeVariant: any; ariaLabel: string }
   > = {
     active: {
       label: "Active",
       icon: CheckCircle2,
       badgeVariant: variant === "outline" ? "outline-success" : variant === "subtle" ? "subtle-success" : "success",
+      ariaLabel: "Status: Active",
     },
     inactive: {
       label: "Inactive",
       icon: Minus,
       badgeVariant: variant === "outline" ? "outline" : variant === "subtle" ? "subtle" : "secondary",
+      ariaLabel: "Status: Inactive",
     },
     pending: {
       label: "Pending",
       icon: Clock,
       badgeVariant: variant === "outline" ? "outline-warning" : variant === "subtle" ? "subtle-warning" : "warning",
+      ariaLabel: "Status: Pending - awaiting action",
     },
     completed: {
       label: "Completed",
       icon: CheckCircle2,
       badgeVariant: variant === "outline" ? "outline-success" : variant === "subtle" ? "subtle-success" : "success",
+      ariaLabel: "Status: Completed successfully",
     },
     failed: {
       label: "Failed",
       icon: XCircle,
       badgeVariant: variant === "outline" ? "outline-destructive" : variant === "subtle" ? "subtle-destructive" : "destructive",
+      ariaLabel: "Status: Failed - action required",
     },
     processing: {
       label: "Processing",
       icon: Zap,
       badgeVariant: variant === "outline" ? "outline-info" : variant === "subtle" ? "subtle-info" : "info",
+      ariaLabel: "Status: Processing - in progress",
     },
     draft: {
       label: "Draft",
       icon: Info,
       badgeVariant: variant === "outline" ? "outline" : variant === "subtle" ? "subtle" : "secondary",
+      ariaLabel: "Status: Draft - not finalized",
     },
     signed: {
       label: "Signed",
       icon: CheckCircle2,
       badgeVariant: variant === "outline" ? "outline-success" : variant === "subtle" ? "subtle-success" : "success",
+      ariaLabel: "Status: Signed - all signatures received",
     },
     cancelled: {
       label: "Cancelled",
       icon: XCircle,
       badgeVariant: variant === "outline" ? "outline" : variant === "subtle" ? "subtle" : "secondary",
+      ariaLabel: "Status: Cancelled",
     },
   }
 
   const config = statusConfig[status]
 
   return (
-    <Badge variant={config.badgeVariant} icon={config.icon}>
+    <Badge variant={config.badgeVariant} icon={config.icon} aria-label={config.ariaLabel}>
       {config.label}
     </Badge>
   )
@@ -140,8 +149,14 @@ export function TrendBadge({
 
   const icon = isPositive ? TrendingUp : isNegative ? TrendingDown : Minus
 
+  const ariaLabel = isPositive
+    ? `Increased by ${value.toFixed(1)} percent`
+    : isNegative
+    ? `Decreased by ${Math.abs(value).toFixed(1)} percent`
+    : "No change"
+
   return (
-    <Badge variant={badgeVariant} icon={icon} size="sm">
+    <Badge variant={badgeVariant} icon={icon} size="sm" aria-label={ariaLabel}>
       {isPositive && "+"}
       {value.toFixed(1)}%
     </Badge>

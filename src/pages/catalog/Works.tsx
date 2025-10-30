@@ -64,8 +64,8 @@ export default function Works() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Musical Works</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">Musical Works</h1>
+          <p className="text-muted-foreground text-base">
             Manage compositions, songs, and musical works
           </p>
         </div>
@@ -88,7 +88,7 @@ export default function Works() {
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Works</CardTitle>
             <Music className="h-4 w-4 text-muted-foreground" />
@@ -97,7 +97,7 @@ export default function Works() {
             <div className="text-2xl font-bold">{worksData?.count || 0}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">With ISWC</CardTitle>
             <Badge variant="outline">Standard</Badge>
@@ -108,7 +108,7 @@ export default function Works() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Complete Splits</CardTitle>
             <Badge variant="outline">100%</Badge>
@@ -119,7 +119,7 @@ export default function Works() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Recordings</CardTitle>
             <Music className="h-4 w-4 text-muted-foreground" />
@@ -321,7 +321,7 @@ export default function Works() {
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {Array.from({ length: 8 }).map((_, i) => (
-                <Card key={i} className="p-4">
+                <Card key={i} className="p-4 backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                   <Skeleton className="h-6 w-3/4 mb-2" />
                   <Skeleton className="h-4 w-1/2 mb-4" />
                   <div className="space-y-2">
@@ -352,7 +352,7 @@ export default function Works() {
               {works.map((work) => (
                 <Card
                   key={work.id}
-                  className="hover-lift transition-smooth cursor-pointer"
+                  className="hover-lift transition-smooth cursor-pointer backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl"
                   onClick={() => handleViewWork(work.id)}
                 >
                   <CardHeader>

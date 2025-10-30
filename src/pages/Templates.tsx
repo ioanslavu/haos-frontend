@@ -58,23 +58,35 @@ export default function Templates() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-foreground">Contract Templates</h1>
-            <p className="text-muted-foreground">Manage contract templates stored in Google Drive</p>
+      <div className="space-y-8 pb-8">
+        {/* Modern Glassmorphic Header with Gradient */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-500/10 via-purple-500/10 to-fuchsia-500/10 backdrop-blur-xl border border-white/20 dark:border-white/10 p-8 shadow-2xl">
+          {/* Animated gradient orbs */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-violet-400/30 to-purple-500/30 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-fuchsia-400/30 to-pink-500/30 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+
+          <div className="relative z-10">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
+                  Contract Templates
+                </h1>
+                <p className="text-muted-foreground text-lg mt-2">
+                  Manage contract templates stored in Google Drive
+                </p>
+              </div>
+              <Button onClick={() => navigate('/templates/import')} className="shadow-lg">
+                <Plus className="h-4 w-4 mr-2" />
+                Import from Google Drive
+              </Button>
+            </div>
           </div>
-          <Button onClick={() => navigate('/templates/import')}>
-            <Plus className="h-4 w-4 mr-2" />
-            Import from Google Drive
-          </Button>
         </div>
 
         {/* Search */}
-        <Card>
+        <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
           <CardHeader>
-            <h3 className="text-lg font-medium">Search & Filters</h3>
+            <h3 className="text-lg font-semibold">Search & Filters</h3>
           </CardHeader>
           <CardContent>
             <div className="flex gap-4">
@@ -83,7 +95,7 @@ export default function Templates() {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder="Search templates..."
-                    className="pl-10"
+                    className="pl-10 backdrop-blur-sm bg-background/50 border-white/20 dark:border-white/10"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
@@ -139,12 +151,12 @@ export default function Templates() {
         {!isLoading && !error && filteredTemplates.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredTemplates.map((template) => (
-              <Card key={template.id} className="hover-lift transition-smooth">
+              <Card key={template.id} className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] rounded-2xl">
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950">
-                        <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                      <div className="p-2 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 backdrop-blur-sm">
+                        <FileText className="h-5 w-5 text-violet-600 dark:text-violet-400" />
                       </div>
                       <div>
                         <CardTitle className="text-lg">{template.name}</CardTitle>

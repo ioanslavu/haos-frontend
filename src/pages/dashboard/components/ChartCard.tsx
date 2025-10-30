@@ -164,25 +164,25 @@ export const ChartCard: React.FC<ChartCardProps> = ({ title, subtitle, type }) =
 
       case 'map':
         return (
-          <div className="h-[200px] bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-center">
-            <div className="text-center space-y-2">
-              <div className="text-2xl font-semibold text-slate-900">Global Revenue</div>
-              <div className="space-y-1">
-                <div className="flex justify-between items-center min-w-[200px]">
-                  <span className="text-sm text-slate-600">🇺🇸 United States</span>
-                  <span className="text-sm font-medium">$18.2k</span>
+          <div className="h-[200px] bg-muted/30 backdrop-blur-sm rounded-xl border border-white/10 flex items-center justify-center">
+            <div className="text-center space-y-3">
+              <div className="text-2xl font-bold bg-gradient-to-r from-cyan-600 to-teal-600 bg-clip-text text-transparent">Global Revenue</div>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center min-w-[200px] px-3 py-1.5 rounded-lg bg-white/10 dark:bg-white/5 backdrop-blur-sm">
+                  <span className="text-sm text-muted-foreground font-medium">🇺🇸 United States</span>
+                  <span className="text-sm font-bold">$18.2k</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-600">🇬🇧 United Kingdom</span>
-                  <span className="text-sm font-medium">$12.1k</span>
+                <div className="flex justify-between items-center px-3 py-1.5 rounded-lg bg-white/10 dark:bg-white/5 backdrop-blur-sm">
+                  <span className="text-sm text-muted-foreground font-medium">🇬🇧 United Kingdom</span>
+                  <span className="text-sm font-bold">$12.1k</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-600">🇩🇪 Germany</span>
-                  <span className="text-sm font-medium">$8.4k</span>
+                <div className="flex justify-between items-center px-3 py-1.5 rounded-lg bg-white/10 dark:bg-white/5 backdrop-blur-sm">
+                  <span className="text-sm text-muted-foreground font-medium">🇩🇪 Germany</span>
+                  <span className="text-sm font-bold">$8.4k</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-600">🇨🇦 Canada</span>
-                  <span className="text-sm font-medium">$6.5k</span>
+                <div className="flex justify-between items-center px-3 py-1.5 rounded-lg bg-white/10 dark:bg-white/5 backdrop-blur-sm">
+                  <span className="text-sm text-muted-foreground font-medium">🇨🇦 Canada</span>
+                  <span className="text-sm font-bold">$6.5k</span>
                 </div>
               </div>
             </div>
@@ -196,22 +196,25 @@ export const ChartCard: React.FC<ChartCardProps> = ({ title, subtitle, type }) =
 
   return (
     <Card
-      className="hover-lift transition-smooth"
+      className="relative overflow-hidden rounded-2xl backdrop-blur-xl bg-gradient-to-br from-cyan-500/10 to-teal-500/10 border-white/20 dark:border-white/10 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.01]"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <CardHeader className="pb-2">
+      {/* Gradient accent */}
+      <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/20 to-transparent" />
+
+      <CardHeader className="pb-4 relative">
         <div className="flex items-start justify-between">
           <div>
-            <CardTitle className="text-lg font-semibold">{title}</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
+            <CardTitle className="text-lg font-bold bg-gradient-to-r from-cyan-600 to-teal-600 bg-clip-text text-transparent">{title}</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1 font-medium">{subtitle}</p>
           </div>
           {isHovered && (
-            <div className="flex gap-1 fade-in">
+            <div className="flex gap-1 animate-in fade-in duration-200">
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8"
+                className="h-9 w-9 rounded-xl hover:bg-white/20 dark:hover:bg-white/10 transition-all duration-300"
                 onClick={handleExport}
                 aria-label="Export chart data"
               >
@@ -221,7 +224,7 @@ export const ChartCard: React.FC<ChartCardProps> = ({ title, subtitle, type }) =
           )}
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="relative">
         {renderChart()}
       </CardContent>
     </Card>

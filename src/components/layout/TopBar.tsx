@@ -1,11 +1,11 @@
 
 import React from 'react';
-import { Search, Plus, Bell, User, BarChart3, Menu } from 'lucide-react';
+import { Search, BarChart3, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { RoleImpersonator } from './RoleImpersonator';
+import { UserDropdownMenu } from './UserDropdownMenu';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { cn } from '@/lib/utils';
+import { useCommandPalette } from '@/components/command-palette';
 
 interface TopBarProps {
   onToggleSidebar: () => void;
@@ -13,69 +13,67 @@ interface TopBarProps {
   insightsPanelOpen: boolean;
 }
 
-export const TopBar: React.FC<TopBarProps> = ({ 
-  onToggleSidebar, 
-  onToggleInsights, 
-  insightsPanelOpen 
+export const TopBar: React.FC<TopBarProps> = ({
+  onToggleSidebar,
+  onToggleInsights,
+  insightsPanelOpen
 }) => {
+  const { setOpen } = useCommandPalette();
+
   return (
-    <header className="h-14 border-b border-slate-200 bg-white px-4 flex items-center justify-between">
+    <header className="h-16 backdrop-blur-xl bg-white/40 dark:bg-slate-900/40 border-b border-white/20 dark:border-white/10 px-6 flex items-center justify-between m-4 rounded-3xl shadow-2xl">
       <div className="flex items-center gap-4">
         <Button
           variant="ghost"
           size="sm"
           onClick={onToggleSidebar}
-          className="lg:hidden"
+          className="lg:hidden h-12 w-12 rounded-2xl hover:bg-white/20 dark:hover:bg-white/10 transition-all duration-300"
+          aria-label="Toggle sidebar navigation"
         >
-          <Menu className="h-4 w-4" />
+          <Menu className="h-5 w-5" />
         </Button>
-        
-        <div className="font-semibold text-slate-900 hidden sm:block">
-          Music Studio OS
+
+        <div className="font-bold text-lg bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hidden sm:block">
+          HaOS Platform
         </div>
       </div>
 
-      <div className="flex-1 max-w-xl mx-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <Input
-            placeholder="Search contracts, artists, tracks... (⌘K)"
-            className="pl-10 bg-slate-50 border-slate-200 focus:bg-white"
-          />
-          <kbd className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-slate-400 font-mono bg-slate-100 px-2 py-0.5 rounded">
+      <div className="flex-1 max-w-2xl mx-6">
+        <button
+          onClick={() => setOpen(true)}
+          aria-label="Open command palette to search"
+          className="w-full h-12 rounded-2xl bg-background/50 backdrop-blur-sm border border-white/20 dark:border-white/10 hover:border-blue-500/50 transition-all duration-300 shadow-inner flex items-center px-4 gap-3 text-left group"
+        >
+          <Search className="h-5 w-5 text-muted-foreground group-hover:text-blue-500 transition-colors" />
+          <span className="flex-1 text-sm text-muted-foreground">
+            Search contracts, artists, tracks...
+          </span>
+          <kbd className="hidden sm:inline-flex text-xs text-muted-foreground font-mono bg-muted/50 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-white/10">
             ⌘K
           </kbd>
-        </div>
+        </button>
       </div>
 
       <div className="flex items-center gap-2">
-        <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
-          <Plus className="h-4 w-4 mr-2" />
-          <span className="hidden sm:inline">New</span>
-        </Button>
-
-        <Button variant="ghost" size="sm" className="relative">
-          <Bell className="h-4 w-4" />
-          <Badge className="absolute -top-1 -right-1 h-5 w-5 text-xs p-0 bg-red-500">
-            3
-          </Badge>
-        </Button>
-
-        {/* Role Impersonator - Admin Only */}
-        <RoleImpersonator />
+        <NotificationBell />
 
         <Button
           variant="ghost"
           size="sm"
           onClick={onToggleInsights}
-          className={cn(insightsPanelOpen && "bg-slate-100")}
+          aria-label={insightsPanelOpen ? "Close insights panel" : "Open insights panel"}
+          className={cn(
+            "h-12 w-12 md:h-10 md:w-10 rounded-2xl transition-all duration-300",
+            insightsPanelOpen
+              ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg"
+              : "hover:bg-white/20 dark:hover:bg-white/10"
+          )}
         >
-          <BarChart3 className="h-4 w-4" />
+          <BarChart3 className="h-5 w-5" />
         </Button>
 
-        <Button variant="ghost" size="sm">
-          <User className="h-4 w-4" />
-        </Button>
+        {/* User Dropdown Menu with integrated Role Testing for Admins */}
+        <UserDropdownMenu />
       </div>
     </header>
   );

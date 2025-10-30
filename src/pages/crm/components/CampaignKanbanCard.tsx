@@ -151,19 +151,37 @@ export function CampaignKanbanCard({
           </div>
 
           {/* Artist */}
-          <div className="flex items-center gap-2">
-            <Avatar className="h-5 w-5">
-              <AvatarFallback className="text-[10px] bg-accent">
-                {getInitials(campaign.artist.display_name)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex items-center gap-1 min-w-0 flex-1">
-              {getEntityIcon(campaign.artist.kind)}
-              <span className="text-xs text-muted-foreground truncate">
-                {campaign.artist.display_name}
-              </span>
+          {campaign.artist && (
+            <div className="flex items-center gap-2">
+              <Avatar className="h-5 w-5">
+                <AvatarFallback className="text-[10px] bg-accent">
+                  {getInitials(campaign.artist.display_name)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex items-center gap-1 min-w-0 flex-1">
+                {getEntityIcon(campaign.artist.kind)}
+                <span className="text-xs text-muted-foreground truncate">
+                  {campaign.artist.display_name}
+                </span>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Song */}
+          {campaign.song && (
+            <div className="flex items-center gap-2">
+              <Avatar className="h-5 w-5">
+                <AvatarFallback className="text-[10px] bg-purple-100 dark:bg-purple-900">
+                  🎵
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex items-center gap-1 min-w-0 flex-1">
+                <span className="text-xs text-muted-foreground truncate">
+                  {campaign.song.title}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Confirmed Date */}

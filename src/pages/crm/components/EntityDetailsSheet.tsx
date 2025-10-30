@@ -58,6 +58,8 @@ import {
   CONTACT_SENTIMENT_COLORS,
 } from '@/types/contact';
 import { toast } from 'sonner';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { getMediaUrl } from '@/lib/media';
 
 interface EntityDetailsSheetProps {
   entityId: number | null;
@@ -130,16 +132,36 @@ export function EntityDetailsSheet({
           <>
             <SheetHeader>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {entity.kind === 'PJ' ? (
-                    <Building2 className="h-5 w-5 text-muted-foreground" />
-                  ) : (
-                    <User className="h-5 w-5 text-muted-foreground" />
-                  )}
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-16 w-16 ring-2 ring-background shadow-lg">
+                    <AvatarImage
+                      src={getMediaUrl(entity.profile_photo) || `https://avatar.vercel.sh/${entity.display_name}`}
+                      alt={entity.display_name}
+                      className="object-cover"
+                    />
+                    <AvatarFallback className="text-lg font-semibold">
+                      {entity.display_name
+                        .split(' ')
+                        .map(n => n[0])
+                        .join('')
+                        .toUpperCase()
+                        .slice(0, 2)}
+                    </AvatarFallback>
+                  </Avatar>
                   <div>
-                    <SheetTitle className="text-xl">{entity.display_name}</SheetTitle>
+                    <div className="flex items-center gap-2">
+                      <SheetTitle className="text-xl">{entity.display_name}</SheetTitle>
+                      {entity.kind === 'PJ' ? (
+                        <Building2 className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <User className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </div>
                     <SheetDescription className="mt-1">
                       {entity.kind === 'PJ' ? 'Legal Entity' : 'Physical Person'}
+                      {entity.stage_name && (
+                        <span className="block text-xs mt-1">aka "{entity.stage_name}"</span>
+                      )}
                       {entity.entity_roles && entity.entity_roles.length > 0 && (
                         <div className="flex gap-1 mt-2">
                           {entity.entity_roles.map((role) => (

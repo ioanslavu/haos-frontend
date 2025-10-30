@@ -4,9 +4,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { AuthProvider } from "@/providers/AuthProvider";
+import { NotificationProvider } from "@/providers/NotificationProvider";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { CommandPalette } from "@/components/command-palette";
+import { CommandPalette, CommandPaletteProvider } from "@/components/command-palette";
 import { lazy, Suspense } from "react";
 import { Loader2 } from "lucide-react";
 
@@ -42,6 +43,8 @@ const CRM = lazy(() => import("./pages/CRM"));
 const Catalog = lazy(() => import("./pages/Catalog"));
 const Studio = lazy(() => import("./pages/Studio"));
 const Tasks = lazy(() => import("./pages/Tasks"));
+const TaskManagement = lazy(() => import("./pages/TaskManagement"));
+const DigitalDashboard = lazy(() => import("./pages/digital-dashboard/DigitalDashboard"));
 const Settings = lazy(() => import("./pages/Settings"));
 const CompanySettings = lazy(() => import("./pages/CompanySettings"));
 const Profile = lazy(() => import("./pages/profile/Index"));
@@ -70,16 +73,21 @@ const Releases = lazy(() => import("./pages/catalog/Releases"));
 const Entities = lazy(() => import("./pages/Entities"));
 const EntityDetail = lazy(() => import("./pages/EntityDetail"));
 
+// CRM pages
+const CampaignFormPage = lazy(() => import("./pages/crm/CampaignFormPage"));
+
 const App = () => (
   <ErrorBoundary>
     <QueryProvider>
       <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            {/* <CommandPalette /> */}
-            <Suspense fallback={<PageLoader />}>
+        <NotificationProvider>
+          <TooltipProvider>
+            <CommandPaletteProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+              <CommandPalette />
+              <Suspense fallback={<PageLoader />}>
               <Routes>
             {/* Public routes */}
             <Route path="/login" element={<Login />} />
@@ -137,6 +145,16 @@ const App = () => (
             <Route path="/crm" element={
               <ProtectedRoute>
                 <CRM />
+              </ProtectedRoute>
+            } />
+            <Route path="/crm/campaigns/create" element={
+              <ProtectedRoute>
+                <CampaignFormPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/crm/campaigns/:id/edit" element={
+              <ProtectedRoute>
+                <CampaignFormPage />
               </ProtectedRoute>
             } />
             <Route path="/entities" element={
@@ -224,6 +242,16 @@ const App = () => (
                 <Tasks />
               </ProtectedRoute>
             } />
+            <Route path="/task-management" element={
+              <ProtectedRoute>
+                <TaskManagement />
+              </ProtectedRoute>
+            } />
+            <Route path="/digital-dashboard" element={
+              <ProtectedRoute>
+                <DigitalDashboard />
+              </ProtectedRoute>
+            } />
             <Route path="/settings" element={
               <ProtectedRoute>
                 <Settings />
@@ -274,8 +302,10 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
-          </BrowserRouter>
-        </TooltipProvider>
+            </BrowserRouter>
+            </CommandPaletteProvider>
+          </TooltipProvider>
+        </NotificationProvider>
       </AuthProvider>
     </QueryProvider>
   </ErrorBoundary>

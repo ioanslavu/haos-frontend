@@ -43,6 +43,7 @@ import {
   Briefcase,
   FileSignature,
 } from "lucide-react"
+import { useDebounce } from "@/hooks/use-debounce"
 
 // Command types for type safety
 type CommandAction = () => void
@@ -60,8 +61,19 @@ interface CommandItem {
   priority?: number
 }
 
-// Hook to manage command palette state
-export function useCommandPalette() {
+// Context for managing command palette state
+const CommandPaletteContext = React.createContext<{
+  open: boolean
+  setOpen: (open: boolean) => void
+  recentPages: string[]
+  addToRecent: (page: string) => void
+  searchHistory: string[]
+  addToHistory: (query: string) => void
+  clearHistory: () => void
+} | null>(null)
+
+// Provider component
+export function CommandPaletteProvider({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = React.useState(false)
   const [recentPages, setRecentPages] = React.useState<string[]>([])
   const [searchHistory, setSearchHistory] = React.useState<string[]>([])
@@ -123,15 +135,33 @@ export function useCommandPalette() {
     localStorage.removeItem("command-palette-history")
   }, [])
 
-  return {
-    open,
-    setOpen,
-    recentPages,
-    addToRecent,
-    searchHistory,
-    addToHistory,
-    clearHistory,
+  const value = React.useMemo(
+    () => ({
+      open,
+      setOpen,
+      recentPages,
+      addToRecent,
+      searchHistory,
+      addToHistory,
+      clearHistory,
+    }),
+    [open, recentPages, searchHistory, addToRecent, addToHistory, clearHistory]
+  )
+
+  return (
+    <CommandPaletteContext.Provider value={value}>
+      {children}
+    </CommandPaletteContext.Provider>
+  )
+}
+
+// Hook to use command palette context
+export function useCommandPalette() {
+  const context = React.useContext(CommandPaletteContext)
+  if (!context) {
+    throw new Error("useCommandPalette must be used within CommandPaletteProvider")
   }
+  return context
 }
 
 // Main Command Palette Component
@@ -140,6 +170,9 @@ export function CommandPalette() {
   const { open, setOpen, recentPages, addToRecent, searchHistory, addToHistory } =
     useCommandPalette()
   const [search, setSearch] = React.useState("")
+
+  // Debounce search to improve performance (300ms delay)
+  const debouncedSearch = useDebounce(search, 300)
 
   // Define all available commands
   const commands: CommandItem[] = React.useMemo(
@@ -282,11 +315,11 @@ export function CommandPalette() {
     [navigate]
   )
 
-  // Filter commands based on search
+  // Filter commands based on debounced search (improves performance)
   const filteredCommands = React.useMemo(() => {
-    if (!search) return commands
+    if (!debouncedSearch) return commands
 
-    const searchLower = search.toLowerCase()
+    const searchLower = debouncedSearch.toLowerCase()
     return commands.filter((cmd) => {
       const matchLabel = cmd.label.toLowerCase().includes(searchLower)
       const matchKeywords = cmd.keywords?.some((kw) =>
@@ -294,7 +327,7 @@ export function CommandPalette() {
       )
       return matchLabel || matchKeywords
     })
-  }, [commands, search])
+  }, [commands, debouncedSearch])
 
   // Group commands
   const groupedCommands = React.useMemo(() => {
@@ -306,7 +339,7 @@ export function CommandPalette() {
     }
 
     // Add recent pages
-    if (!search && recentPages.length > 0) {
+    if (!debouncedSearch && recentPages.length > 0) {
       groups.recent = commands
         .filter((cmd) => recentPages.includes(cmd.route || ""))
         .slice(0, 5)
@@ -325,7 +358,7 @@ export function CommandPalette() {
     })
 
     return groups
-  }, [filteredCommands, recentPages, search, commands])
+  }, [filteredCommands, recentPages, debouncedSearch, commands])
 
   const handleSelect = React.useCallback(
     (cmd: CommandItem) => {
@@ -347,31 +380,21 @@ export function CommandPalette() {
   )
 
   return (
-    <>
-      {/* Trigger button (optional - could be in TopBar) */}
-      <button
-        onClick={() => setOpen(true)}
-        className="hidden items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground md:flex"
-      >
-        <Search className="h-4 w-4" />
-        <span>Search...</span>
-        <kbd className="pointer-events-none ml-auto inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
-          <span className="text-xs">⌘</span>K
-        </kbd>
-      </button>
-
-      <CommandDialog open={open} onOpenChange={setOpen}>
+    <CommandDialog open={open} onOpenChange={setOpen}>
         <CommandInput
-          placeholder="Type a command or search..."
+          placeholder="Search..."
           value={search}
           onValueChange={setSearch}
         />
         <CommandList>
           <CommandEmpty>
-            <div className="py-6 text-center text-sm">
-              <p className="text-muted-foreground">No results found.</p>
+            <div className="py-12 text-center">
+              <div className="mb-3">
+                <Search className="h-12 w-12 mx-auto text-muted-foreground/40" />
+              </div>
+              <p className="text-base font-medium text-foreground mb-2">No results found</p>
               {search && (
-                <p className="mt-2 text-xs text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   Try searching for: contracts, clients, templates
                 </p>
               )}
@@ -386,11 +409,15 @@ export function CommandPalette() {
                   <CommandItem
                     key={cmd.id}
                     onSelect={() => handleSelect(cmd)}
-                    className="gap-2"
+                    className="gap-3"
                   >
-                    {cmd.icon && <cmd.icon className="h-4 w-4" />}
-                    <span>{cmd.label}</span>
-                    <Clock className="ml-auto h-3 w-3 text-muted-foreground" />
+                    {cmd.icon && (
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/20">
+                        <cmd.icon className="h-4 w-4" />
+                      </div>
+                    )}
+                    <span className="flex-1 font-medium">{cmd.label}</span>
+                    <Clock className="h-4 w-4 text-muted-foreground/50" />
                   </CommandItem>
                 ))}
               </CommandGroup>
@@ -406,12 +433,18 @@ export function CommandPalette() {
                   <CommandItem
                     key={cmd.id}
                     onSelect={() => handleSelect(cmd)}
-                    className="gap-2"
+                    className="gap-3"
                   >
-                    {cmd.icon && <cmd.icon className="h-4 w-4" />}
-                    <span>{cmd.label}</span>
+                    {cmd.icon && (
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/20">
+                        <cmd.icon className="h-4 w-4" />
+                      </div>
+                    )}
+                    <span className="flex-1 font-medium">{cmd.label}</span>
                     {cmd.shortcut && (
-                      <CommandShortcut>{cmd.shortcut}</CommandShortcut>
+                      <kbd className="hidden sm:inline-flex px-2 py-1 rounded-md border border-white/20 bg-white/40 dark:bg-white/10 font-mono text-xs font-medium">
+                        {cmd.shortcut}
+                      </kbd>
                     )}
                   </CommandItem>
                 ))}
@@ -428,12 +461,18 @@ export function CommandPalette() {
                   <CommandItem
                     key={cmd.id}
                     onSelect={() => handleSelect(cmd)}
-                    className="gap-2"
+                    className="gap-3"
                   >
-                    {cmd.icon && <cmd.icon className="h-4 w-4" />}
-                    <span>{cmd.label}</span>
+                    {cmd.icon && (
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-green-500/20 to-emerald-500/20">
+                        <cmd.icon className="h-4 w-4" />
+                      </div>
+                    )}
+                    <span className="flex-1 font-medium">{cmd.label}</span>
                     {cmd.shortcut && (
-                      <CommandShortcut>{cmd.shortcut}</CommandShortcut>
+                      <kbd className="hidden sm:inline-flex px-2 py-1 rounded-md border border-white/20 bg-white/40 dark:bg-white/10 font-mono text-xs font-medium">
+                        {cmd.shortcut}
+                      </kbd>
                     )}
                   </CommandItem>
                 ))}
@@ -450,10 +489,12 @@ export function CommandPalette() {
                   <CommandItem
                     key={`history-${idx}`}
                     onSelect={() => setSearch(query)}
-                    className="gap-2"
+                    className="gap-3"
                   >
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">{query}</span>
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-slate-500/20 to-gray-500/20">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <span className="flex-1 font-medium text-muted-foreground">{query}</span>
                   </CommandItem>
                 ))}
               </CommandGroup>
@@ -462,24 +503,23 @@ export function CommandPalette() {
         </CommandList>
 
         {/* Footer hint */}
-        <div className="border-t px-4 py-2 text-xs text-muted-foreground">
-          <div className="flex items-center justify-between">
-            <span>
-              Press <kbd className="rounded border px-1 font-mono">↑↓</kbd> to
-              navigate
+        <div className="border-t border-white/10 px-5 py-4 bg-white/30 dark:bg-white/5 backdrop-blur-xl">
+          <div className="flex items-center justify-center gap-6 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <kbd className="px-2 py-1 rounded-lg border border-white/20 bg-white/40 dark:bg-white/10 font-mono text-xs font-medium shadow-sm">↑↓</kbd>
+              <span>Navigate</span>
             </span>
-            <span>
-              Press <kbd className="rounded border px-1 font-mono">Enter</kbd> to
-              select
+            <span className="flex items-center gap-1.5">
+              <kbd className="px-2 py-1 rounded-lg border border-white/20 bg-white/40 dark:bg-white/10 font-mono text-xs font-medium shadow-sm">⏎</kbd>
+              <span>Select</span>
             </span>
-            <span>
-              Press <kbd className="rounded border px-1 font-mono">Esc</kbd> to
-              close
+            <span className="flex items-center gap-1.5">
+              <kbd className="px-2 py-1 rounded-lg border border-white/20 bg-white/40 dark:bg-white/10 font-mono text-xs font-medium shadow-sm">Esc</kbd>
+              <span>Close</span>
             </span>
           </div>
         </div>
       </CommandDialog>
-    </>
   )
 }
 

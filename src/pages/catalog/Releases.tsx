@@ -115,8 +115,8 @@ export default function Releases() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Releases</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">Releases</h1>
+          <p className="text-muted-foreground text-base">
             Manage albums, singles, EPs, and compilations
           </p>
         </div>
@@ -128,7 +128,7 @@ export default function Releases() {
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Releases</CardTitle>
             <Disc className="h-4 w-4 text-muted-foreground" />
@@ -137,7 +137,7 @@ export default function Releases() {
             <div className="text-2xl font-bold">{releasesData?.count || 0}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Released</CardTitle>
             <Badge variant="outline" className="bg-green-500">Live</Badge>
@@ -148,7 +148,7 @@ export default function Releases() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Upcoming</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -158,7 +158,7 @@ export default function Releases() {
             <p className="text-xs text-muted-foreground">Next 30 days</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Recent</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -379,7 +379,7 @@ export default function Releases() {
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {Array.from({ length: 8 }).map((_, i) => (
-                <Card key={i} className="p-4">
+                <Card key={i} className="p-4 backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                   <Skeleton className="h-48 w-full mb-4 rounded" />
                   <Skeleton className="h-6 w-3/4 mb-2" />
                   <Skeleton className="h-4 w-1/2" />
@@ -411,7 +411,7 @@ export default function Releases() {
                 return (
                   <Card
                     key={release.id}
-                    className="hover-lift transition-smooth cursor-pointer overflow-hidden"
+                    className="hover-lift transition-smooth cursor-pointer overflow-hidden backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl"
                     onClick={() => handleViewRelease(release.id)}
                   >
                     <div className="aspect-square relative bg-muted">

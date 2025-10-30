@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Music, TrendingUp, Loader2, CheckCircle2, Clock } from 'lucide-react';
+import { Music, TrendingUp, Loader2, CheckCircle2, Clock, Mic, Briefcase, Scale, DollarSign, Settings } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,9 +15,14 @@ import { useCreateDepartmentRequest, useDepartmentRequests, useCancelDepartmentR
 import { useAuthStore } from '@/stores/authStore';
 import { cn } from '@/lib/utils';
 
+type DepartmentType = 'digital' | 'sales' | 'publishing' | 'legal' | 'finance' | 'operations';
+
+const AVAILABLE_DEPARTMENTS: DepartmentType[] = ['digital', 'sales', 'publishing'];
+const HIDDEN_DEPARTMENTS: DepartmentType[] = ['legal', 'finance', 'operations']; // Prepared for future
+
 export default function DepartmentSelection() {
   const user = useAuthStore((state) => state.user);
-  const [selectedDepartment, setSelectedDepartment] = useState<'digital' | 'sales' | null>(null);
+  const [selectedDepartment, setSelectedDepartment] = useState<DepartmentType | null>(null);
   const [message, setMessage] = useState('');
   const [showDialog, setShowDialog] = useState(false);
 
@@ -33,7 +38,7 @@ export default function DepartmentSelection() {
     refetch();
   }, [refetch]);
 
-  const handleDepartmentSelect = (dept: 'digital' | 'sales') => {
+  const handleDepartmentSelect = (dept: DepartmentType) => {
     setSelectedDepartment(dept);
     setShowDialog(true);
   };
@@ -70,9 +75,13 @@ export default function DepartmentSelection() {
   // If user already has pending request, show waiting screen
   if (pendingRequest) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/20 p-4">
-        <div className="w-full max-w-md space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <Card className="p-8 text-center space-y-6 border-2">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-amber-50/30 to-orange-50/30 dark:from-slate-900 dark:via-amber-900/20 dark:to-slate-900 p-4 relative overflow-hidden">
+        {/* Animated gradient orbs */}
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-br from-amber-400/20 to-orange-500/20 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-gradient-to-tr from-yellow-400/20 to-red-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+
+        <div className="w-full max-w-md space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 relative z-10">
+          <Card className="p-8 text-center space-y-6 backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-2xl rounded-3xl">
             <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 mb-4 mx-auto">
               <Clock className="h-10 w-10 text-primary animate-pulse" />
             </div>
@@ -121,12 +130,16 @@ export default function DepartmentSelection() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/20 p-4">
-      <div className="w-full max-w-4xl space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-indigo-50/30 to-purple-50/30 dark:from-slate-900 dark:via-indigo-900/20 dark:to-slate-900 p-4 relative overflow-hidden">
+      {/* Animated gradient orbs */}
+      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-br from-indigo-400/20 to-purple-500/20 rounded-full blur-3xl animate-pulse" />
+      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-gradient-to-tr from-blue-400/20 to-cyan-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+
+      <div className="w-full max-w-5xl space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 relative z-10">
         {/* Header */}
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight">Choose Your Department</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">Choose Your Department</h1>
+          <p className="text-muted-foreground text-lg">
             Select the department that matches your role at HaHaHa Production
           </p>
         </div>
@@ -142,22 +155,21 @@ export default function DepartmentSelection() {
         <p className="text-center text-xs text-muted-foreground">Step 2 of 2</p>
 
         {/* Department Cards */}
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-3 gap-6">
           {/* Digital Department */}
           <Card
             className={cn(
-              'group relative overflow-hidden border-2 transition-all duration-300 cursor-pointer hover:shadow-xl hover:scale-[1.02]',
-              'hover:border-primary/50 hover:bg-gradient-to-br hover:from-background hover:to-primary/5'
+              'group relative overflow-hidden backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl transition-all duration-300 cursor-pointer hover:shadow-2xl hover:scale-[1.02] rounded-3xl'
             )}
             onClick={() => handleDepartmentSelect('digital')}
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-3xl" />
 
             <CardHeader className="relative space-y-4">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors">
-                <Music className="h-8 w-8 text-blue-500" />
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 backdrop-blur-sm group-hover:scale-110 transition-transform shadow-lg">
+                <Music className="h-8 w-8 text-blue-600 dark:text-blue-400" />
               </div>
-              <CardTitle className="text-2xl">Digital</CardTitle>
+              <CardTitle className="text-2xl font-bold">Digital</CardTitle>
               <CardDescription className="text-base">
                 Marketing, streaming platforms, social media, and digital content management
               </CardDescription>
@@ -184,18 +196,17 @@ export default function DepartmentSelection() {
           {/* Sales Department */}
           <Card
             className={cn(
-              'group relative overflow-hidden border-2 transition-all duration-300 cursor-pointer hover:shadow-xl hover:scale-[1.02]',
-              'hover:border-primary/50 hover:bg-gradient-to-br hover:from-background hover:to-primary/5'
+              'group relative overflow-hidden backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl transition-all duration-300 cursor-pointer hover:shadow-2xl hover:scale-[1.02] rounded-3xl'
             )}
             onClick={() => handleDepartmentSelect('sales')}
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-3xl" />
 
             <CardHeader className="relative space-y-4">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-green-500/10 group-hover:bg-green-500/20 transition-colors">
-                <TrendingUp className="h-8 w-8 text-green-500" />
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-green-500/20 to-emerald-500/20 backdrop-blur-sm group-hover:scale-110 transition-transform shadow-lg">
+                <TrendingUp className="h-8 w-8 text-green-600 dark:text-green-400" />
               </div>
-              <CardTitle className="text-2xl">Sales</CardTitle>
+              <CardTitle className="text-2xl font-bold">Sales</CardTitle>
               <CardDescription className="text-base">
                 Client relationships, partnerships, contracts, and revenue growth
               </CardDescription>
@@ -214,6 +225,43 @@ export default function DepartmentSelection() {
                 <p className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-green-500" />
                   Contract Negotiations
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Publishing/Production Department */}
+          <Card
+            className={cn(
+              'group relative overflow-hidden backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl transition-all duration-300 cursor-pointer hover:shadow-2xl hover:scale-[1.02] rounded-3xl'
+            )}
+            onClick={() => handleDepartmentSelect('publishing')}
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-3xl" />
+
+            <CardHeader className="relative space-y-4">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-sm group-hover:scale-110 transition-transform shadow-lg">
+                <Mic className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+              </div>
+              <CardTitle className="text-2xl font-bold">Publishing/Production</CardTitle>
+              <CardDescription className="text-base">
+                Music publishing, catalog management, and production operations
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="relative space-y-4">
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-purple-500" />
+                  Publishing Rights Management
+                </p>
+                <p className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-purple-500" />
+                  Catalog Administration
+                </p>
+                <p className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-purple-500" />
+                  Production Coordination
                 </p>
               </div>
             </CardContent>

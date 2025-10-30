@@ -77,6 +77,7 @@ export function CampaignTableView({
             </TableHead>
             <TableHead>Client</TableHead>
             <TableHead>Artist</TableHead>
+            <TableHead>Song</TableHead>
             <TableHead>Brand</TableHead>
             <TableHead>
               <SortButton field="value">Value</SortButton>
@@ -96,7 +97,7 @@ export function CampaignTableView({
         <TableBody>
           {sortedCampaigns.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+              <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
                 No campaigns found
               </TableCell>
             </TableRow>
@@ -109,7 +110,8 @@ export function CampaignTableView({
               >
                 <TableCell className="font-medium">{campaign.campaign_name}</TableCell>
                 <TableCell>{campaign.client.display_name}</TableCell>
-                <TableCell>{campaign.artist.display_name}</TableCell>
+                <TableCell>{campaign.artist?.display_name || '-'}</TableCell>
+                <TableCell>{campaign.song?.title || '-'}</TableCell>
                 <TableCell>
                   <Badge variant="outline">{campaign.brand.display_name}</Badge>
                 </TableCell>

@@ -152,8 +152,8 @@ export default function Profile() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-foreground">My Profile</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">My Profile</h1>
+            <p className="text-muted-foreground text-base">
               Manage your personal information and preferences
             </p>
           </div>
@@ -163,14 +163,14 @@ export default function Profile() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Left Column - User Overview */}
           <div className="space-y-6">
-            <Card>
+            <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
               <CardHeader>
                 <div className="flex items-center space-x-4">
-                  <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white text-xl font-medium">
+                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500/80 to-purple-600/80 rounded-2xl flex items-center justify-center text-white text-xl font-medium shadow-lg">
                     {user.first_name.charAt(0)}{user.last_name.charAt(0)}
                   </div>
                   <div>
-                    <h3 className="text-lg font-medium">{user.full_name}</h3>
+                    <h3 className="text-lg font-semibold">{user.full_name}</h3>
                     <p className="text-sm text-muted-foreground">{user.email}</p>
                   </div>
                 </div>
@@ -230,7 +230,7 @@ export default function Profile() {
             </Card>
 
             {/* Permissions Overview */}
-            <Card>
+            <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Shield className="h-5 w-5" />
@@ -278,7 +278,7 @@ export default function Profile() {
               </TabsList>
 
               <TabsContent value="profile" className="space-y-6">
-                <Card>
+                <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <User className="h-5 w-5" />
@@ -399,7 +399,7 @@ export default function Profile() {
               </TabsContent>
 
               <TabsContent value="preferences" className="space-y-6">
-                <Card>
+                <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Bell className="h-5 w-5" />
@@ -513,7 +513,7 @@ export default function Profile() {
                 </Card>
 
                 {/* Authentication Info - Read Only */}
-                <Card>
+                <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Shield className="h-5 w-5" />
@@ -578,7 +578,7 @@ function SessionsContent() {
 
   if (isLoading) {
     return (
-      <Card>
+      <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
         <CardHeader>
           <Skeleton className="h-6 w-48" />
           <Skeleton className="h-4 w-96" />
@@ -592,7 +592,7 @@ function SessionsContent() {
 
   if (error) {
     return (
-      <Card>
+      <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Monitor className="h-5 w-5" />
@@ -612,7 +612,7 @@ function SessionsContent() {
   }
 
   return (
-    <Card>
+    <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Monitor className="h-5 w-5" />

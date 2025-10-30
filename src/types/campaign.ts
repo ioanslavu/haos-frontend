@@ -1,5 +1,6 @@
-import { Entity } from './entity'
-import { ContactPerson } from './contact'
+import type { Entity } from '@/api/services/entities.service'
+import type { ContactPerson } from './contact'
+import type { Recording } from '@/api/services/catalog.service'
 
 export type CampaignStatus =
   | 'lead'
@@ -25,14 +26,47 @@ export interface Campaign {
   id: number
   campaign_name: string
   client: Entity
-  artist: Entity
+  artist?: Entity | null
   brand: Entity
+  song?: Recording | null
   contact_person?: ContactPerson | null
+  department?: number | null
+  department_display?: string
+
+  // Financial
   value: string  // Decimal as string
+  currency: string
+  budget_allocated?: string | null
+  budget_spent?: string | null
+
+  // Status and timeline
   status: CampaignStatus
   confirmed_at: string | null  // ISO datetime
-  notes: string
+  start_date?: string | null
+  end_date?: string | null
+
+  // Digital department fields
+  service_type?: string
+  service_type_display?: string
+  platform?: string
+  platform_display?: string
+  client_health_score?: number | null
+
+  // KPIs
+  kpi_targets?: Record<string, { target: number; unit: string }>
+  kpi_actuals?: Record<string, { actual: number; unit: string; last_updated?: string }>
+  kpi_completion?: number | null
+
+  // Department-specific data
+  department_data?: Record<string, any>
+
+  // Relationships
   handlers?: CampaignHandler[]
+  tasks_count?: number
+  activities_count?: number
+
+  // Metadata
+  notes: string
   created_by: number
   created_by_name: string | null
   created_at: string  // ISO datetime
@@ -42,11 +76,24 @@ export interface Campaign {
 export interface CampaignFormData {
   campaign_name: string
   client: number
-  artist: number
+  artist?: number | null
   brand: number
+  song?: number | null
   contact_person?: number | null
+  department?: number | null
   value: string
+  currency?: string
+  budget_allocated?: string
+  budget_spent?: string
   status: CampaignStatus
+  service_type?: string
+  platform?: string
+  start_date?: string
+  end_date?: string
+  client_health_score?: number
+  kpi_targets?: Record<string, { target: number; unit: string }>
+  kpi_actuals?: Record<string, { actual: number; unit: string }>
+  department_data?: Record<string, any>
   confirmed_at?: string
   notes?: string
   handlers?: CampaignHandler[]
@@ -57,6 +104,7 @@ export interface CampaignFilters {
   client?: number
   artist?: number
   brand?: number
+  song?: number
   created_after?: string
   created_before?: string
   confirmed_after?: string
