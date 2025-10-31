@@ -14,6 +14,7 @@ import { format } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 import { EntityFormDialog } from '@/pages/crm/components/EntityFormDialog';
 import { ContactPersonFormDialog } from '@/pages/crm/components/ContactPersonFormDialog';
+import { EntityRequestDialog } from '@/pages/crm/components/EntityRequestDialog';
 import { toast } from '@/components/ui/use-toast';
 import { toast as sonnerToast } from 'sonner';
 import { ENGAGEMENT_STAGE_COLORS, CONTACT_SENTIMENT_COLORS } from '@/types/contact';
@@ -36,6 +37,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import apiClient from '@/api/client';
 import entitiesService from '@/api/services/entities.service';
+import { useAuthStore } from '@/stores/authStore';
 
 // Contract generation types
 interface Template {
@@ -73,9 +75,13 @@ interface EnabledRights {
 export default function EntityDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const currentUser = useAuthStore((state) => state.user);
+  const isAdmin = currentUser?.role === 'administrator';
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("details");
   const [showContractGeneration, setShowContractGeneration] = useState(false);
+  const [entityRequestDialogOpen, setEntityRequestDialogOpen] = useState(false);
+  const [entityRequestType, setEntityRequestType] = useState<'edit' | 'delete'>('edit');
 
   // Contact Person state
   const [contactPersonDialogOpen, setContactPersonDialogOpen] = useState(false);
@@ -627,6 +633,11 @@ export default function EntityDetail() {
               </Avatar>
               <div>
                 <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">{entity.display_name}</h1>
+                {entity.alias_name && (
+                  <p className="text-lg text-muted-foreground mt-1">
+                    alias: {entity.alias_name}
+                  </p>
+                )}
                 {entity.stage_name && (
                   <p className="text-lg text-muted-foreground mt-1">
                     aka "{entity.stage_name}"
@@ -659,20 +670,41 @@ export default function EntityDetail() {
           <div className="flex gap-2">
             {!showContractGeneration && (
               <>
-                <Button onClick={() => setEditDialogOpen(true)}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit Entity
-                </Button>
-                {entity.kind === 'PF' && (
-                  <Button variant="outline" onClick={handleGenerateContract}>
-                    <FileText className="h-4 w-4 mr-2" />
-                    Generate Contract
-                  </Button>
+                {isAdmin ? (
+                  <>
+                    <Button onClick={() => setEditDialogOpen(true)}>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit Entity
+                    </Button>
+                    {entity.kind === 'PF' && (
+                      <Button variant="outline" onClick={handleGenerateContract}>
+                        <FileText className="h-4 w-4 mr-2" />
+                        Generate Contract
+                      </Button>
+                    )}
+                    <Button variant="destructive" onClick={handleDelete}>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Entity
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button onClick={() => {
+                      setEntityRequestType('edit');
+                      setEntityRequestDialogOpen(true);
+                    }}>
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Request Edit
+                    </Button>
+                    <Button variant="outline" onClick={() => {
+                      setEntityRequestType('delete');
+                      setEntityRequestDialogOpen(true);
+                    }}>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Request Delete
+                    </Button>
+                  </>
                 )}
-                <Button variant="destructive" onClick={handleDelete}>
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete Entity
-                </Button>
               </>
             )}
             {showContractGeneration && (
@@ -710,88 +742,98 @@ export default function EntityDetail() {
 
         {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="inline-flex h-auto items-center justify-start gap-1 rounded-full bg-muted/50 p-1.5 backdrop-blur-sm border border-border/50 flex-wrap">
+          <div className="w-full overflow-x-auto">
+            <TabsList className="inline-flex h-auto items-center justify-start gap-1 rounded-2xl bg-muted/50 p-2 backdrop-blur-xl border border-white/10 shadow-lg">
             <TabsTrigger
               value="details"
-              className="rounded-full px-4 py-2.5 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md hover:bg-background/50"
+              className="rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-background/50"
             >
               <User className="h-3.5 w-3.5 mr-1.5" />
               Details
             </TabsTrigger>
-            <TabsTrigger
-              value="identifiers"
-              className="rounded-full px-4 py-2.5 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md hover:bg-background/50"
-            >
-              <Hash className="h-3.5 w-3.5 mr-1.5" />
-              Identifiers
-            </TabsTrigger>
-            <TabsTrigger
-              value="contracts"
-              className="rounded-full px-4 py-2.5 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md hover:bg-background/50"
-            >
-              <FileText className="h-3.5 w-3.5 mr-1.5" />
-              Contracts
-            </TabsTrigger>
-            <TabsTrigger
-              value="financial"
-              className="rounded-full px-4 py-2.5 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md hover:bg-background/50"
-            >
-              <DollarSign className="h-3.5 w-3.5 mr-1.5" />
-              Financial
-            </TabsTrigger>
-            {hasCampaigns && (
+            {isAdmin && (
+              <TabsTrigger
+                value="identifiers"
+                className="rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-background/50"
+              >
+                <Hash className="h-3.5 w-3.5 mr-1.5" />
+                Identifiers
+              </TabsTrigger>
+            )}
+            {isAdmin && (
+              <TabsTrigger
+                value="contracts"
+                className="rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-background/50"
+              >
+                <FileText className="h-3.5 w-3.5 mr-1.5" />
+                Contracts
+              </TabsTrigger>
+            )}
+            {isAdmin && (
+              <TabsTrigger
+                value="financial"
+                className="rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-background/50"
+              >
+                <DollarSign className="h-3.5 w-3.5 mr-1.5" />
+                Financial
+              </TabsTrigger>
+            )}
+            {isAdmin && hasCampaigns && (
               <TabsTrigger
                 value="campaigns"
-                className="rounded-full px-4 py-2.5 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md hover:bg-background/50"
+                className="rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-background/50"
               >
                 <TrendingUp className="h-3.5 w-3.5 mr-1.5" />
                 Campaigns
               </TabsTrigger>
             )}
-            {hasCreativeRole && (
+            {isAdmin && hasCreativeRole && (
               <TabsTrigger
                 value="catalog"
-                className="rounded-full px-4 py-2.5 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md hover:bg-background/50"
+                className="rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-background/50"
               >
                 <Music className="h-3.5 w-3.5 mr-1.5" />
                 Catalog
               </TabsTrigger>
             )}
-            <TabsTrigger
-              value="activity"
-              className="rounded-full px-4 py-2.5 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md hover:bg-background/50"
-            >
-              <Calendar className="h-3.5 w-3.5 mr-1.5" />
-              Activity
-            </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger
+                value="activity"
+                className="rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-background/50"
+              >
+                <Calendar className="h-3.5 w-3.5 mr-1.5" />
+                Activity
+              </TabsTrigger>
+            )}
             {hasCreativeRole && (
               <TabsTrigger
                 value="social"
-                className="rounded-full px-4 py-2.5 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md hover:bg-background/50"
+                className="rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-background/50"
               >
                 <Users className="h-3.5 w-3.5 mr-1.5" />
                 Social
               </TabsTrigger>
             )}
-            {entity.kind === 'PF' && (
+            {isAdmin && entity.kind === 'PF' && (
               <TabsTrigger
                 value="sensitive"
-                className="rounded-full px-4 py-2.5 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md hover:bg-background/50"
+                className="rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-background/50"
               >
                 <EyeOff className="h-3.5 w-3.5 mr-1.5" />
                 Sensitive
               </TabsTrigger>
             )}
-            {showContractGeneration && (
+            {isAdmin && showContractGeneration && (
               <TabsTrigger
                 value="generate-contract"
-                className="rounded-full px-4 py-2.5 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-md hover:bg-background/50"
+                className="rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-background/50"
               >
                 <FileText className="h-3.5 w-3.5 mr-1.5" />
                 Generate Contract
               </TabsTrigger>
             )}
           </TabsList>
+          </div>
 
           <TabsContent value="details" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -2492,6 +2534,19 @@ export default function EntityDetail() {
               // Refresh entity data
               window.location.reload(); // TODO: Better way to refresh
             }}
+          />
+        )}
+
+        {/* Entity Request Dialog - for non-admins */}
+        {entity && (
+          <EntityRequestDialog
+            open={entityRequestDialogOpen}
+            onOpenChange={setEntityRequestDialogOpen}
+            entity={{
+              id: entity.id,
+              display_name: entity.display_name,
+            }}
+            requestType={entityRequestType}
           />
         )}
 

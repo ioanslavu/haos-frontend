@@ -16,19 +16,21 @@ import {
   UserCircle,
   Shield,
   LogOut,
-  Building2,
-  User,
-  FilePlus,
   Briefcase,
   Bell,
   UserCog,
   Sparkles,
+  Megaphone,
+  Settings2,
+  DollarSign,
+  ClipboardList,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
 import { usePendingRequestsCount } from '@/api/hooks/useUsers';
+import { usePendingEntityRequests } from '@/api/hooks/useEntityRequests';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -55,7 +57,12 @@ const navigation: NavigationItem[] = [
     name: 'Overview',
     href: '/',
     icon: LayoutDashboard,
-    show: (user) => user?.role !== 'guest',
+    show: (user) => {
+      // Hide general overview for digital users - they get Digital Overview instead
+      const isDigital = user?.department?.name?.toLowerCase() === 'digital' ||
+                        user?.department?.toLowerCase() === 'digital';
+      return user?.role !== 'guest' && !isDigital;
+    },
     tourId: 'dashboard-nav',
   },
   {
@@ -85,18 +92,77 @@ const navigation: NavigationItem[] = [
     },
     tourId: 'crm-nav',
   },
+  // { name: 'Studio', href: '/studio', icon: Calendar },
+  // { name: 'Tasks', href: '/tasks', icon: CheckSquare },
+];
+
+// Digital navigation items - shown as regular nav items for digital users
+const digitalNavigation: NavigationItem[] = [
   {
-    name: 'Digital Dashboard',
-    href: '/digital-dashboard',
-    icon: Sparkles,
+    name: 'Digital Overview',
+    href: '/digital/overview',
+    icon: LayoutDashboard,
     show: (user) => {
-      // Show for digital department users OR admins
       const isDigital = user?.department?.name?.toLowerCase() === 'digital' ||
                         user?.department?.toLowerCase() === 'digital';
-      return isDigital || user?.role === 'administrator';
+      // Show as regular nav item only for digital users (not admins)
+      return isDigital && user?.role !== 'administrator';
     },
-    tourId: 'digital-dashboard-nav',
   },
+  {
+    name: 'Campaigns',
+    href: '/digital/campaigns',
+    icon: Megaphone,
+    show: (user) => {
+      const isDigital = user?.department?.name?.toLowerCase() === 'digital' ||
+                        user?.department?.toLowerCase() === 'digital';
+      return isDigital && user?.role !== 'administrator';
+    },
+  },
+  {
+    name: 'Services',
+    href: '/digital/services',
+    icon: Settings2,
+    show: (user) => {
+      const isDigital = user?.department?.name?.toLowerCase() === 'digital' ||
+                        user?.department?.toLowerCase() === 'digital';
+      return isDigital && user?.role !== 'administrator';
+    },
+  },
+  {
+    name: 'Financial',
+    href: '/digital/financial',
+    icon: DollarSign,
+    show: (user) => {
+      const isDigital = user?.department?.name?.toLowerCase() === 'digital' ||
+                        user?.department?.toLowerCase() === 'digital';
+      return isDigital && user?.role !== 'administrator';
+    },
+  },
+  {
+    name: 'Tasks',
+    href: '/digital/tasks',
+    icon: CheckSquare,
+    show: (user) => {
+      const isDigital = user?.department?.name?.toLowerCase() === 'digital' ||
+                        user?.department?.toLowerCase() === 'digital';
+      return isDigital && user?.role !== 'administrator';
+    },
+  },
+  {
+    name: 'Reporting & Insights',
+    href: '/digital/reporting',
+    icon: BarChart3,
+    show: (user) => {
+      const isDigital = user?.department?.name?.toLowerCase() === 'digital' ||
+                        user?.department?.toLowerCase() === 'digital';
+      return isDigital && user?.role !== 'administrator';
+    },
+  },
+];
+
+// Bottom navigation items - shown at the bottom for everyone
+const bottomNavigation: NavigationItem[] = [
   {
     name: 'Catalog',
     href: '/catalog',
@@ -104,42 +170,50 @@ const navigation: NavigationItem[] = [
     show: (user) => user?.role !== 'guest', // All non-guests
     tourId: 'catalog-nav',
   },
-  // { name: 'Studio', href: '/studio', icon: Calendar },
-  // { name: 'Tasks', href: '/tasks', icon: CheckSquare },
+  {
+    name: 'Entities',
+    href: '/entities',
+    icon: Users,
+    show: (user) => user?.role !== 'guest', // All non-guests
+    tourId: 'entities-nav',
+  },
 ];
 
-const entitySubmenu: NavigationItem[] = [
-  { name: 'All Entities', href: '/entities', icon: Users, tourId: 'entities-nav' },
-  { name: 'Clients', href: '/entities/clients', icon: User },
-  { name: 'Artists', href: '/entities/artists', icon: User },
-  { name: 'Writers', href: '/entities/writers', icon: User },
-  { name: 'Producers', href: '/entities/producers', icon: User },
-  { name: 'Labels', href: '/entities/labels', icon: Building2 },
-  { name: 'Publishers', href: '/entities/publishers', icon: Building2 },
+const digitalSubmenu: NavigationItem[] = [
+  { name: 'Overview', href: '/digital/overview', icon: LayoutDashboard },
+  { name: 'Campanii', href: '/digital/campaigns', icon: Megaphone },
+  { name: 'Servicii', href: '/digital/services', icon: Settings2 },
+  { name: 'Financiar', href: '/digital/financial', icon: DollarSign },
+  { name: 'Task-uri', href: '/digital/tasks', icon: CheckSquare },
+  { name: 'Raportare & Insights', href: '/digital/reporting', icon: BarChart3 },
 ];
 
 const adminNavigation: NavigationItem[] = [
   { name: 'User Management', href: '/users/management', icon: UserCog, tourId: 'users-nav' },
+  { name: 'Entity Requests', href: '/admin/entity-requests', icon: ClipboardList, tourId: 'entity-requests-nav' },
   { name: 'Roles & Permissions', href: '/roles', icon: Shield, tourId: 'roles-nav' },
   { name: 'Company Settings', href: '/company-settings', icon: Settings, tourId: 'company-settings-nav' },
-  { name: 'Settings', href: '/settings', icon: Settings, tourId: 'settings-nav' },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
   const navigate = useNavigate();
   const { user, logout, isGuest, isAdminOrManager } = useAuthStore();
-  const [entitiesOpen, setEntitiesOpen] = React.useState(false);
+  const [digitalOpen, setDigitalOpen] = React.useState(false);
 
   // Get pending requests count for admins/managers
   const { data: pendingCount } = usePendingRequestsCount();
+  const { data: entityRequestsData } = usePendingEntityRequests();
+  const pendingEntityRequestsCount = entityRequestsData?.results?.length || 0;
 
   // Check if user has admin role
   const isAdmin = user?.role === 'administrator';
   
   return (
     <aside className={cn(
-      "backdrop-blur-xl bg-white/40 dark:bg-slate-900/40 border-r border-white/20 dark:border-white/10 transition-all duration-300 flex flex-col shadow-2xl m-4 rounded-3xl overflow-hidden z-30",
-      collapsed ? "w-20" : "w-72"
+      "backdrop-blur-xl bg-white/40 dark:bg-slate-900/40 border-r border-white/20 dark:border-white/10 transition-all duration-300 flex flex-col shadow-2xl overflow-hidden z-30",
+      "m-4 rounded-3xl",
+      "lg:relative fixed inset-y-0 left-0",
+      collapsed ? "w-20 -translate-x-full lg:translate-x-0" : "w-72 translate-x-0"
     )}>
       {/* Glassmorphic Header with Gradient */}
       <div className="p-6 border-b border-white/10 bg-gradient-to-r from-blue-500/10 to-purple-500/10 backdrop-blur-md">
@@ -167,7 +241,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
         </div>
       </div>
 
-      <nav className="flex-1 p-4">
+      <nav className="flex-1 p-4 overflow-y-auto">
         <ul className="space-y-2">
           {navigation.map((item) => {
             // Check if item should be shown based on user role
@@ -199,59 +273,119 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             );
           })}
 
-          {/* Entities Dropdown - Show for all non-guests */}
-          {user?.role !== 'guest' && (
-            <li>
-              <button
-                onClick={() => setEntitiesOpen(!entitiesOpen)}
-                aria-label={entitiesOpen ? "Collapse entities menu" : "Expand entities menu"}
-                aria-expanded={entitiesOpen}
-                className={cn(
-                  "flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-300 w-full",
-                  "hover:bg-white/20 dark:hover:bg-white/10 backdrop-blur-sm text-foreground hover:scale-105",
-                  collapsed && "justify-center px-3"
+          {/* Digital pages as regular nav items for digital users */}
+          {digitalNavigation.map((item) => {
+            const shouldShow = !item.show || item.show(user);
+            if (!shouldShow) return null;
+
+            return (
+              <li key={item.name}>
+                <NavLink
+                  to={item.href}
+                  aria-label={`Navigate to ${item.name}`}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-300",
+                      "hover:scale-105",
+                      isActive
+                        ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/30"
+                        : "text-foreground hover:bg-white/20 dark:hover:bg-white/10 backdrop-blur-sm",
+                      collapsed && "justify-center px-3"
+                    )
+                  }
+                >
+                  <item.icon className="h-5 w-5 flex-shrink-0" />
+                  {!collapsed && <span>{item.name}</span>}
+                </NavLink>
+              </li>
+            );
+          })}
+
+          {/* Digital Dropdown - Show only for admins (digital users get regular nav items above) */}
+          {(() => {
+            const canSeeDigital = user?.role === 'administrator';
+
+            return canSeeDigital && (
+              <li>
+                <button
+                  onClick={() => setDigitalOpen(!digitalOpen)}
+                  aria-label={digitalOpen ? "Collapse digital menu" : "Expand digital menu"}
+                  aria-expanded={digitalOpen}
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-300 w-full",
+                    "hover:bg-white/20 dark:hover:bg-white/10 backdrop-blur-sm text-foreground hover:scale-105",
+                    collapsed && "justify-center px-3"
+                  )}
+                >
+                  <Sparkles className="h-5 w-5 flex-shrink-0" />
+                  {!collapsed && (
+                    <>
+                      <span className="flex-1 text-left">Digital</span>
+                      <ChevronDown
+                        className={cn(
+                          "h-4 w-4 transition-transform duration-300",
+                          digitalOpen && "rotate-180"
+                        )}
+                      />
+                    </>
+                  )}
+                </button>
+                {!collapsed && digitalOpen && (
+                  <ul className="ml-4 mt-2 space-y-1.5">
+                    {digitalSubmenu.map((item) => (
+                      <li key={item.name}>
+                        <NavLink
+                          to={item.href}
+                          aria-label={`Navigate to ${item.name}`}
+                          className={({ isActive }) =>
+                            cn(
+                              "flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-300",
+                              "hover:bg-white/10 dark:hover:bg-white/5 backdrop-blur-sm",
+                              isActive
+                                ? "bg-gradient-to-r from-blue-500/20 to-purple-600/20 text-foreground font-semibold"
+                                : "text-muted-foreground"
+                            )
+                          }
+                        >
+                          <item.icon className="h-4 w-4 flex-shrink-0" />
+                          <span>{item.name}</span>
+                        </NavLink>
+                      </li>
+                    ))}
+                  </ul>
                 )}
-              >
-                <Users className="h-5 w-5 flex-shrink-0" />
-                {!collapsed && (
-                  <>
-                    <span className="flex-1 text-left">Entities</span>
-                    <ChevronDown
-                      className={cn(
-                        "h-4 w-4 transition-transform duration-300",
-                        entitiesOpen && "rotate-180"
-                      )}
-                    />
-                  </>
-                )}
-              </button>
-              {!collapsed && entitiesOpen && (
-                <ul className="ml-4 mt-2 space-y-1.5">
-                  {entitySubmenu.map((item) => (
-                    <li key={item.name}>
-                      <NavLink
-                        to={item.href}
-                        data-tour={item.tourId}
-                        aria-label={`Navigate to ${item.name}`}
-                        className={({ isActive }) =>
-                          cn(
-                            "flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-300",
-                            "hover:bg-white/10 dark:hover:bg-white/5 backdrop-blur-sm",
-                            isActive
-                              ? "bg-gradient-to-r from-blue-500/20 to-purple-600/20 text-foreground font-semibold"
-                              : "text-muted-foreground"
-                          )
-                        }
-                      >
-                        <item.icon className="h-4 w-4 flex-shrink-0" />
-                        <span>{item.name}</span>
-                      </NavLink>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </li>
-          )}
+              </li>
+            );
+          })()}
+
+          {/* Bottom Navigation - Catalog and Entities */}
+          {bottomNavigation.map((item) => {
+            const shouldShow = !item.show || item.show(user);
+            if (!shouldShow) return null;
+
+            return (
+              <li key={item.name}>
+                <NavLink
+                  to={item.href}
+                  data-tour={item.tourId}
+                  aria-label={`Navigate to ${item.name}`}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-300",
+                      "hover:scale-105",
+                      isActive
+                        ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/30"
+                        : "text-foreground hover:bg-white/20 dark:hover:bg-white/10 backdrop-blur-sm",
+                      collapsed && "justify-center px-3"
+                    )
+                  }
+                >
+                  <item.icon className="h-5 w-5 flex-shrink-0" />
+                  {!collapsed && <span>{item.name}</span>}
+                </NavLink>
+              </li>
+            );
+          })}
 
           {/* Department Requests - For admins and managers only */}
           {isAdminOrManager() && (
@@ -289,7 +423,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
               </NavLink>
             </li>
           )}
-          
+
           {/* Admin section */}
           {isAdmin && (
             <>
@@ -305,10 +439,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                   <NavLink
                     to={item.href}
                     data-tour={item.tourId}
-                    aria-label={`Navigate to ${item.name}`}
+                    aria-label={`Navigate to ${item.name}${item.name === 'Entity Requests' && pendingEntityRequestsCount > 0 ? ` - ${pendingEntityRequestsCount} pending` : ''}`}
                     className={({ isActive }) =>
                       cn(
-                        "flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-300",
+                        "flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-300 relative",
                         "hover:scale-105",
                         isActive
                           ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/30"
@@ -318,7 +452,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                     }
                   >
                     <item.icon className="h-5 w-5 flex-shrink-0" />
-                    {!collapsed && <span>{item.name}</span>}
+                    {!collapsed && (
+                      <>
+                        <span className="flex-1">{item.name}</span>
+                        {item.name === 'Entity Requests' && pendingEntityRequestsCount > 0 && (
+                          <Badge className="h-5 min-w-5 px-1.5 text-xs bg-yellow-500 text-white" aria-label={`${pendingEntityRequestsCount} pending requests`}>
+                            {pendingEntityRequestsCount}
+                          </Badge>
+                        )}
+                      </>
+                    )}
+                    {collapsed && item.name === 'Entity Requests' && pendingEntityRequestsCount > 0 && (
+                      <span className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-yellow-500 text-white text-xs flex items-center justify-center transition-all" aria-label={`${pendingEntityRequestsCount} pending requests`}>
+                        {pendingEntityRequestsCount}
+                      </span>
+                    )}
                   </NavLink>
                 </li>
               ))}
@@ -361,10 +509,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             <DropdownMenuItem onClick={() => navigate('/profile')}>
               <UserCircle className="mr-2 h-4 w-4" />
               <span>My Profile</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate('/settings')}>
-              <Settings className="mr-2 h-4 w-4" />
-              <span>Settings</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={logout} className="text-red-600">

@@ -38,6 +38,9 @@ export interface Campaign {
   currency: string
   budget_allocated?: string | null
   budget_spent?: string | null
+  profit?: string | null  // Calculated profit for completed campaigns
+  internal_cost_estimate?: string | null  // Estimated internal costs
+  invoice_status?: 'issued' | 'collected' | 'delayed' | null  // Invoice tracking status
 
   // Status and timeline
   status: CampaignStatus
@@ -85,6 +88,9 @@ export interface CampaignFormData {
   currency?: string
   budget_allocated?: string
   budget_spent?: string
+  profit?: string
+  internal_cost_estimate?: string
+  invoice_status?: 'issued' | 'collected' | 'delayed'
   status: CampaignStatus
   service_type?: string
   platform?: string
@@ -207,4 +213,18 @@ export const CAMPAIGN_HANDLER_ROLE_COLORS: Record<CampaignHandlerRole, string> =
   lead: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
   support: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
   observer: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
+}
+
+export type InvoiceStatus = 'issued' | 'collected' | 'delayed'
+
+export const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {
+  issued: 'Issued (Emisă)',
+  collected: 'Collected (Încasată)',
+  delayed: 'Delayed (Întârziată)',
+}
+
+export const INVOICE_STATUS_COLORS: Record<InvoiceStatus, string> = {
+  issued: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+  collected: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+  delayed: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
 }

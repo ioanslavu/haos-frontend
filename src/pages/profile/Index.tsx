@@ -1,68 +1,42 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { useCurrentUserProfile, useUpdateCurrentUser } from '@/api/hooks/useUsers';
-import { 
-  User, Shield, Bell, Globe, MapPin, Building, Calendar, 
-  Clock, Save, Loader2, Mail, Phone, Hash, Users, Monitor
+import { useCurrentUserProfile, useDepartmentUsers, useUpdateProfileWithImage } from '@/api/hooks/useUsers';
+import {
+  User, Save, Loader2, Users, CheckCircle2, Camera
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
-import { useCurrentUserSessions, useRevokeSession, useRevokeAllSessions } from '@/api/hooks/useSessions';
-import { SessionManagementPanel } from '@/components/sessions/SessionManagementPanel';
+import { NotificationSettings } from '@/components/settings/NotificationSettings';
 
-// Timezone options
-const timezones = [
-  { value: 'America/Los_Angeles', label: 'Pacific Time (PST/PDT)' },
-  { value: 'America/Denver', label: 'Mountain Time (MST/MDT)' },
-  { value: 'America/Chicago', label: 'Central Time (CST/CDT)' },
-  { value: 'America/New_York', label: 'Eastern Time (EST/EDT)' },
-  { value: 'Europe/London', label: 'London (GMT/BST)' },
-  { value: 'Europe/Paris', label: 'Paris (CET/CEST)' },
-  { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
-  { value: 'Australia/Sydney', label: 'Sydney (AEST/AEDT)' },
-];
-
-// Language options
-const languages = [
-  { value: 'en', label: 'English' },
-  { value: 'es', label: 'Spanish' },
-  { value: 'fr', label: 'French' },
-  { value: 'de', label: 'German' },
-  { value: 'it', label: 'Italian' },
-  { value: 'pt', label: 'Portuguese' },
-  { value: 'ja', label: 'Japanese' },
-  { value: 'zh', label: 'Chinese' },
-];
+const getStatusConfig = (status: boolean): { variant: any; icon: any } => {
+  return status
+    ? { variant: 'success', icon: CheckCircle2 }
+    : { variant: 'secondary', icon: CheckCircle2 };
+};
 
 export default function Profile() {
   const { data: user, isLoading, error } = useCurrentUserProfile();
-  const updateUser = useUpdateCurrentUser();
+  const updateProfile = useUpdateProfileWithImage();
+  const { data: departmentUsersData, isLoading: isLoadingDepartment } = useDepartmentUsers();
   const [activeTab, setActiveTab] = useState('profile');
-  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Form state
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
-    department: '',
-    timezone: '',
-    language: '',
   });
 
-  const [notificationPreferences, setNotificationPreferences] = useState({
-    email_notifications: true,
-    push_notifications: true,
-    sms_notifications: false,
-    weekly_digest: true,
-    instant_alerts: true,
-  });
+  // Profile picture state
+  const [profilePicture, setProfilePicture] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   // Initialize form data when user data loads
   React.useEffect(() => {
@@ -70,17 +44,8 @@ export default function Profile() {
       setFormData({
         first_name: user.first_name || '',
         last_name: user.last_name || '',
-        department: user.department || '',
-        timezone: user.timezone || 'America/Los_Angeles',
-        language: user.language || 'en',
       });
-      
-      if (user.notification_preferences) {
-        setNotificationPreferences({
-          ...notificationPreferences,
-          ...user.notification_preferences,
-        });
-      }
+      setPreviewUrl(user.profile_picture || null);
     }
   }, [user]);
 
@@ -88,18 +53,29 @@ export default function Profile() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleNotificationChange = (field: string, value: boolean) => {
-    setNotificationPreferences(prev => ({ ...prev, [field]: value }));
+  const handleProfilePictureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setProfilePicture(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
-  const handleSaveProfile = () => {
-    updateUser.mutate(formData);
-  };
+  const handleSaveProfile = async () => {
+    const data: any = {};
 
-  const handleSaveNotifications = () => {
-    updateUser.mutate({
-      notification_preferences: notificationPreferences,
-    });
+    if (formData.first_name !== user?.first_name) data.first_name = formData.first_name;
+    if (formData.last_name !== user?.last_name) data.last_name = formData.last_name;
+    if (profilePicture) data.profile_picture = profilePicture;
+
+    if (Object.keys(data).length > 0) {
+      await updateProfile.mutateAsync(data);
+      setProfilePicture(null); // Reset after save
+    }
   };
 
   if (isLoading) {
@@ -178,11 +154,15 @@ export default function Profile() {
               <CardContent className="space-y-4">
                 <div>
                   <p className="text-sm text-muted-foreground mb-2">Role</p>
-                  {user.roles.map(role => (
-                    <Badge key={role} className={getRoleBadgeColor(role)}>
-                      {role.replace(/_/g, ' ')}
-                    </Badge>
-                  ))}
+                  {user.roles && user.roles.length > 0 ? (
+                    user.roles.map(role => (
+                      <Badge key={role} className={getRoleBadgeColor(role)}>
+                        {role.replace(/_/g, ' ')}
+                      </Badge>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No roles assigned</p>
+                  )}
                 </div>
                 
                 {user.department && (
@@ -211,13 +191,15 @@ export default function Profile() {
                   </div>
                 </div>
                 
-                <div>
-                  <p className="text-sm text-muted-foreground">Member Since</p>
-                  <p className="font-medium">
-                    {format(new Date(user.date_joined), 'MMM dd, yyyy')}
-                  </p>
-                </div>
-                
+                {user.date_joined && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Member Since</p>
+                    <p className="font-medium">
+                      {format(new Date(user.date_joined), 'MMM dd, yyyy')}
+                    </p>
+                  </div>
+                )}
+
                 {user.last_login && (
                   <div>
                     <p className="text-sm text-muted-foreground">Last Login</p>
@@ -228,419 +210,184 @@ export default function Profile() {
                 )}
               </CardContent>
             </Card>
-
-            {/* Permissions Overview */}
-            <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5" />
-                  Permissions
-                </CardTitle>
-                <CardDescription>
-                  Your current access levels
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {user.can_manage_finances && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Finance Management</span>
-                    <Badge className="bg-green-100 text-green-800">Granted</Badge>
-                  </div>
-                )}
-                {user.can_manage_contracts && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Contract Management</span>
-                    <Badge className="bg-green-100 text-green-800">Granted</Badge>
-                  </div>
-                )}
-                {user.can_manage_catalog && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Catalog Management</span>
-                    <Badge className="bg-green-100 text-green-800">Granted</Badge>
-                  </div>
-                )}
-                {!user.can_manage_finances && !user.can_manage_contracts && !user.can_manage_catalog && (
-                  <p className="text-sm text-muted-foreground">
-                    Contact your administrator for additional permissions
-                  </p>
-                )}
-              </CardContent>
-            </Card>
           </div>
 
           {/* Right Column - Settings Tabs */}
           <div className="md:col-span-2">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="profile">Personal Information</TabsTrigger>
-                <TabsTrigger value="preferences">Preferences</TabsTrigger>
-                <TabsTrigger value="sessions">Sessions</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2 p-2 bg-muted/50 backdrop-blur-xl rounded-2xl border border-white/10 h-14 shadow-lg">
+                <TabsTrigger
+                  value="profile"
+                  className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
+                >
+                  Profile
+                </TabsTrigger>
+                <TabsTrigger
+                  value="notifications"
+                  className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
+                >
+                  Notifications
+                </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="profile" className="space-y-6">
-                <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <User className="h-5 w-5" />
-                      Personal Information
-                    </CardTitle>
-                    <CardDescription>
-                      Update your personal details and contact information
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="first_name">First Name</Label>
-                        <Input
-                          id="first_name"
-                          value={formData.first_name}
-                          onChange={(e) => handleInputChange('first_name', e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="last_name">Last Name</Label>
-                        <Input
-                          id="last_name"
-                          value={formData.last_name}
-                          onChange={(e) => handleInputChange('last_name', e.target.value)}
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="email">Email</Label>
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="email"
-                          type="email"
-                          value={user.email}
-                          disabled
-                          className="bg-muted"
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Email cannot be changed. Contact IT support if needed.
-                      </p>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="department">Department</Label>
-                      <div className="flex items-center gap-2">
-                        <Building className="h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="department"
-                          value={formData.department}
-                          onChange={(e) => handleInputChange('department', e.target.value)}
-                          placeholder="e.g., Production, Legal, Finance"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="timezone">Timezone</Label>
-                        <Select 
-                          value={formData.timezone} 
-                          onValueChange={(value) => handleInputChange('timezone', value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {timezones.map(tz => (
-                              <SelectItem key={tz.value} value={tz.value}>
-                                {tz.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="language">Language</Label>
-                        <Select 
-                          value={formData.language} 
-                          onValueChange={(value) => handleInputChange('language', value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {languages.map(lang => (
-                              <SelectItem key={lang.value} value={lang.value}>
-                                {lang.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <Button 
-                      onClick={handleSaveProfile}
-                      disabled={updateUser.isPending}
-                      className="w-full"
-                    >
-                      {updateUser.isPending ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Saving...
-                        </>
+              <TabsContent value="profile" className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Personal Information */}
+                  <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <User className="h-5 w-5" />
+                        Personal Information
+                      </CardTitle>
+                      <CardDescription>
+                        Update your personal details
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {isLoading ? (
+                        <div className="flex items-center justify-center py-8">
+                          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                        </div>
                       ) : (
                         <>
-                          <Save className="h-4 w-4 mr-2" />
-                          Save Changes
+                          {/* Profile Picture */}
+                          <div className="flex flex-col items-center gap-4">
+                            <Avatar className="h-24 w-24">
+                              <AvatarImage src={previewUrl || undefined} alt={user?.full_name || ''} />
+                              <AvatarFallback className="text-2xl">
+                                {user?.first_name?.[0]}{user?.last_name?.[0]}
+                              </AvatarFallback>
+                            </Avatar>
+                            <input
+                              ref={fileInputRef}
+                              type="file"
+                              accept="image/*"
+                              onChange={handleProfilePictureChange}
+                              className="hidden"
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => fileInputRef.current?.click()}
+                            >
+                              <Camera className="h-4 w-4 mr-2" />
+                              Change Photo
+                            </Button>
+                          </div>
+
+                          {/* Email (disabled) */}
+                          <div>
+                            <Label htmlFor="email">Email</Label>
+                            <Input
+                              id="email"
+                              type="email"
+                              value={user?.email || ''}
+                              disabled
+                              className="bg-muted"
+                            />
+                          </div>
+
+                          {/* First Name */}
+                          <div>
+                            <Label htmlFor="firstName">First Name</Label>
+                            <Input
+                              id="firstName"
+                              value={formData.first_name}
+                              onChange={(e) => handleInputChange('first_name', e.target.value)}
+                            />
+                          </div>
+
+                          {/* Last Name */}
+                          <div>
+                            <Label htmlFor="lastName">Last Name</Label>
+                            <Input
+                              id="lastName"
+                              value={formData.last_name}
+                              onChange={(e) => handleInputChange('last_name', e.target.value)}
+                            />
+                          </div>
+
+                          {/* Save Button */}
+                          <Button
+                            className="w-full"
+                            onClick={handleSaveProfile}
+                            disabled={!formData.first_name || !formData.last_name || updateProfile.isPending}
+                          >
+                            {updateProfile.isPending ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Saving...
+                              </>
+                            ) : (
+                              <>
+                                <Save className="h-4 w-4 mr-2" />
+                                Save Changes
+                              </>
+                            )}
+                          </Button>
                         </>
                       )}
-                    </Button>
-                  </CardContent>
-                </Card>
-              </TabsContent>
+                    </CardContent>
+                  </Card>
 
-              <TabsContent value="preferences" className="space-y-6">
-                <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Bell className="h-5 w-5" />
-                      Notification Preferences
-                    </CardTitle>
-                    <CardDescription>
-                      Configure how you receive notifications
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label htmlFor="email-notifications">Email Notifications</Label>
-                          <p className="text-sm text-muted-foreground">
-                            Receive important updates via email
-                          </p>
+                  {/* Team Members */}
+                  <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Users className="h-5 w-5" />
+                        Team Members
+                      </CardTitle>
+                      <CardDescription>
+                        Members from your department
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {isLoadingDepartment ? (
+                        <div className="flex items-center justify-center py-8">
+                          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                         </div>
-                        <Switch
-                          id="email-notifications"
-                          checked={notificationPreferences.email_notifications}
-                          onCheckedChange={(checked) => 
-                            handleNotificationChange('email_notifications', checked)
-                          }
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label htmlFor="push-notifications">Push Notifications</Label>
-                          <p className="text-sm text-muted-foreground">
-                            Get instant notifications in your browser
-                          </p>
+                      ) : departmentUsersData?.results && departmentUsersData.results.length > 0 ? (
+                        <div className="space-y-3">
+                          {departmentUsersData.results.map((member) => {
+                            const statusConfig = getStatusConfig(member.is_active);
+                            return (
+                              <div key={member.id} className="flex items-center justify-between p-3 border rounded-lg">
+                                <div className="flex items-center gap-3">
+                                  <Avatar className="h-8 w-8">
+                                    <AvatarImage src={member.profile_picture || undefined} alt={member.full_name} />
+                                    <AvatarFallback className="text-sm">
+                                      {member.first_name?.[0]}{member.last_name?.[0]}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div>
+                                    <div className="font-medium">{member.full_name}</div>
+                                    <div className="text-sm text-muted-foreground">{member.email}</div>
+                                  </div>
+                                </div>
+                                <Badge variant={statusConfig.variant} icon={statusConfig.icon} size="sm">
+                                  {member.is_active ? 'Active' : 'Inactive'}
+                                </Badge>
+                              </div>
+                            );
+                          })}
                         </div>
-                        <Switch
-                          id="push-notifications"
-                          checked={notificationPreferences.push_notifications}
-                          onCheckedChange={(checked) => 
-                            handleNotificationChange('push_notifications', checked)
-                          }
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label htmlFor="sms-notifications">SMS Notifications</Label>
-                          <p className="text-sm text-muted-foreground">
-                            Receive critical alerts via SMS
-                          </p>
-                        </div>
-                        <Switch
-                          id="sms-notifications"
-                          checked={notificationPreferences.sms_notifications}
-                          onCheckedChange={(checked) => 
-                            handleNotificationChange('sms_notifications', checked)
-                          }
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label htmlFor="weekly-digest">Weekly Digest</Label>
-                          <p className="text-sm text-muted-foreground">
-                            Get a weekly summary of your activity
-                          </p>
-                        </div>
-                        <Switch
-                          id="weekly-digest"
-                          checked={notificationPreferences.weekly_digest}
-                          onCheckedChange={(checked) => 
-                            handleNotificationChange('weekly_digest', checked)
-                          }
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label htmlFor="instant-alerts">Instant Alerts</Label>
-                          <p className="text-sm text-muted-foreground">
-                            Get notified immediately for critical events
-                          </p>
-                        </div>
-                        <Switch
-                          id="instant-alerts"
-                          checked={notificationPreferences.instant_alerts}
-                          onCheckedChange={(checked) => 
-                            handleNotificationChange('instant_alerts', checked)
-                          }
-                        />
-                      </div>
-                    </div>
-
-                    <Button 
-                      onClick={handleSaveNotifications}
-                      disabled={updateUser.isPending}
-                      className="w-full"
-                    >
-                      {updateUser.isPending ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Saving...
-                        </>
                       ) : (
-                        <>
-                          <Save className="h-4 w-4 mr-2" />
-                          Save Preferences
-                        </>
+                        <div className="text-center py-8 text-muted-foreground">
+                          No team members found in your department
+                        </div>
                       )}
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                {/* Authentication Info - Read Only */}
-                <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Shield className="h-5 w-5" />
-                      Authentication
-                    </CardTitle>
-                    <CardDescription>
-                      Your authentication method and security status
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <Label>Authentication Method</Label>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge>Google SSO</Badge>
-                        <span className="text-sm text-muted-foreground">
-                          Domain: @hahahaproduction.com
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <Label>Session Status</Label>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Active session with sliding expiration (30 days)
-                      </p>
-                    </div>
-
-                    <div className="pt-4 border-t">
-                      <p className="text-sm text-muted-foreground">
-                        Password management is disabled. Authentication is handled exclusively 
-                        through Google SSO for enhanced security.
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                </div>
               </TabsContent>
 
-              <TabsContent value="sessions" className="space-y-6">
-                <SessionsContent />
+              <TabsContent value="notifications" className="space-y-4">
+                <NotificationSettings />
               </TabsContent>
             </Tabs>
           </div>
         </div>
       </div>
     </AppLayout>
-  );
-}
-
-// Separate component for Sessions to manage its own hooks
-function SessionsContent() {
-  const { data: sessionsData, isLoading, error } = useCurrentUserSessions();
-  const revokeSession = useRevokeSession();
-  const revokeAllSessions = useRevokeAllSessions();
-
-  const handleRevokeSession = (sessionKey: string) => {
-    revokeSession.mutate(sessionKey);
-  };
-
-  const handleRevokeAllSessions = () => {
-    revokeAllSessions.mutate();
-  };
-
-  if (isLoading) {
-    return (
-      <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
-        <CardHeader>
-          <Skeleton className="h-6 w-48" />
-          <Skeleton className="h-4 w-96" />
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-64 w-full" />
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (error) {
-    return (
-      <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Monitor className="h-5 w-5" />
-            Active Sessions
-          </CardTitle>
-          <CardDescription>
-            Unable to load sessions
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Failed to load your active sessions. Please try again later.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Monitor className="h-5 w-5" />
-          Active Sessions
-        </CardTitle>
-        <CardDescription>
-          Manage your active sessions across all devices. Sessions expire automatically after 30 days of inactivity.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {sessionsData ? (
-          <SessionManagementPanel
-            sessions={sessionsData.sessions}
-            maxSessions={sessionsData.max_allowed || 5}
-            onRevokeSession={handleRevokeSession}
-            onRevokeAllSessions={handleRevokeAllSessions}
-            isRevokingSingle={revokeSession.isPending}
-            isRevokingAll={revokeAllSessions.isPending}
-            isLoading={false}
-            error={null}
-            isAdmin={false}
-          />
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            No session data available.
-          </p>
-        )}
-      </CardContent>
-    </Card>
   );
 }

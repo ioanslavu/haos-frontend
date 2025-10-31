@@ -13,6 +13,20 @@ export type ServiceType =
   | 'seo'
   | 'email_marketing';
 
+export const SERVICE_TYPE_CHOICES: ServiceType[] = [
+  'ppc',
+  'tiktok_ugc',
+  'dsp_distribution',
+  'radio_plugging',
+  'playlist_pitching',
+  'youtube_cms',
+  'social_media_mgmt',
+  'content_creation',
+  'influencer_marketing',
+  'seo',
+  'email_marketing',
+];
+
 export type Platform =
   | 'meta'
   | 'google'
@@ -28,6 +42,23 @@ export type Platform =
   | 'snapchat'
   | 'pinterest'
   | 'multi';
+
+export const PLATFORM_CHOICES: Platform[] = [
+  'meta',
+  'google',
+  'tiktok',
+  'spotify',
+  'youtube',
+  'apple_music',
+  'deezer',
+  'amazon_music',
+  'soundcloud',
+  'twitter',
+  'linkedin',
+  'snapchat',
+  'pinterest',
+  'multi',
+];
 
 export interface KPITarget {
   target: number;

@@ -241,7 +241,9 @@ export function CampaignFormPage() {
 
       {/* Progress Indicator */}
       {!isEdit && (
-        <FormProgress steps={formSteps} currentStep={currentStep} className="mt-8" />
+        <div className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 py-4 -mx-6 px-6 border-b mb-6">
+          <FormProgress steps={formSteps} currentStep={currentStep} />
+        </div>
       )}
 
       <Form {...form}>

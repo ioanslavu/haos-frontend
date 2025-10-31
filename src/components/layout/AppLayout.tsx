@@ -60,7 +60,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             "flex-1 overflow-auto transition-all duration-300",
             "backdrop-blur-sm"
           )}>
-            <div className="h-full p-8">
+            <div className="h-full p-4 sm:p-6 lg:p-8">
               {children}
             </div>
           </main>

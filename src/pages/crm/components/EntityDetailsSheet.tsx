@@ -159,6 +159,9 @@ export function EntityDetailsSheet({
                     </div>
                     <SheetDescription className="mt-1">
                       {entity.kind === 'PJ' ? 'Legal Entity' : 'Physical Person'}
+                      {entity.alias_name && (
+                        <span className="block text-xs mt-1">alias: {entity.alias_name}</span>
+                      )}
                       {entity.stage_name && (
                         <span className="block text-xs mt-1">aka "{entity.stage_name}"</span>
                       )}

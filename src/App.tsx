@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { NotificationProvider } from "@/providers/NotificationProvider";
@@ -44,7 +44,16 @@ const Catalog = lazy(() => import("./pages/Catalog"));
 const Studio = lazy(() => import("./pages/Studio"));
 const Tasks = lazy(() => import("./pages/Tasks"));
 const TaskManagement = lazy(() => import("./pages/TaskManagement"));
-const DigitalDashboard = lazy(() => import("./pages/digital-dashboard/DigitalDashboard"));
+
+// Digital pages (lazy loaded)
+const DigitalOverview = lazy(() => import("./pages/digital/OverviewPage"));
+const DigitalCampaigns = lazy(() => import("./pages/digital/CampaignsPage"));
+const DigitalCampaignDetail = lazy(() => import("./pages/digital/CampaignDetailPage"));
+const DigitalCampaignFormPage = lazy(() => import("./pages/digital/DigitalCampaignFormPage"));
+const DigitalServices = lazy(() => import("./pages/digital/ServicesPage"));
+const DigitalFinancial = lazy(() => import("./pages/digital/FinancialPage"));
+const DigitalTasks = lazy(() => import("./pages/digital/TasksPage"));
+const DigitalReporting = lazy(() => import("./pages/digital/ReportingPage"));
 const Settings = lazy(() => import("./pages/Settings"));
 const CompanySettings = lazy(() => import("./pages/CompanySettings"));
 const Profile = lazy(() => import("./pages/profile/Index"));
@@ -75,6 +84,9 @@ const EntityDetail = lazy(() => import("./pages/EntityDetail"));
 
 // CRM pages
 const CampaignFormPage = lazy(() => import("./pages/crm/CampaignFormPage"));
+
+// Admin pages
+const EntityRequestsPage = lazy(() => import("./pages/admin/EntityRequestsPage"));
 
 const App = () => (
   <ErrorBoundary>
@@ -247,9 +259,57 @@ const App = () => (
                 <TaskManagement />
               </ProtectedRoute>
             } />
+            {/* Redirect old digital-dashboard route to new structure */}
             <Route path="/digital-dashboard" element={
               <ProtectedRoute>
-                <DigitalDashboard />
+                <Navigate to="/digital/overview" replace />
+              </ProtectedRoute>
+            } />
+            <Route path="/digital/overview" element={
+              <ProtectedRoute>
+                <DigitalOverview />
+              </ProtectedRoute>
+            } />
+            {/* Redirect old clients page to entities */}
+            <Route path="/digital/clients" element={<Navigate to="/crm/entities" replace />} />
+            <Route path="/digital/campaigns" element={
+              <ProtectedRoute>
+                <DigitalCampaigns />
+              </ProtectedRoute>
+            } />
+            <Route path="/digital/campaigns/create" element={
+              <ProtectedRoute>
+                <DigitalCampaignFormPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/digital/campaigns/:id/edit" element={
+              <ProtectedRoute>
+                <DigitalCampaignFormPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/digital/campaigns/:id" element={
+              <ProtectedRoute>
+                <DigitalCampaignDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/digital/services" element={
+              <ProtectedRoute>
+                <DigitalServices />
+              </ProtectedRoute>
+            } />
+            <Route path="/digital/financial" element={
+              <ProtectedRoute>
+                <DigitalFinancial />
+              </ProtectedRoute>
+            } />
+            <Route path="/digital/tasks" element={
+              <ProtectedRoute>
+                <DigitalTasks />
+              </ProtectedRoute>
+            } />
+            <Route path="/digital/reporting" element={
+              <ProtectedRoute>
+                <DigitalReporting />
               </ProtectedRoute>
             } />
             <Route path="/settings" element={
@@ -291,6 +351,7 @@ const App = () => (
             {/* User Management routes - Admin only */}
             <Route element={<AdminRoute />}>
               <Route path="/users/management" element={<UsersManagement />} />
+              <Route path="/admin/entity-requests" element={<EntityRequestsPage />} />
             </Route>
 
             {/* Department Requests - Admin and Manager only */}

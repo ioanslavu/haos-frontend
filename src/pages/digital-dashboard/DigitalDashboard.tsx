@@ -25,6 +25,7 @@ import { useCampaigns } from '@/api/hooks/useCampaigns';
 import { useEntities } from '@/api/hooks/useEntities';
 import { useTasks, useTaskStats } from '@/api/hooks/useTasks';
 import { useActivities } from '@/api/hooks/useActivities';
+import { DigitalCampaignFormDialog } from '@/pages/crm/components/DigitalCampaignFormDialog';
 
 // Import tab components
 import { OverviewTab } from './tabs/OverviewTab';
@@ -43,6 +44,7 @@ export default function DigitalDashboard() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterService, setFilterService] = useState<string>('all');
   const [filterPeriod, setFilterPeriod] = useState<string>('30d');
+  const [showCampaignDialog, setShowCampaignDialog] = useState(false);
 
   // Check if user is in digital department
   const isDigitalDepartment = user?.department?.code === 'digital';
@@ -60,49 +62,68 @@ export default function DigitalDashboard() {
 
   return (
     <AppLayout>
-      <div className="h-full flex flex-col">
-        {/* Header Section */}
-        <div className="border-b p-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">Digital Department Dashboard</h1>
-              <p className="text-muted-foreground mt-1">
+      <div className="space-y-8 pb-8">
+        {/* Modern Glassmorphic Header with Gradient */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-pink-500/10 backdrop-blur-xl border border-white/20 dark:border-white/10 p-4 sm:p-6 lg:p-8 shadow-2xl">
+          {/* Animated gradient orbs */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-400/30 to-purple-500/30 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-pink-400/30 to-orange-500/30 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+
+          <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-2">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
+                Digital Dashboard
+              </h1>
+              <p className="text-muted-foreground text-sm sm:text-base lg:text-lg">
                 Manage campaigns, track KPIs, and monitor digital services
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm">
-                <Calendar className="h-4 w-4 mr-2" />
-                {filterPeriod === '7d' && 'Last 7 days'}
-                {filterPeriod === '30d' && 'Last 30 days'}
-                {filterPeriod === '90d' && 'Last 90 days'}
-                {filterPeriod === 'year' && 'This year'}
-              </Button>
-              <Button size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                New Campaign
-              </Button>
-            </div>
+            <Button
+              onClick={() => setShowCampaignDialog(true)}
+              size="lg"
+              className="h-12 px-6 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 w-full sm:w-auto"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              New Campaign
+            </Button>
+          </div>
+        </div>
+
+        {/* Modern iOS-style Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <div className="w-full overflow-x-auto">
+            <TabsList className="inline-flex w-full min-w-max lg:grid lg:grid-cols-8 p-2 bg-muted/50 backdrop-blur-xl rounded-2xl border border-white/10 h-auto lg:h-14 shadow-lg">
+              {tabConfig.map((tab) => (
+                <TabsTrigger
+                  key={tab.id}
+                  value={tab.id}
+                  className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300 whitespace-nowrap px-3 lg:px-4"
+                >
+                  <tab.icon className="h-4 w-4 lg:mr-2" />
+                  <span className="hidden sm:inline ml-2">{tab.label}</span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
           </div>
 
-          {/* Quick Filters */}
-          <div className="flex items-center gap-4 mt-4">
-            <div className="flex items-center gap-2 flex-1">
-              <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search clients, artists, campaigns..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+          {/* Modern Glassmorphic Filters */}
+          <div className="flex flex-col gap-3 p-4 rounded-2xl bg-background/50 backdrop-blur-xl border border-white/10 shadow-lg mt-8">
+            <div className="relative w-full">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Input
+                placeholder="Search clients, artists, campaigns..."
+                className="pl-12 h-12 rounded-xl bg-background/50 border-white/10 focus:border-blue-500/50 transition-all duration-300"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
 
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-[150px]">
+                <SelectTrigger className="h-12 rounded-xl bg-background/50 border-white/10">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-xl border-white/10">
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
@@ -111,10 +132,10 @@ export default function DigitalDashboard() {
               </Select>
 
               <Select value={filterService} onValueChange={setFilterService}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Service Type" />
+                <SelectTrigger className="h-12 rounded-xl bg-background/50 border-white/10">
+                  <SelectValue placeholder="Service" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-xl border-white/10">
                   <SelectItem value="all">All Services</SelectItem>
                   <SelectItem value="ppc">PPC Campaign</SelectItem>
                   <SelectItem value="tiktok_ugc">TikTok UGC</SelectItem>
@@ -126,99 +147,90 @@ export default function DigitalDashboard() {
               </Select>
 
               <Select value={filterPeriod} onValueChange={setFilterPeriod}>
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className="h-12 rounded-xl bg-background/50 border-white/10">
                   <SelectValue placeholder="Period" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-xl border-white/10">
                   <SelectItem value="7d">Last 7 days</SelectItem>
                   <SelectItem value="30d">Last 30 days</SelectItem>
                   <SelectItem value="90d">Last 90 days</SelectItem>
                   <SelectItem value="year">This year</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
 
-            <Button variant="outline" size="sm">
-              <Filter className="h-4 w-4 mr-2" />
-              More Filters
-            </Button>
+              <Button variant="outline" className="h-12 rounded-xl">
+                <Filter className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">More</span>
+              </Button>
+            </div>
           </div>
-        </div>
 
-        {/* Main Content - Tabs */}
-        <div className="flex-1 overflow-hidden">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-            <TabsList className="grid grid-cols-8 w-full max-w-5xl mx-auto mt-4">
-              {tabConfig.map((tab) => (
-                <TabsTrigger key={tab.id} value={tab.id} className="flex items-center gap-2">
-                  <tab.icon className="h-4 w-4" />
-                  <span className="hidden lg:inline">{tab.label}</span>
-                </TabsTrigger>
-              ))}
-            </TabsList>
+          <TabsContent value="overview" className="space-y-6 mt-8">
+              <OverviewTab
+                searchQuery={searchQuery}
+                filterStatus={filterStatus}
+                filterService={filterService}
+                filterPeriod={filterPeriod}
+              />
+            </TabsContent>
 
-            <div className="flex-1 overflow-auto p-4">
-              <TabsContent value="overview" className="mt-0">
-                <OverviewTab
-                  searchQuery={searchQuery}
-                  filterStatus={filterStatus}
-                  filterService={filterService}
-                  filterPeriod={filterPeriod}
-                />
-              </TabsContent>
+            <TabsContent value="clients" className="space-y-6 mt-8">
+              <ClientsTab
+                searchQuery={searchQuery}
+                filterPeriod={filterPeriod}
+              />
+            </TabsContent>
 
-              <TabsContent value="clients" className="mt-0">
-                <ClientsTab
-                  searchQuery={searchQuery}
-                  filterPeriod={filterPeriod}
-                />
-              </TabsContent>
+            <TabsContent value="campaigns" className="space-y-6 mt-8">
+              <CampaignsTab
+                searchQuery={searchQuery}
+                filterStatus={filterStatus}
+                filterService={filterService}
+                filterPeriod={filterPeriod}
+              />
+            </TabsContent>
 
-              <TabsContent value="campaigns" className="mt-0">
-                <CampaignsTab
-                  searchQuery={searchQuery}
-                  filterStatus={filterStatus}
-                  filterService={filterService}
-                  filterPeriod={filterPeriod}
-                />
-              </TabsContent>
+            <TabsContent value="services" className="space-y-6 mt-8">
+              <ServicesTab
+                filterService={filterService}
+                filterPeriod={filterPeriod}
+              />
+            </TabsContent>
 
-              <TabsContent value="services" className="mt-0">
-                <ServicesTab
-                  filterService={filterService}
-                  filterPeriod={filterPeriod}
-                />
-              </TabsContent>
+            <TabsContent value="financial" className="space-y-6 mt-8">
+              <FinancialTab
+                filterPeriod={filterPeriod}
+              />
+            </TabsContent>
 
-              <TabsContent value="financial" className="mt-0">
-                <FinancialTab
-                  filterPeriod={filterPeriod}
-                />
-              </TabsContent>
+            <TabsContent value="tasks" className="space-y-6 mt-8">
+              <TasksTab
+                searchQuery={searchQuery}
+                filterStatus={filterStatus}
+              />
+            </TabsContent>
 
-              <TabsContent value="tasks" className="mt-0">
-                <TasksTab
-                  searchQuery={searchQuery}
-                  filterStatus={filterStatus}
-                />
-              </TabsContent>
+            <TabsContent value="reporting" className="space-y-6 mt-8">
+              <ReportingTab
+                filterPeriod={filterPeriod}
+                filterService={filterService}
+              />
+            </TabsContent>
 
-              <TabsContent value="reporting" className="mt-0">
-                <ReportingTab
-                  filterPeriod={filterPeriod}
-                  filterService={filterService}
-                />
-              </TabsContent>
-
-              <TabsContent value="insights" className="mt-0">
-                <InsightsTab
-                  filterPeriod={filterPeriod}
-                />
-              </TabsContent>
-            </div>
-          </Tabs>
-        </div>
+            <TabsContent value="insights" className="space-y-6 mt-8">
+              <InsightsTab
+                filterPeriod={filterPeriod}
+              />
+            </TabsContent>
+        </Tabs>
       </div>
+
+      {/* Campaign Form Dialog */}
+      <DigitalCampaignFormDialog
+        open={showCampaignDialog}
+        onOpenChange={setShowCampaignDialog}
+        campaign={null}
+      />
     </AppLayout>
   );
 }

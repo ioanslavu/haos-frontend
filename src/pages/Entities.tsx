@@ -227,10 +227,7 @@ export default function Entities() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="backdrop-blur-sm bg-white/50 dark:bg-white/10 hover:bg-white/80 dark:hover:bg-white/20 border-white/20">
-                  <Download className="h-4 w-4 mr-2" />
-                  Export
-                </Button>
+               
                 <Button onClick={() => setFormDialogOpen(true)} className="shadow-lg">
                   <Plus className="h-4 w-4 mr-2" />
                   Add Entity

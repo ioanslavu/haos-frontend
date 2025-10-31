@@ -60,6 +60,7 @@ export interface Entity {
   id: number;
   kind: 'PF' | 'PJ'; // Physical Person or Legal Entity
   display_name: string;
+  alias_name?: string; // Alternative name or alias
   first_name?: string; // For PF
   last_name?: string; // For PF
   stage_name?: string; // For PF
@@ -136,6 +137,7 @@ export interface EntityListItem {
   kind: 'PF' | 'PJ';
   kind_display?: string;
   display_name: string;
+  alias_name?: string;
   first_name?: string;
   last_name?: string;
   stage_name?: string;

@@ -31,6 +31,8 @@ export type TaskType =
   | 'royalty_collection'
   | 'statement_review';
 
+export type TaskTag = 'urgent' | 'client_requested' | 'internal' | 'recurring' | 'blocked_external';
+
 // Choice arrays for forms and validation
 export const TASK_STATUS_CHOICES: readonly TaskStatus[] = [
   'todo',
@@ -42,6 +44,14 @@ export const TASK_STATUS_CHOICES: readonly TaskStatus[] = [
 ] as const;
 
 export const TASK_PRIORITY_CHOICES: readonly TaskPriority[] = [1, 2, 3, 4] as const;
+
+export const TASK_TAG_CHOICES: readonly TaskTag[] = [
+  'urgent',
+  'client_requested',
+  'internal',
+  'recurring',
+  'blocked_external'
+] as const;
 
 export const TASK_TYPE_CHOICES: readonly TaskType[] = [
   'general',
@@ -100,6 +110,7 @@ export interface Task {
   task_type: TaskType;
   status: TaskStatus;
   priority: TaskPriority;
+  tag?: TaskTag;
 
   // Relationships
   campaign?: number;
@@ -109,9 +120,11 @@ export interface Task {
   contract?: number;
   contract_detail?: TaskContractDetail;
 
-  // Assignment
-  assigned_to?: number;
-  assigned_to_detail?: TaskUserDetail;
+  // Assignment (multiple users)
+  assigned_to?: number;  // DEPRECATED
+  assigned_to_detail?: TaskUserDetail;  // DEPRECATED
+  assigned_to_users?: number[];
+  assigned_to_users_detail?: TaskUserDetail[];
   created_by?: number;
   created_by_detail?: TaskUserDetail;
   department?: number;
@@ -120,6 +133,7 @@ export interface Task {
   // Timeline
   due_date?: string;
   reminder_date?: string;
+  follow_up_reminder_sent?: boolean;
   started_at?: string;
   completed_at?: string;
 
@@ -151,10 +165,12 @@ export interface TaskCreateInput {
   task_type?: TaskType;
   status?: TaskStatus;
   priority?: TaskPriority;
+  tag?: TaskTag;
   campaign?: number;
   entity?: number;
   contract?: number;
-  assigned_to?: number;
+  assigned_to?: number;  // DEPRECATED
+  assigned_to_users?: number[];
   department?: number;
   due_date?: string;
   reminder_date?: string;
@@ -255,4 +271,21 @@ export const TASK_TYPE_CATEGORIES = {
   sales: ['proposal', 'negotiation', 'contract_prep', 'closing'],
   creative: ['recording', 'mixing', 'video_production', 'artwork'],
   publishing: ['registration', 'royalty_collection', 'statement_review'],
+};
+
+// Task tag display helpers
+export const TASK_TAG_LABELS: Record<TaskTag, string> = {
+  urgent: 'Urgent',
+  client_requested: 'Client Requested',
+  internal: 'Internal',
+  recurring: 'Recurring',
+  blocked_external: 'Blocked by External',
+};
+
+export const TASK_TAG_COLORS: Record<TaskTag, string> = {
+  urgent: 'red',
+  client_requested: 'purple',
+  internal: 'blue',
+  recurring: 'green',
+  blocked_external: 'orange',
 };

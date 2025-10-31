@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,44 +21,148 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  BarChart3,
   Calendar,
   Clock,
   DollarSign,
   Edit,
   Eye,
+  LayoutGrid,
+  LayoutList,
   MoreHorizontal,
   Plus,
   Target,
   TrendingUp,
 } from 'lucide-react';
-import { useCampaigns } from '@/api/hooks/useCampaigns';
+import { useCampaigns, useUpdateCampaign } from '@/api/hooks/useCampaigns';
 import { formatDistanceToNow, format } from 'date-fns';
 import { SERVICE_TYPE_LABELS, PLATFORM_LABELS } from '@/api/types/campaigns';
+import { ServiceMetricsUpdateDialog } from '@/components/digital/ServiceMetricsUpdateDialog';
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  pointerWithin,
+} from '@dnd-kit/core';
+import { useDroppable } from '@dnd-kit/core';
+import { useDraggable } from '@dnd-kit/core';
+import { snapCenterToCursor } from '@dnd-kit/modifiers';
+import { cn } from '@/lib/utils';
 
 interface CampaignsTabProps {
   searchQuery: string;
   filterStatus: string;
   filterService: string;
   filterPeriod: string;
+  startDate?: Date;
+  endDate?: Date;
+  filterClient?: string;
 }
 
-export function CampaignsTab({ searchQuery, filterStatus, filterService }: CampaignsTabProps) {
+// Droppable Column Component
+function DroppableColumn({ id, children }: { id: string; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        'transition-colors',
+        isOver && 'bg-primary/5 ring-2 ring-primary/50 rounded-lg'
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+// Draggable Campaign Card Component
+function DraggableCampaignCard({ campaign, children, onClick }: { campaign: any; children: React.ReactNode; onClick: () => void }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: campaign.id,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      className={cn(isDragging && 'opacity-30')}
+      onClick={(e) => {
+        // Only trigger onClick if not dragging
+        if (!isDragging) {
+          onClick();
+        }
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function CampaignsTab({ searchQuery, filterStatus, filterService, filterPeriod, startDate, endDate, filterClient }: CampaignsTabProps) {
+  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('table');
+  const [activeCampaign, setActiveCampaign] = useState<any | null>(null);
   const { data: campaigns, isLoading } = useCampaigns({
     status: filterStatus !== 'all' ? filterStatus : undefined,
     service_type: filterService !== 'all' ? filterService : undefined,
   });
+  const updateCampaign = useUpdateCampaign();
+
+  // Setup drag sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px movement required to start dragging
+      },
+    })
+  );
 
   // Extract campaigns from paginated response
   const campaignsList = campaigns?.results || [];
 
-  // Filter campaigns based on search
-  const filteredCampaigns = campaignsList.filter(campaign =>
-    campaign.campaign_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    campaign.client.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    campaign.artist?.display_name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter campaigns based on search, date range, and client
+  const filteredCampaigns = campaignsList.filter(campaign => {
+    // Search filter
+    const matchesSearch =
+      campaign.campaign_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      campaign.client.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      campaign.artist?.display_name.toLowerCase().includes(searchQuery.toLowerCase());
+
+    if (!matchesSearch) return false;
+
+    // Date range filter
+    if (filterPeriod === 'custom' && (startDate || endDate)) {
+      const createdAt = new Date(campaign.created_at);
+      if (startDate && createdAt < startDate) return false;
+      if (endDate && createdAt > endDate) return false;
+    } else if (filterPeriod !== 'custom' && filterPeriod !== 'all') {
+      const now = new Date();
+      const periodDays: Record<string, number> = {
+        '7d': 7,
+        '30d': 30,
+        '90d': 90,
+        'year': 365
+      };
+      const days = periodDays[filterPeriod];
+      if (days) {
+        const cutoffDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+        const createdAt = new Date(campaign.created_at);
+        if (createdAt < cutoffDate) return false;
+      }
+    }
+
+    // Client filter
+    if (filterClient && filterClient !== 'all') {
+      if (String(campaign.client.id) !== filterClient) return false;
+    }
+
+    return true;
+  });
 
   // Group campaigns by status for kanban view
   const campaignsByStatus = {
@@ -66,6 +171,7 @@ export function CampaignsTab({ searchQuery, filterStatus, filterService }: Campa
     confirmed: filteredCampaigns?.filter(c => c.status === 'confirmed') || [],
     active: filteredCampaigns?.filter(c => c.status === 'active') || [],
     completed: filteredCampaigns?.filter(c => c.status === 'completed') || [],
+    lost: filteredCampaigns?.filter(c => c.status === 'lost') || [],
   };
 
   const statusColumns = [
@@ -74,29 +180,85 @@ export function CampaignsTab({ searchQuery, filterStatus, filterService }: Campa
     { id: 'confirmed', label: 'Confirmed', color: 'bg-green-500' },
     { id: 'active', label: 'Active', color: 'bg-purple-500' },
     { id: 'completed', label: 'Completed', color: 'bg-gray-500' },
+    { id: 'lost', label: 'Lost', color: 'bg-red-500' },
   ];
+
+  // Drag handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    const campaignId = event.active.id as number;
+    const campaign = filteredCampaigns?.find((c) => c.id === campaignId);
+    if (campaign) {
+      setActiveCampaign(campaign);
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over) {
+      setActiveCampaign(null);
+      return;
+    }
+
+    const campaignId = active.id as number;
+    const newStatus = over.id as string;
+
+    // Find the campaign
+    const campaign = filteredCampaigns?.find((c) => c.id === campaignId);
+
+    if (campaign && campaign.status !== newStatus) {
+      // Update campaign status
+      try {
+        await updateCampaign.mutateAsync({ id: campaignId, data: { status: newStatus } });
+      } catch (error) {
+        console.error('Failed to update campaign status:', error);
+      }
+    }
+
+    setActiveCampaign(null);
+  };
+
+  const handleDragCancel = () => {
+    setActiveCampaign(null);
+  };
 
   return (
     <div className="space-y-6">
       {/* Header Actions */}
       <div className="flex items-center justify-between">
-        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'kanban' | 'table')}>
-          <TabsList>
-            <TabsTrigger value="table">Table View</TabsTrigger>
-            <TabsTrigger value="kanban">Kanban View</TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        <div className="flex items-center gap-2">
-          <Button variant="outline">
-            <BarChart3 className="h-4 w-4 mr-2" />
-            Export Report
+        <div className="flex gap-2 p-1.5 rounded-xl bg-muted/50 backdrop-blur-sm border border-white/10">
+          <Button
+            variant={viewMode === 'table' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('table')}
+            className={cn(
+              "h-9 px-4 rounded-lg transition-all duration-300",
+              viewMode === 'table'
+                ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg"
+                : "hover:bg-background/50"
+            )}
+          >
+            <LayoutList className="h-4 w-4" />
           </Button>
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            New Campaign
+          <Button
+            variant={viewMode === 'kanban' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('kanban')}
+            className={cn(
+              "h-9 px-4 rounded-lg transition-all duration-300",
+              viewMode === 'kanban'
+                ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg"
+                : "hover:bg-background/50"
+            )}
+          >
+            <LayoutGrid className="h-4 w-4" />
           </Button>
         </div>
+
+        <Button>
+          <Plus className="h-4 w-4 mr-2" />
+          New Campaign
+        </Button>
       </div>
 
       {viewMode === 'table' ? (
@@ -200,12 +362,25 @@ export function CampaignsTab({ searchQuery, filterStatus, filterService }: Campa
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => navigate(`/digital/campaigns/${campaign.id}`)}
+                        >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => navigate(`/digital/campaigns/${campaign.id}/edit`)}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
+                        <ServiceMetricsUpdateDialog
+                          campaign={campaign}
+                          variant="ghost"
+                          size="icon"
+                        />
                         <Button variant="ghost" size="icon">
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
@@ -219,9 +394,17 @@ export function CampaignsTab({ searchQuery, filterStatus, filterService }: Campa
         </Card>
       ) : (
         // Kanban View
-        <div className="grid grid-cols-5 gap-4">
+        <DndContext
+          sensors={sensors}
+          collisionDetection={pointerWithin}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+        >
+        <div className="grid grid-cols-6 gap-4">
           {statusColumns.map((column) => (
-            <Card key={column.id} className="h-[600px] flex flex-col">
+            <DroppableColumn key={column.id} id={column.id}>
+            <Card className="h-[600px] flex flex-col">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -236,15 +419,39 @@ export function CampaignsTab({ searchQuery, filterStatus, filterService }: Campa
               <CardContent className="flex-1 overflow-auto">
                 <div className="space-y-2">
                   {campaignsByStatus[column.id as keyof typeof campaignsByStatus].map((campaign) => (
-                    <Card key={campaign.id} className="p-3 cursor-pointer hover:shadow-md transition-shadow">
+                    <DraggableCampaignCard key={campaign.id} campaign={campaign} onClick={() => navigate(`/digital/campaigns/${campaign.id}`)}>
+                    <Card
+                      className="p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
+                    >
                       <div className="space-y-2">
                         <div className="flex items-start justify-between">
                           <h4 className="text-sm font-medium line-clamp-2">
                             {campaign.campaign_name}
                           </h4>
-                          <Button variant="ghost" size="icon" className="h-6 w-6">
-                            <MoreHorizontal className="h-3 w-3" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <ServiceMetricsUpdateDialog
+                              campaign={campaign}
+                              variant="ghost"
+                              size="icon"
+                            >
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Edit className="h-3 w-3" />
+                              </Button>
+                            </ServiceMetricsUpdateDialog>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <MoreHorizontal className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </div>
 
                         <div className="flex items-center gap-2">
@@ -294,12 +501,38 @@ export function CampaignsTab({ searchQuery, filterStatus, filterService }: Campa
                         )}
                       </div>
                     </Card>
+                    </DraggableCampaignCard>
                   ))}
                 </div>
               </CardContent>
             </Card>
+            </DroppableColumn>
           ))}
         </div>
+
+        {/* Drag Overlay - shows the campaign being dragged */}
+        <DragOverlay modifiers={[snapCenterToCursor]}>
+          {activeCampaign ? (
+            <Card className="p-3 cursor-grabbing shadow-2xl rotate-2 w-[280px]">
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium line-clamp-2">
+                  {activeCampaign.campaign_name}
+                </h4>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">
+                    {activeCampaign.service_type_display || 'Service'}
+                  </Badge>
+                  {activeCampaign.platform && (
+                    <Badge variant="secondary" className="text-xs">
+                      {activeCampaign.platform_display}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </Card>
+          ) : null}
+        </DragOverlay>
+        </DndContext>
       )}
     </div>
   );

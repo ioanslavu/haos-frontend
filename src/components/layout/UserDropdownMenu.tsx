@@ -225,14 +225,6 @@ export function UserDropdownMenu() {
           My Profile
         </DropdownMenuItem>
 
-        <DropdownMenuItem
-          onClick={() => navigate('/settings')}
-          className="cursor-pointer"
-        >
-          <Settings className="mr-2 h-4 w-4" />
-          Settings
-        </DropdownMenuItem>
-
         {/* Admin-Only Test as Role Submenu */}
         {isAdmin() && !isCurrentlyImpersonating && (
           <>

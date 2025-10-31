@@ -79,6 +79,7 @@ import { useQueryClient } from '@tanstack/react-query';
 const entityFormSchema = z.object({
   kind: z.enum(['PF', 'PJ']),
   display_name: z.string().min(1, 'Name is required'),
+  alias_name: z.string().optional(),
   first_name: z.string().optional(),
   last_name: z.string().optional(),
   stage_name: z.string().optional(),
@@ -158,6 +159,7 @@ export function EntityFormDialog({
     defaultValues: {
       kind: 'PF',
       display_name: '',
+      alias_name: '',
       first_name: '',
       last_name: '',
       stage_name: '',
@@ -227,6 +229,7 @@ export function EntityFormDialog({
       form.reset({
         kind: entity.kind,
         display_name: entity.display_name,
+        alias_name: entity.alias_name || '',
         first_name: entity.first_name || '',
         last_name: entity.last_name || '',
         stage_name: entity.stage_name || '',
@@ -398,6 +401,23 @@ export function EntityFormDialog({
                         {kind === 'PF'
                           ? 'Auto-generated from first and last name'
                           : 'The complete name as it appears in documents'}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="alias_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Alias / Alternative Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="e.g., nickname, brand name, DBA" />
+                      </FormControl>
+                      <FormDescription>
+                        Optional alternative name or alias for this entity
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

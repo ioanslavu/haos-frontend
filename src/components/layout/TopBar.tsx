@@ -1,10 +1,9 @@
 
 import React from 'react';
-import { Search, BarChart3, Menu } from 'lucide-react';
+import { Search, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { UserDropdownMenu } from './UserDropdownMenu';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
-import { cn } from '@/lib/utils';
 import { useCommandPalette } from '@/components/command-palette';
 
 interface TopBarProps {
@@ -56,21 +55,6 @@ export const TopBar: React.FC<TopBarProps> = ({
 
       <div className="flex items-center gap-2">
         <NotificationBell />
-
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onToggleInsights}
-          aria-label={insightsPanelOpen ? "Close insights panel" : "Open insights panel"}
-          className={cn(
-            "h-12 w-12 md:h-10 md:w-10 rounded-2xl transition-all duration-300",
-            insightsPanelOpen
-              ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg"
-              : "hover:bg-white/20 dark:hover:bg-white/10"
-          )}
-        >
-          <BarChart3 className="h-5 w-5" />
-        </Button>
 
         {/* User Dropdown Menu with integrated Role Testing for Admins */}
         <UserDropdownMenu />

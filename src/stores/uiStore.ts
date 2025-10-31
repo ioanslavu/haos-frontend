@@ -47,8 +47,8 @@ export const useUIStore = create<UIState>()(
   devtools(
     persist(
       (set, get) => ({
-        // Sidebar
-        sidebarCollapsed: false,
+        // Sidebar - collapsed by default on mobile
+        sidebarCollapsed: typeof window !== 'undefined' ? window.innerWidth < 1024 : false,
         setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
         toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
         
