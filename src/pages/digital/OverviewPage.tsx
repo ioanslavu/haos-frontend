@@ -2,17 +2,15 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, Filter } from 'lucide-react';
+import { Search, Filter } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { OverviewTab } from '../digital-dashboard/tabs/OverviewTab';
-import { DigitalCampaignFormDialog } from '@/pages/crm/components/DigitalCampaignFormDialog';
 
 export default function DigitalOverviewPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterService, setFilterService] = useState<string>('all');
   const [filterPeriod, setFilterPeriod] = useState<string>('30d');
-  const [showCampaignDialog, setShowCampaignDialog] = useState(false);
 
   return (
     <AppLayout>
@@ -23,7 +21,7 @@ export default function DigitalOverviewPage() {
           <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-400/30 to-purple-500/30 rounded-full blur-3xl animate-pulse" />
           <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-pink-400/30 to-orange-500/30 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
 
-          <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative z-10">
             <div className="space-y-2">
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
                 Digital Overview
@@ -32,14 +30,6 @@ export default function DigitalOverviewPage() {
                 Manage campaigns, track KPIs, and monitor digital services
               </p>
             </div>
-            <Button
-              onClick={() => setShowCampaignDialog(true)}
-              size="lg"
-              className="h-12 px-6 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 w-full sm:w-auto"
-            >
-              <Plus className="h-5 w-5 mr-2" />
-              New Campaign
-            </Button>
           </div>
         </div>
 
@@ -110,13 +100,6 @@ export default function DigitalOverviewPage() {
           filterPeriod={filterPeriod}
         />
       </div>
-
-      {/* Campaign Form Dialog */}
-      <DigitalCampaignFormDialog
-        open={showCampaignDialog}
-        onOpenChange={setShowCampaignDialog}
-        campaign={null}
-      />
     </AppLayout>
   );
 }

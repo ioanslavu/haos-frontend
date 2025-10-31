@@ -32,10 +32,12 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { EntitySearchCombobox } from '@/components/entities/EntitySearchCombobox';
 import { useCreateTask, useUpdateTask } from '@/api/hooks/useTasks';
 import { useCampaigns } from '@/api/hooks/useCampaigns';
 import { useUsersList } from '@/api/hooks/useUsers';
+import { useAuthStore } from '@/stores/authStore';
 import {
   Task,
   TaskCreateInput,
@@ -49,7 +51,7 @@ import {
   TASK_TAG_LABELS,
   TASK_TYPE_LABELS,
 } from '@/api/types/tasks';
-import { CalendarIcon, X } from 'lucide-react';
+import { CalendarIcon, X, UserPlus, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
@@ -91,6 +93,9 @@ export function TaskFormDialog({
   const isEdit = !!task;
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
+
+  // Get current user
+  const currentUser = useAuthStore((state) => state.user);
 
   // Fetch digital department users
   const { data: usersData } = useUsersList({ department: 'digital' });
@@ -173,20 +178,6 @@ export function TaskFormDialog({
       form.reset();
     } catch (error) {
       console.error('Failed to save task:', error);
-    }
-  };
-
-  const selectedUsers = form.watch('assigned_to_users') || [];
-
-  const toggleUser = (userId: number) => {
-    const current = form.getValues('assigned_to_users') || [];
-    if (current.includes(userId)) {
-      form.setValue(
-        'assigned_to_users',
-        current.filter((id) => id !== userId)
-      );
-    } else {
-      form.setValue('assigned_to_users', [...current, userId]);
     }
   };
 
@@ -386,7 +377,7 @@ export function TaskFormDialog({
                   <FormControl>
                     <EntitySearchCombobox
                       value={field.value}
-                      onChange={field.onChange}
+                      onValueChange={field.onChange}
                       placeholder="Search for a client..."
                     />
                   </FormControl>
@@ -395,33 +386,125 @@ export function TaskFormDialog({
               )}
             />
 
+            <Separator />
+
             {/* Assigned Users (Multiple) */}
-            <FormField
-              control={form.control}
-              name="assigned_to_users"
-              render={() => (
-                <FormItem>
-                  <FormLabel>Assign To</FormLabel>
-                  <FormDescription>Select one or more users</FormDescription>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {users.map((user: any) => (
-                      <Badge
-                        key={user.id}
-                        variant={selectedUsers.includes(user.id) ? 'default' : 'outline'}
-                        className="cursor-pointer"
-                        onClick={() => toggleUser(user.id)}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <FormLabel className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Assign To (Optional)
+                  </FormLabel>
+                  <FormDescription className="text-xs mt-1">
+                    Assign this task to one or more team members
+                  </FormDescription>
+                </div>
+                <div className="flex gap-2">
+                  {currentUser && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const current = form.getValues('assigned_to_users') || [];
+                        if (!current.includes(Number(currentUser.id))) {
+                          form.setValue('assigned_to_users', [...current, Number(currentUser.id)]);
+                        }
+                      }}
+                    >
+                      <UserPlus className="h-4 w-4 mr-1" />
+                      Add Me
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const current = form.getValues('assigned_to_users') || [];
+                      form.setValue('assigned_to_users', [...current, undefined as any]);
+                    }}
+                  >
+                    <UserPlus className="h-4 w-4 mr-1" />
+                    Add User
+                  </Button>
+                </div>
+              </div>
+
+              {((form.watch('assigned_to_users') as any[]) || []).length > 0 && (
+                <div className="space-y-2">
+                  {((form.watch('assigned_to_users') as any[]) || []).map((_, index) => (
+                    <div
+                      key={index}
+                      className="flex gap-2 items-start border rounded-md p-3 bg-muted/30"
+                    >
+                      <div className="flex-1">
+                        <FormField
+                          control={form.control}
+                          name={`assigned_to_users.${index}` as any}
+                          render={({ field }) => (
+                            <FormItem>
+                              <Select
+                                onValueChange={(value) => {
+                                  const current = form.getValues('assigned_to_users') || [];
+                                  const newValue = [...current];
+                                  newValue[index] = Number(value);
+                                  form.setValue('assigned_to_users', newValue);
+                                }}
+                                value={field.value ? field.value.toString() : ''}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select user" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {users.length > 0 ? (
+                                    users.map((user: any) => (
+                                      <SelectItem key={user.id} value={user.id.toString()}>
+                                        {user.full_name || user.email}
+                                      </SelectItem>
+                                    ))
+                                  ) : (
+                                    <SelectItem value="no-users" disabled>
+                                      No users available
+                                    </SelectItem>
+                                  )}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          const current = form.getValues('assigned_to_users') || [];
+                          const newValue = current.filter((_, i) => i !== index);
+                          form.setValue('assigned_to_users', newValue);
+                        }}
+                        className="text-destructive hover:text-destructive"
                       >
-                        {user.full_name || user.email}
-                        {selectedUsers.includes(user.id) && (
-                          <X className="ml-1 h-3 w-3" />
-                        )}
-                      </Badge>
-                    ))}
-                  </div>
-                  <FormMessage />
-                </FormItem>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
               )}
-            />
+
+              {((form.watch('assigned_to_users') as any[]) || []).length === 0 && (
+                <div className="text-sm text-muted-foreground text-center py-4 border rounded-lg bg-muted/20">
+                  No users assigned yet. Click "Add User" to assign team members.
+                </div>
+              )}
+            </div>
+
+            <Separator />
 
             {/* Dates */}
             <div className="grid grid-cols-2 gap-4">
@@ -429,38 +512,16 @@ export function TaskFormDialog({
                 control={form.control}
                 name="due_date"
                 render={({ field }) => (
-                  <FormItem className="flex flex-col">
+                  <FormItem>
                     <FormLabel>Due Date (optional)</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              'w-full pl-3 text-left font-normal',
-                              !field.value && 'text-muted-foreground'
-                            )}
-                          >
-                            {field.value ? (
-                              format(new Date(field.value), 'PPP')
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value ? new Date(field.value) : undefined}
-                          onSelect={(date) =>
-                            field.onChange(date ? date.toISOString() : undefined)
-                          }
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <FormControl>
+                      <Input
+                        type="date"
+                        {...field}
+                        value={field.value ? field.value.split('T')[0] : ''}
+                        onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value).toISOString() : undefined)}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -470,38 +531,16 @@ export function TaskFormDialog({
                 control={form.control}
                 name="reminder_date"
                 render={({ field }) => (
-                  <FormItem className="flex flex-col">
+                  <FormItem>
                     <FormLabel>Follow-up Reminder (optional)</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              'w-full pl-3 text-left font-normal',
-                              !field.value && 'text-muted-foreground'
-                            )}
-                          >
-                            {field.value ? (
-                              format(new Date(field.value), 'PPP')
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value ? new Date(field.value) : undefined}
-                          onSelect={(date) =>
-                            field.onChange(date ? date.toISOString() : undefined)
-                          }
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <FormControl>
+                      <Input
+                        type="date"
+                        {...field}
+                        value={field.value ? field.value.split('T')[0] : ''}
+                        onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value).toISOString() : undefined)}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

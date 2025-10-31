@@ -23,7 +23,7 @@ export const entityKeys = {
   writers: () => [...entityKeys.all, 'writers'] as const,
   producers: () => [...entityKeys.all, 'producers'] as const,
   business: (params?: EntitySearchParams) => [...entityKeys.all, 'business', params] as const,
-  stats: () => [...entityKeys.all, 'stats'] as const,
+  stats: (params?: EntitySearchParams) => [...entityKeys.all, 'stats', params] as const,
   sensitiveIdentity: (entityId: number) => ['sensitiveIdentity', entityId] as const,
   contactPersons: (entityId?: number) => ['contactPersons', entityId] as const,
   contactPerson: (id: number) => ['contactPerson', id] as const,
@@ -34,6 +34,7 @@ export const useEntities = (params?: EntitySearchParams) => {
   return useQuery({
     queryKey: entityKeys.list(params),
     queryFn: () => entitiesService.getEntities(params),
+    refetchOnMount: 'always',
   });
 };
 
@@ -102,10 +103,10 @@ export const useBusinessEntities = (params?: EntitySearchParams, enabled = true)
   });
 };
 
-export const useEntityStats = () => {
+export const useEntityStats = (params?: EntitySearchParams) => {
   return useQuery({
-    queryKey: entityKeys.stats(),
-    queryFn: () => entitiesService.getEntityStats(),
+    queryKey: entityKeys.stats(params),
+    queryFn: () => entitiesService.getEntityStats(params),
   });
 };
 

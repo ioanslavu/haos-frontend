@@ -222,6 +222,15 @@ export interface RevealCNPResponse {
   timestamp: string;
 }
 
+export interface EntityStats {
+  total: number;
+  physical: number;
+  legal: number;
+  creative: number;
+  by_role: Record<string, number>;
+  recent_entities: EntityListItem[];
+}
+
 class EntitiesService {
   private readonly BASE_PATH = '/api/v1/identity';
 
@@ -350,8 +359,8 @@ class EntitiesService {
   }
 
   // Get entity stats
-  async getEntityStats(): Promise<any> {
-    const { data } = await apiClient.get(`${this.BASE_PATH}/entities/stats/`);
+  async getEntityStats(params?: EntitySearchParams): Promise<EntityStats> {
+    const { data } = await apiClient.get<EntityStats>(`${this.BASE_PATH}/entities/stats/`, { params });
     return data;
   }
 

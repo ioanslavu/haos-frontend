@@ -25,20 +25,21 @@ import {
   Package,
   Activity
 } from 'lucide-react';
-import { useCampaigns } from '@/api/hooks/useCampaigns';
+import { useCampaign } from '@/api/hooks/useCampaigns';
 import { useTasks } from '@/api/hooks/useTasks';
 import { useClientProfileByEntity } from '@/api/hooks/useClientProfiles';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ClientHealthScore } from '@/components/crm/ClientHealthScore';
+import { ServiceMetricsUpdateDialog } from '@/components/digital/ServiceMetricsUpdateDialog';
+import { KPIProgressUpdateDialog } from '@/components/digital/KPIProgressUpdateDialog';
 
 export default function CampaignDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { data: campaigns, isLoading } = useCampaigns();
+  const campaignId = Number(id);
+  const { data: campaign, isLoading } = useCampaign(campaignId, !!id);
   const { data: tasks } = useTasks();
-
-  const campaign = campaigns?.results?.find(c => c.id === Number(id));
   const campaignTasks = tasks?.results?.filter(t => t.campaign?.id === Number(id)) || [];
 
   // Parallel fetch: Start fetching health score immediately
@@ -85,11 +86,20 @@ export default function CampaignDetailPage() {
 
   const getInvoiceStatusColor = (status: string) => {
     const colors: Record<string, string> = {
+      not_issued: 'bg-gray-500',
       issued: 'bg-blue-500',
       collected: 'bg-green-500',
       delayed: 'bg-red-500',
     };
     return colors[status] || 'bg-gray-500';
+  };
+
+  const getPricingModelLabel = (model: string) => {
+    const labels: Record<string, string> = {
+      service_fee: 'Service Fee',
+      revenue_share: 'Revenue Share',
+    };
+    return labels[model] || model;
   };
 
   const calculateKPIProgress = (target: number, actual: number) => {
@@ -132,6 +142,13 @@ export default function CampaignDetailPage() {
                   <Edit className="h-4 w-4 mr-2" />
                   Edit
                 </Button>
+                {campaign && (
+                  <ServiceMetricsUpdateDialog
+                    campaign={campaign}
+                    variant="outline"
+                    size="sm"
+                  />
+                )}
                 <Button variant="outline" size="sm" className="rounded-xl">
                   <MoreVertical className="h-4 w-4" />
                 </Button>
@@ -147,10 +164,12 @@ export default function CampaignDetailPage() {
                 <Badge className={cn("text-white", getStatusColor(campaign.status))}>
                   {campaign.status_display || campaign.status}
                 </Badge>
-                {campaign.service_type && (
-                  <Badge variant="outline" className="capitalize">
-                    {campaign.service_type_display || campaign.service_type.replace('_', ' ')}
-                  </Badge>
+                {campaign.service_types && campaign.service_types.length > 0 && (
+                  campaign.service_types.map((st: string, idx: number) => (
+                    <Badge key={idx} variant="outline" className="capitalize">
+                      {campaign.service_types_display?.[idx] || st.replace('_', ' ')}
+                    </Badge>
+                  ))
                 )}
               </div>
               <p className="text-muted-foreground text-lg">
@@ -240,18 +259,22 @@ export default function CampaignDetailPage() {
                   </div>
                 )}
 
-                {/* Platform */}
-                {campaign.platform ? (
+                {/* Platforms */}
+                {campaign.platforms && campaign.platforms.length > 0 ? (
                   <div className="space-y-2">
-                    <div className="text-sm text-muted-foreground">Platform</div>
-                    <Badge variant="outline" className="capitalize">
-                      {campaign.platform_display || campaign.platform.replace('_', ' ')}
-                    </Badge>
+                    <div className="text-sm text-muted-foreground">Platforms</div>
+                    <div className="flex flex-wrap gap-2">
+                      {campaign.platforms.map((platform: string, idx: number) => (
+                        <Badge key={idx} variant="outline" className="capitalize">
+                          {campaign.platforms_display?.[idx] || platform.replace('_', ' ')}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <div className="text-sm text-muted-foreground">Platform</div>
-                    <div className="text-sm text-muted-foreground">No platform specified</div>
+                    <div className="text-sm text-muted-foreground">Platforms</div>
+                    <div className="text-sm text-muted-foreground">No platforms specified</div>
                   </div>
                 )}
 
@@ -412,10 +435,15 @@ export default function CampaignDetailPage() {
 
             {/* Financial Card */}
             <div className="rounded-2xl bg-background/50 backdrop-blur-xl border border-white/10 p-6 shadow-lg">
-              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                Financial Overview
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Financial Overview
+                </h2>
+                <Badge className={campaign.pricing_model === 'revenue_share' ? 'bg-purple-500 text-white' : 'bg-blue-500 text-white'}>
+                  {getPricingModelLabel(campaign.pricing_model || 'service_fee')}
+                </Badge>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Budget Allocated */}
                 {campaign.budget_allocated ? (
@@ -480,6 +508,44 @@ export default function CampaignDetailPage() {
                   </div>
                 )}
 
+                {/* Revenue Share Fields */}
+                {campaign.pricing_model === 'revenue_share' && (
+                  <>
+                    {campaign.revenue_generated && (
+                      <div className="space-y-2">
+                        <div className="text-sm text-muted-foreground">Revenue Generated</div>
+                        <div className="font-medium text-lg">
+                          {formatCurrency(campaign.revenue_generated)} {campaign.currency}
+                        </div>
+                      </div>
+                    )}
+                    {campaign.partner_share_percentage && (
+                      <div className="space-y-2">
+                        <div className="text-sm text-muted-foreground">Partner Share</div>
+                        <div className="font-medium text-lg">
+                          {campaign.partner_share_percentage}%
+                        </div>
+                      </div>
+                    )}
+                    {campaign.partner_payout && (
+                      <div className="space-y-2">
+                        <div className="text-sm text-muted-foreground">Partner Payout</div>
+                        <div className="font-medium text-lg">
+                          {formatCurrency(campaign.partner_payout)} {campaign.currency}
+                        </div>
+                      </div>
+                    )}
+                    {campaign.our_revenue && (
+                      <div className="space-y-2">
+                        <div className="text-sm text-muted-foreground">Our Revenue</div>
+                        <div className="font-medium text-lg">
+                          {formatCurrency(campaign.our_revenue)} {campaign.currency}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
                 {/* Invoice Status */}
                 {campaign.invoice_status ? (
                   <div className="space-y-2">
@@ -500,10 +566,17 @@ export default function CampaignDetailPage() {
             {/* KPI Tracking Card */}
             {campaign.kpi_targets && Object.keys(campaign.kpi_targets).length > 0 ? (
               <div className="rounded-2xl bg-background/50 backdrop-blur-xl border border-white/10 p-6 shadow-lg">
-                <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                  <Target className="h-5 w-5" />
-                  KPI Tracking
-                </h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold flex items-center gap-2">
+                    <Target className="h-5 w-5" />
+                    KPI Tracking
+                  </h2>
+                  <KPIProgressUpdateDialog
+                    campaign={campaign}
+                    variant="outline"
+                    size="sm"
+                  />
+                </div>
                 <div className="space-y-4">
                   {Object.entries(campaign.kpi_targets || {}).map(([kpiName, targetData]: [string, any]) => {
                     const actualData = campaign.kpi_actuals?.[kpiName];
@@ -540,12 +613,19 @@ export default function CampaignDetailPage() {
             )}
 
             {/* Service Metrics Card (from department_data) */}
-            {campaign.department_data && Object.keys(campaign.department_data).length > 0 ? (
-              <div className="rounded-2xl bg-background/50 backdrop-blur-xl border border-white/10 p-6 shadow-lg">
-                <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <div className="rounded-2xl bg-background/50 backdrop-blur-xl border border-white/10 p-6 shadow-lg">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold flex items-center gap-2">
                   <Package className="h-5 w-5" />
                   Service Metrics
                 </h2>
+                <ServiceMetricsUpdateDialog
+                  campaign={campaign}
+                  variant="outline"
+                  size="sm"
+                />
+              </div>
+              {campaign.department_data && Object.keys(campaign.department_data).length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {Object.entries(campaign.department_data).map(([key, value]: [string, any]) => (
                     <div key={key} className="space-y-1">
@@ -558,16 +638,12 @@ export default function CampaignDetailPage() {
                     </div>
                   ))}
                 </div>
-              </div>
-            ) : (
-              <div className="rounded-2xl bg-background/50 backdrop-blur-xl border border-white/10 p-6 shadow-lg">
-                <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                  <Package className="h-5 w-5" />
-                  Service Metrics
-                </h2>
-                <div className="text-sm text-muted-foreground">No service metrics recorded</div>
-              </div>
-            )}
+              ) : (
+                <div className="text-sm text-muted-foreground">
+                  No service metrics recorded yet. Click "Update Metrics" to add metrics for this campaign.
+                </div>
+              )}
+            </div>
 
             {/* Tasks Card */}
             {campaignTasks && campaignTasks.length > 0 ? (
@@ -646,20 +722,28 @@ export default function CampaignDetailPage() {
                     {campaign.status_display || campaign.status}
                   </Badge>
                 </div>
-                {campaign.service_type && (
+                {campaign.service_types && campaign.service_types.length > 0 && (
                   <div className="space-y-2">
-                    <div className="text-sm text-muted-foreground">Service Type</div>
-                    <Badge variant="outline" className="capitalize">
-                      {campaign.service_type_display || campaign.service_type.replace('_', ' ')}
-                    </Badge>
+                    <div className="text-sm text-muted-foreground">Service Types</div>
+                    <div className="flex flex-wrap gap-2">
+                      {campaign.service_types.map((st: string, idx: number) => (
+                        <Badge key={idx} variant="outline" className="capitalize">
+                          {campaign.service_types_display?.[idx] || st.replace('_', ' ')}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
                 )}
-                {campaign.platform && (
+                {campaign.platforms && campaign.platforms.length > 0 && (
                   <div className="space-y-2">
-                    <div className="text-sm text-muted-foreground">Platform</div>
-                    <Badge variant="outline" className="capitalize">
-                      {campaign.platform_display || campaign.platform.replace('_', ' ')}
-                    </Badge>
+                    <div className="text-sm text-muted-foreground">Platforms</div>
+                    <div className="flex flex-wrap gap-2">
+                      {campaign.platforms.map((platform: string, idx: number) => (
+                        <Badge key={idx} variant="outline" className="capitalize">
+                          {campaign.platforms_display?.[idx] || platform.replace('_', ' ')}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

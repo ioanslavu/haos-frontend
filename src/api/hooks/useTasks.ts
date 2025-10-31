@@ -43,6 +43,7 @@ export const useTasks = (params?: {
       );
       return response.data;
     },
+    refetchOnMount: 'always',
   });
 };
 

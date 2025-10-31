@@ -70,7 +70,7 @@ const filterDigitalCampaigns = (
   // Filter by digital department
   let filtered = campaigns.filter(c =>
     c.department_display?.toLowerCase() === 'digital' ||
-    c.service_type // If has service_type, likely digital
+    (c.service_types && c.service_types.length > 0) // If has service_types, likely digital
   );
 
   // Apply date filter
@@ -116,7 +116,7 @@ const filterDigitalCampaigns = (
 
 // Helper function to aggregate service-specific metrics
 const calculateServiceMetrics = (campaigns: Campaign[], serviceType: string) => {
-  const serviceCampaigns = campaigns.filter(c => c.service_type === serviceType);
+  const serviceCampaigns = campaigns.filter(c => c.service_types?.includes(serviceType));
 
   if (serviceCampaigns.length === 0) {
     return null;
@@ -247,7 +247,7 @@ export function ServicesTab({ filterService, filterPeriod, startDate, endDate, f
 
     // Apply service filter
     if (filterService && filterService !== 'all') {
-      filtered = filtered.filter(c => c.service_type === filterService);
+      filtered = filtered.filter(c => c.service_types?.includes(filterService));
     }
 
     return filtered;
@@ -255,7 +255,7 @@ export function ServicesTab({ filterService, filterPeriod, startDate, endDate, f
 
   // Calculate overall stats
   const overallStats = useMemo(() => {
-    const uniqueServices = new Set(digitalCampaigns.map(c => c.service_type).filter(Boolean));
+    const uniqueServices = new Set(digitalCampaigns.flatMap(c => c.service_types || []));
     const totalCampaigns = digitalCampaigns.length;
     const totalBudget = digitalCampaigns.reduce((sum, c) =>
       sum + parseFloat(c.budget_allocated || c.value || '0'), 0);
@@ -274,27 +274,27 @@ export function ServicesTab({ filterService, filterPeriod, startDate, endDate, f
 
   // Service-specific campaigns
   const dspCampaigns = useMemo(() =>
-    digitalCampaigns.filter(c => c.service_type === 'dsp_distribution'),
+    digitalCampaigns.filter(c => c.service_types?.includes('dsp_distribution')),
     [digitalCampaigns]
   );
 
   const youtubeCampaigns = useMemo(() =>
-    digitalCampaigns.filter(c => c.service_type === 'youtube_cms'),
+    digitalCampaigns.filter(c => c.service_types?.includes('youtube_cms')),
     [digitalCampaigns]
   );
 
   const tiktokCampaigns = useMemo(() =>
-    digitalCampaigns.filter(c => c.service_type === 'tiktok_ugc'),
+    digitalCampaigns.filter(c => c.service_types?.includes('tiktok_ugc')),
     [digitalCampaigns]
   );
 
   const playlistCampaigns = useMemo(() =>
-    digitalCampaigns.filter(c => c.service_type === 'playlist_pitching' || c.service_type === 'radio_plugging'),
+    digitalCampaigns.filter(c => c.service_types?.includes('playlist_pitching') || c.service_types?.includes('radio_plugging')),
     [digitalCampaigns]
   );
 
   const ppcCampaigns = useMemo(() =>
-    digitalCampaigns.filter(c => c.service_type === 'ppc'),
+    digitalCampaigns.filter(c => c.service_types?.includes('ppc')),
     [digitalCampaigns]
   );
 
@@ -316,7 +316,7 @@ export function ServicesTab({ filterService, filterPeriod, startDate, endDate, f
 
   const playlistMetrics = useMemo(() => {
     const playlistCampaigns = digitalCampaigns.filter(c =>
-      c.service_type === 'playlist_pitching' || c.service_type === 'radio_plugging'
+      c.service_types?.includes('playlist_pitching') || c.service_types?.includes('radio_plugging')
     );
 
     if (playlistCampaigns.length === 0) return null;
@@ -341,7 +341,7 @@ export function ServicesTab({ filterService, filterPeriod, startDate, endDate, f
   }, [digitalCampaigns]);
 
   const ppcMetrics = useMemo(() => {
-    const ppcCampaigns = digitalCampaigns.filter(c => c.service_type === 'ppc');
+    const ppcCampaigns = digitalCampaigns.filter(c => c.service_types?.includes('ppc'));
 
     if (ppcCampaigns.length === 0) return null;
 
@@ -374,8 +374,14 @@ export function ServicesTab({ filterService, filterPeriod, startDate, endDate, f
   // Platform distribution data
   const platformData = useMemo(() => {
     const platformCounts = digitalCampaigns.reduce((acc, campaign) => {
-      const platform = campaign.platform_display || campaign.platform || 'Other';
-      acc[platform] = (acc[platform] || 0) + 1;
+      const platforms = campaign.platforms && campaign.platforms.length > 0 ? campaign.platforms : ['Other'];
+      const platformDisplays = campaign.platforms_display || [];
+
+      // Count each platform separately
+      platforms.forEach((platform, idx) => {
+        const displayName = platformDisplays[idx] || platform || 'Other';
+        acc[displayName] = (acc[displayName] || 0) + 1;
+      });
       return acc;
     }, {} as Record<string, number>);
 
@@ -387,17 +393,20 @@ export function ServicesTab({ filterService, filterPeriod, startDate, endDate, f
   // Revenue per service data
   const revenueData = useMemo(() => {
     const serviceRevenue = digitalCampaigns.reduce((acc, campaign) => {
-      const service = campaign.service_type || 'other';
+      const services = campaign.service_types && campaign.service_types.length > 0 ? campaign.service_types : ['other'];
       const revenue = parseFloat(campaign.value || '0');
       const budgetAllocated = parseFloat(campaign.budget_allocated || campaign.value || '0');
       const budgetSpent = parseFloat(campaign.budget_spent || '0');
 
-      if (!acc[service]) {
-        acc[service] = { revenue: 0, allocated: 0, spent: 0 };
-      }
-      acc[service].revenue += revenue;
-      acc[service].allocated += budgetAllocated;
-      acc[service].spent += budgetSpent;
+      // Distribute metrics across all service types for this campaign
+      services.forEach(service => {
+        if (!acc[service]) {
+          acc[service] = { revenue: 0, allocated: 0, spent: 0 };
+        }
+        acc[service].revenue += revenue;
+        acc[service].allocated += budgetAllocated;
+        acc[service].spent += budgetSpent;
+      });
       return acc;
     }, {} as Record<string, { revenue: number; allocated: number; spent: number }>);
 
@@ -411,30 +420,34 @@ export function ServicesTab({ filterService, filterPeriod, startDate, endDate, f
   // Service stats for table
   const serviceStats = useMemo(() => {
     return digitalCampaigns.reduce((acc, campaign) => {
-      const service = campaign.service_type || 'other';
-      if (!acc[service]) {
-        acc[service] = {
-          count: 0,
-          revenue: 0,
-          active: 0,
-          completed: 0,
-          avgKpi: 0,
-          totalBudget: 0,
-          totalSpent: 0,
-        };
-      }
-      acc[service].count++;
-      acc[service].revenue += parseFloat(campaign.value);
-      acc[service].totalBudget += parseFloat(campaign.budget_allocated || campaign.value);
-      acc[service].totalSpent += parseFloat(campaign.budget_spent || '0');
+      const services = campaign.service_types && campaign.service_types.length > 0 ? campaign.service_types : ['other'];
 
-      if (campaign.status === 'active' || campaign.status === 'confirmed') {
-        acc[service].active++;
-      }
-      if (campaign.status === 'completed') {
-        acc[service].completed++;
-      }
-      acc[service].avgKpi += campaign.kpi_completion || 0;
+      // Distribute campaign stats across all service types
+      services.forEach(service => {
+        if (!acc[service]) {
+          acc[service] = {
+            count: 0,
+            revenue: 0,
+            active: 0,
+            completed: 0,
+            avgKpi: 0,
+            totalBudget: 0,
+            totalSpent: 0,
+          };
+        }
+        acc[service].count++;
+        acc[service].revenue += parseFloat(campaign.value || '0');
+        acc[service].totalBudget += parseFloat(campaign.budget_allocated || campaign.value || '0');
+        acc[service].totalSpent += parseFloat(campaign.budget_spent || '0');
+
+        if (campaign.status === 'active' || campaign.status === 'confirmed') {
+          acc[service].active++;
+        }
+        if (campaign.status === 'completed') {
+          acc[service].completed++;
+        }
+        acc[service].avgKpi += campaign.kpi_completion || 0;
+      });
 
       return acc;
     }, {} as Record<string, any>);

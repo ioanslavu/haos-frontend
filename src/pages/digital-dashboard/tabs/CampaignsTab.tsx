@@ -21,6 +21,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Calendar,
   Clock,
   DollarSign,
@@ -29,7 +35,6 @@ import {
   LayoutGrid,
   LayoutList,
   MoreHorizontal,
-  Plus,
   Target,
   TrendingUp,
 } from 'lucide-react';
@@ -254,11 +259,6 @@ export function CampaignsTab({ searchQuery, filterStatus, filterService, filterP
             <LayoutGrid className="h-4 w-4" />
           </Button>
         </div>
-
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
-          New Campaign
-        </Button>
       </div>
 
       {viewMode === 'table' ? (
@@ -306,16 +306,30 @@ export function CampaignsTab({ searchQuery, filterStatus, filterService, filterP
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">
-                        {campaign.service_type_display || SERVICE_TYPE_LABELS[campaign.service_type as keyof typeof SERVICE_TYPE_LABELS] || 'N/A'}
-                      </Badge>
+                      <div className="flex flex-wrap gap-1">
+                        {campaign.service_types && campaign.service_types.length > 0 ? (
+                          campaign.service_types.map((serviceType: string, index: number) => (
+                            <Badge key={index} variant="outline" className="text-xs">
+                              {campaign.service_types_display?.[index] || SERVICE_TYPE_LABELS[serviceType as keyof typeof SERVICE_TYPE_LABELS] || serviceType}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-xs text-muted-foreground">N/A</span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
-                      {campaign.platform && (
-                        <Badge variant="secondary">
-                          {campaign.platform_display || PLATFORM_LABELS[campaign.platform as keyof typeof PLATFORM_LABELS]}
-                        </Badge>
-                      )}
+                      <div className="flex flex-wrap gap-1">
+                        {campaign.platforms && campaign.platforms.length > 0 ? (
+                          campaign.platforms.map((platform: string, index: number) => (
+                            <Badge key={index} variant="secondary" className="text-xs">
+                              {campaign.platforms_display?.[index] || PLATFORM_LABELS[platform as keyof typeof PLATFORM_LABELS] || platform}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-xs text-muted-foreground">N/A</span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div>
@@ -369,21 +383,24 @@ export function CampaignsTab({ searchQuery, filterStatus, filterService, filterP
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => navigate(`/digital/campaigns/${campaign.id}/edit`)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <ServiceMetricsUpdateDialog
-                          campaign={campaign}
-                          variant="ghost"
-                          size="icon"
-                        />
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => navigate(`/digital/campaigns/${campaign.id}/edit`)}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit Campaign
+                            </DropdownMenuItem>
+                            <ServiceMetricsUpdateDialog
+                              campaign={campaign}
+                              variant="ghost"
+                              asMenuItem
+                            />
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -455,13 +472,19 @@ export function CampaignsTab({ searchQuery, filterStatus, filterService, filterP
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">
-                            {campaign.service_type_display || 'Service'}
-                          </Badge>
-                          {campaign.platform && (
-                            <Badge variant="secondary" className="text-xs">
-                              {campaign.platform_display}
-                            </Badge>
+                          {campaign.service_types && campaign.service_types.length > 0 && (
+                            campaign.service_types.map((st: string, idx: number) => (
+                              <Badge key={idx} variant="outline" className="text-xs">
+                                {campaign.service_types_display?.[idx] || st}
+                              </Badge>
+                            ))
+                          )}
+                          {campaign.platforms && campaign.platforms.length > 0 && (
+                            campaign.platforms.map((p: string, idx: number) => (
+                              <Badge key={idx} variant="secondary" className="text-xs">
+                                {campaign.platforms_display?.[idx] || p}
+                              </Badge>
+                            ))
                           )}
                         </div>
 
@@ -519,13 +542,19 @@ export function CampaignsTab({ searchQuery, filterStatus, filterService, filterP
                   {activeCampaign.campaign_name}
                 </h4>
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs">
-                    {activeCampaign.service_type_display || 'Service'}
-                  </Badge>
-                  {activeCampaign.platform && (
-                    <Badge variant="secondary" className="text-xs">
-                      {activeCampaign.platform_display}
-                    </Badge>
+                  {activeCampaign.service_types && activeCampaign.service_types.length > 0 && (
+                    activeCampaign.service_types.map((st: string, idx: number) => (
+                      <Badge key={idx} variant="outline" className="text-xs">
+                        {activeCampaign.service_types_display?.[idx] || st}
+                      </Badge>
+                    ))
+                  )}
+                  {activeCampaign.platforms && activeCampaign.platforms.length > 0 && (
+                    activeCampaign.platforms.map((p: string, idx: number) => (
+                      <Badge key={idx} variant="secondary" className="text-xs">
+                        {activeCampaign.platforms_display?.[idx] || p}
+                      </Badge>
+                    ))
                   )}
                 </div>
               </div>

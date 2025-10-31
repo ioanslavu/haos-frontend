@@ -47,6 +47,7 @@ export const useActivities = (params?: {
       );
       return response.data;
     },
+    refetchOnMount: 'always',
   });
 };
 

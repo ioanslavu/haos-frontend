@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -71,15 +72,15 @@ const digitalCampaignFormSchema = z.object({
   brand: z.number({ required_error: 'Brand is required' }),
   song: z.number().optional().nullable(),
   contact_person: z.number().optional().nullable(),
-  value: z.string().min(1, 'Value is required').regex(/^\d+(\.\d{1,2})?$/, 'Invalid value format'),
+  value: z.string().optional().refine((val) => !val || /^\d+(\.\d{1,2})?$/.test(val), 'Invalid value format'),
   status: z.enum(['lead', 'negotiation', 'confirmed', 'active', 'completed', 'lost']),
   confirmed_at: z.string().optional(),
   notes: z.string().optional(),
   handlers: z.array(handlerSchema).optional(),
 
   // Digital department specific fields
-  service_type: z.enum(SERVICE_TYPE_CHOICES as [string, ...string[]]).optional(),
-  platform: z.enum(PLATFORM_CHOICES as [string, ...string[]]).optional(),
+  service_types: z.array(z.enum(SERVICE_TYPE_CHOICES as [string, ...string[]])).optional(),
+  platforms: z.array(z.enum(PLATFORM_CHOICES as [string, ...string[]])).optional(),
   budget_allocated: z.string().optional(),
   budget_spent: z.string().optional(),
   start_date: z.string().optional(),
@@ -129,8 +130,8 @@ export function DigitalCampaignFormDialog({ open, onOpenChange, campaign }: Digi
       confirmed_at: '',
       notes: '',
       handlers: [],
-      service_type: undefined,
-      platform: undefined,
+      service_types: [],
+      platforms: [],
       budget_allocated: '',
       budget_spent: '0',
       start_date: '',
@@ -142,7 +143,7 @@ export function DigitalCampaignFormDialog({ open, onOpenChange, campaign }: Digi
 
   // Watch fields for conditional rendering
   const selectedClientId = form.watch('client')
-  const selectedServiceType = form.watch('service_type')
+  const selectedServiceTypes = form.watch('service_types')
   const budgetAllocated = form.watch('budget_allocated')
   const budgetSpent = form.watch('budget_spent')
   const statusValue = form.watch('status')
@@ -182,62 +183,82 @@ export function DigitalCampaignFormDialog({ open, onOpenChange, campaign }: Digi
     name: 'kpi_targets',
   })
 
-  // Get platform recommendations based on service type
+  // Get platform recommendations based on service types
   const recommendedPlatforms = useMemo(() => {
-    switch (selectedServiceType) {
-      case 'ppc':
-        return ['meta', 'google', 'tiktok']
-      case 'tiktok_ugc':
-        return ['tiktok']
-      case 'dsp_distribution':
-        return ['spotify', 'apple_music', 'youtube_music']
-      case 'playlist_pitching':
-        return ['spotify', 'apple_music']
-      case 'radio_plugging':
-        return ['other']
-      case 'youtube_cms':
-        return ['youtube']
-      default:
-        return []
-    }
-  }, [selectedServiceType])
+    if (!selectedServiceTypes || selectedServiceTypes.length === 0) return []
 
-  // Get KPI recommendations based on service type
+    const platformsSet = new Set<string>()
+    selectedServiceTypes.forEach(serviceType => {
+      const platforms = (() => {
+        switch (serviceType) {
+          case 'ppc':
+            return ['meta', 'google', 'tiktok']
+          case 'tiktok_ugc':
+            return ['tiktok']
+          case 'dsp_distribution':
+            return ['spotify', 'apple_music', 'youtube']
+          case 'playlist_pitching':
+            return ['spotify', 'apple_music']
+          case 'radio_plugging':
+            return ['multi']
+          case 'youtube_cms':
+            return ['youtube']
+          case 'social_media_mgmt':
+            return ['meta', 'twitter', 'linkedin']
+          default:
+            return []
+        }
+      })()
+      platforms.forEach(p => platformsSet.add(p))
+    })
+    return Array.from(platformsSet)
+  }, [selectedServiceTypes])
+
+  // Get KPI recommendations based on service types
   const recommendedKPIs = useMemo(() => {
-    switch (selectedServiceType) {
-      case 'ppc':
-        return [
-          { name: 'Impressions', unit: 'views' },
-          { name: 'Clicks', unit: 'clicks' },
-          { name: 'CTR', unit: '%' },
-          { name: 'Conversions', unit: 'conversions' },
-          { name: 'CPA', unit: '€' },
-        ]
-      case 'tiktok_ugc':
-        return [
-          { name: 'Views', unit: 'views' },
-          { name: 'Engagement Rate', unit: '%' },
-          { name: 'Shares', unit: 'shares' },
-          { name: 'Comments', unit: 'comments' },
-        ]
-      case 'dsp_distribution':
-        return [
-          { name: 'Streams', unit: 'streams' },
-          { name: 'Monthly Listeners', unit: 'listeners' },
-          { name: 'Playlist Adds', unit: 'playlists' },
-          { name: 'Revenue', unit: '€' },
-        ]
-      case 'playlist_pitching':
-        return [
-          { name: 'Pitches Sent', unit: 'pitches' },
-          { name: 'Acceptance Rate', unit: '%' },
-          { name: 'Total Reach', unit: 'listeners' },
-          { name: 'Playlist Followers', unit: 'followers' },
-        ]
-      default:
-        return []
-    }
-  }, [selectedServiceType])
+    if (!selectedServiceTypes || selectedServiceTypes.length === 0) return []
+
+    const kpisMap = new Map<string, string>()
+    selectedServiceTypes.forEach(serviceType => {
+      const kpis = (() => {
+        switch (serviceType) {
+          case 'ppc':
+            return [
+              { name: 'Impressions', unit: 'views' },
+              { name: 'Clicks', unit: 'clicks' },
+              { name: 'CTR', unit: '%' },
+              { name: 'Conversions', unit: 'conversions' },
+              { name: 'CPA', unit: '€' },
+            ]
+          case 'tiktok_ugc':
+            return [
+              { name: 'Views', unit: 'views' },
+              { name: 'Engagement Rate', unit: '%' },
+              { name: 'Shares', unit: 'shares' },
+              { name: 'Comments', unit: 'comments' },
+            ]
+          case 'dsp_distribution':
+            return [
+              { name: 'Streams', unit: 'streams' },
+              { name: 'Monthly Listeners', unit: 'listeners' },
+              { name: 'Playlist Adds', unit: 'playlists' },
+              { name: 'Revenue', unit: '€' },
+            ]
+          case 'playlist_pitching':
+            return [
+              { name: 'Pitches Sent', unit: 'pitches' },
+              { name: 'Acceptance Rate', unit: '%' },
+              { name: 'Total Reach', unit: 'listeners' },
+              { name: 'Playlist Followers', unit: 'followers' },
+            ]
+          default:
+            return []
+        }
+      })()
+      kpis.forEach(kpi => kpisMap.set(kpi.name, kpi.unit))
+    })
+    return Array.from(kpisMap, ([name, unit]) => ({ name, unit }))
+  }, [selectedServiceTypes])
 
   // Reset form when dialog opens/closes or campaign changes
   useEffect(() => {
@@ -255,8 +276,8 @@ export function DigitalCampaignFormDialog({ open, onOpenChange, campaign }: Digi
           confirmed_at: campaign.confirmed_at || '',
           notes: campaign.notes || '',
           handlers: campaign.handlers?.map(h => ({ user: h.user, role: h.role })) || [],
-          service_type: campaign.service_type,
-          platform: campaign.platform,
+          service_types: campaign.service_types || [],
+          platforms: campaign.platforms || [],
           budget_allocated: campaign.budget_allocated || '',
           budget_spent: campaign.budget_spent || '0',
           start_date: campaign.start_date || '',
@@ -299,8 +320,8 @@ export function DigitalCampaignFormDialog({ open, onOpenChange, campaign }: Digi
         confirmed_at: data.confirmed_at || undefined,
         notes: data.notes || undefined,
         handlers: validHandlers.length > 0 ? validHandlers : undefined,
-        service_type: data.service_type || undefined,
-        platform: data.platform || undefined,
+        service_types: data.service_types || undefined,
+        platforms: data.platforms || undefined,
         budget_allocated: data.budget_allocated || undefined,
         budget_spent: data.budget_spent || undefined,
         start_date: data.start_date || undefined,
@@ -562,75 +583,108 @@ export function DigitalCampaignFormDialog({ open, onOpenChange, campaign }: Digi
 
                 {/* Service & Platform Tab */}
                 <TabsContent value="service" className="space-y-4 mt-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    {/* Service Type */}
-                    <FormField
-                      control={form.control}
-                      name="service_type"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Service Type</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select service type" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {SERVICE_TYPE_CHOICES.map((value) => (
-                                <SelectItem key={value} value={value}>
-                                  {SERVICE_TYPE_LABELS[value as keyof typeof SERVICE_TYPE_LABELS] || value}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                  {/* Service Types Multi-Select */}
+                  <FormField
+                    control={form.control}
+                    name="service_types"
+                    render={() => (
+                      <FormItem>
+                        <div className="mb-4">
+                          <FormLabel>Service Types (Select multiple)</FormLabel>
                           <FormDescription>
-                            Select the type of digital service for this campaign
+                            Select all service types that apply to this campaign
                           </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          {SERVICE_TYPE_CHOICES.map((serviceType) => (
+                            <FormField
+                              key={serviceType}
+                              control={form.control}
+                              name="service_types"
+                              render={({ field }) => {
+                                return (
+                                  <FormItem
+                                    key={serviceType}
+                                    className="flex flex-row items-start space-x-3 space-y-0"
+                                  >
+                                    <FormControl>
+                                      <Checkbox
+                                        checked={field.value?.includes(serviceType)}
+                                        onCheckedChange={(checked) => {
+                                          return checked
+                                            ? field.onChange([...(field.value || []), serviceType])
+                                            : field.onChange(
+                                                field.value?.filter((value: string) => value !== serviceType)
+                                              )
+                                        }}
+                                      />
+                                    </FormControl>
+                                    <FormLabel className="font-normal cursor-pointer text-sm">
+                                      {SERVICE_TYPE_LABELS[serviceType as keyof typeof SERVICE_TYPE_LABELS] || serviceType}
+                                    </FormLabel>
+                                  </FormItem>
+                                )
+                              }}
+                            />
+                          ))}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                    {/* Platform */}
-                    <FormField
-                      control={form.control}
-                      name="platform"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Platform</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select platform" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {PLATFORM_CHOICES.map((value) => (
-                                <SelectItem
-                                  key={value}
-                                  value={value}
-                                  disabled={selectedServiceType && !recommendedPlatforms.includes(value)}
-                                >
-                                  {PLATFORM_LABELS[value as keyof typeof PLATFORM_LABELS] || value}
-                                  {selectedServiceType && recommendedPlatforms.includes(value) && (
-                                    <span className="ml-2 text-xs text-green-600">Recommended</span>
-                                  )}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                  {/* Platforms Multi-Select */}
+                  <FormField
+                    control={form.control}
+                    name="platforms"
+                    render={() => (
+                      <FormItem>
+                        <div className="mb-4">
+                          <FormLabel>Platforms (Select multiple)</FormLabel>
                           <FormDescription>
-                            Select the primary platform for this campaign
+                            Select all platforms where this campaign will run
                           </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          {PLATFORM_CHOICES.map((platform) => (
+                            <FormField
+                              key={platform}
+                              control={form.control}
+                              name="platforms"
+                              render={({ field }) => {
+                                return (
+                                  <FormItem
+                                    key={platform}
+                                    className="flex flex-row items-start space-x-3 space-y-0"
+                                  >
+                                    <FormControl>
+                                      <Checkbox
+                                        checked={field.value?.includes(platform)}
+                                        onCheckedChange={(checked) => {
+                                          return checked
+                                            ? field.onChange([...(field.value || []), platform])
+                                            : field.onChange(
+                                                field.value?.filter((value: string) => value !== platform)
+                                              )
+                                        }}
+                                      />
+                                    </FormControl>
+                                    <FormLabel className="font-normal cursor-pointer text-sm">
+                                      {PLATFORM_LABELS[platform as keyof typeof PLATFORM_LABELS] || platform}
+                                    </FormLabel>
+                                  </FormItem>
+                                )
+                              }}
+                            />
+                          ))}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
                   {/* Platform Recommendations */}
-                  {selectedServiceType && recommendedPlatforms.length > 0 && (
+                  {selectedServiceTypes && selectedServiceTypes.length > 0 && recommendedPlatforms.length > 0 && (
                     <Card>
                       <CardHeader className="pb-3">
                         <CardTitle className="text-sm">Recommended Platforms</CardTitle>
@@ -638,11 +692,22 @@ export function DigitalCampaignFormDialog({ open, onOpenChange, campaign }: Digi
                       <CardContent>
                         <div className="flex flex-wrap gap-2">
                           {recommendedPlatforms.map((platform) => (
-                            <Badge key={platform} variant="secondary">
+                            <Badge
+                              key={platform}
+                              variant="secondary"
+                              className="cursor-pointer hover:bg-secondary/80"
+                              onClick={() => {
+                                const currentPlatforms = form.getValues('platforms') || []
+                                if (!currentPlatforms.includes(platform)) {
+                                  form.setValue('platforms', [...currentPlatforms, platform])
+                                }
+                              }}
+                            >
                               {PLATFORM_LABELS[platform as keyof typeof PLATFORM_LABELS] || platform}
                             </Badge>
                           ))}
                         </div>
+                        <p className="text-xs text-muted-foreground mt-2">Click a badge to select</p>
                       </CardContent>
                     </Card>
                   )}
@@ -795,10 +860,10 @@ export function DigitalCampaignFormDialog({ open, onOpenChange, campaign }: Digi
                 {/* KPIs Tab */}
                 <TabsContent value="kpis" className="space-y-4 mt-4">
                   {/* KPI Recommendations */}
-                  {selectedServiceType && recommendedKPIs.length > 0 && (
+                  {selectedServiceTypes && selectedServiceTypes.length > 0 && recommendedKPIs.length > 0 && (
                     <Card>
                       <CardHeader className="pb-3">
-                        <CardTitle className="text-sm">Recommended KPIs for {SERVICE_TYPE_LABELS[selectedServiceType as keyof typeof SERVICE_TYPE_LABELS]}</CardTitle>
+                        <CardTitle className="text-sm">Recommended KPIs for selected services</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="flex flex-wrap gap-2">

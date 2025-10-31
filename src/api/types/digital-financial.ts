@@ -35,8 +35,8 @@ export interface CampaignFinancial {
   campaign_name: string;
   client_id: number;
   client_name: string;
-  service_type: string;
-  service_type_display: string;
+  service_types: string[];
+  service_types_display: string[];
 
   // All financial values in EUR (converted on backend)
   value_eur: number;

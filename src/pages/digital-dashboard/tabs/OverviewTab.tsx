@@ -137,12 +137,14 @@ export function OverviewTab({ filterPeriod }: OverviewTabProps) {
                   <div>
                     <div className="flex items-center gap-2">
                       <h4 className="font-semibold">{campaign.campaign_name}</h4>
-                      <Badge variant="outline" className="text-xs">
-                        {campaign.service_type_display || 'Service'}
-                      </Badge>
-                      {campaign.platform && (
+                      {campaign.service_types && campaign.service_types.length > 0 && (
+                        <Badge variant="outline" className="text-xs">
+                          {campaign.service_types_display?.[0] || campaign.service_types[0]}
+                        </Badge>
+                      )}
+                      {campaign.platforms && campaign.platforms.length > 0 && (
                         <Badge variant="secondary" className="text-xs">
-                          {campaign.platform_display}
+                          {campaign.platforms_display?.[0] || campaign.platforms[0]}
                         </Badge>
                       )}
                     </div>

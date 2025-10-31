@@ -22,6 +22,9 @@ export interface CampaignHandler {
   assigned_at?: string
 }
 
+export type PricingModel = 'service_fee' | 'revenue_share'
+export type InvoiceStatus = 'not_issued' | 'issued' | 'collected' | 'delayed'
+
 export interface Campaign {
   id: number
   campaign_name: string
@@ -34,13 +37,19 @@ export interface Campaign {
   department_display?: string
 
   // Financial
-  value: string  // Decimal as string
+  value?: string | null  // Decimal as string (for service_fee model)
   currency: string
+  pricing_model?: PricingModel
+  revenue_generated?: string | null  // For revenue_share model
+  partner_share_percentage?: string | null  // For revenue_share model
+  partner_payout?: string | null  // Calculated
+  our_revenue?: string | null  // Calculated
+  calculated_profit?: string | null  // Calculated profit based on pricing model
   budget_allocated?: string | null
   budget_spent?: string | null
-  profit?: string | null  // Calculated profit for completed campaigns
+  profit?: string | null  // Legacy calculated profit for completed campaigns
   internal_cost_estimate?: string | null  // Estimated internal costs
-  invoice_status?: 'issued' | 'collected' | 'delayed' | null  // Invoice tracking status
+  invoice_status?: InvoiceStatus | null  // Invoice tracking status
 
   // Status and timeline
   status: CampaignStatus
@@ -49,10 +58,10 @@ export interface Campaign {
   end_date?: string | null
 
   // Digital department fields
-  service_type?: string
-  service_type_display?: string
-  platform?: string
-  platform_display?: string
+  service_types?: string[]
+  service_types_display?: string[]
+  platforms?: string[]
+  platforms_display?: string[]
   client_health_score?: number | null
 
   // KPIs
@@ -84,16 +93,19 @@ export interface CampaignFormData {
   song?: number | null
   contact_person?: number | null
   department?: number | null
-  value: string
+  value?: string | null
   currency?: string
+  pricing_model?: PricingModel
+  revenue_generated?: string | null
+  partner_share_percentage?: string | null
   budget_allocated?: string
   budget_spent?: string
   profit?: string
   internal_cost_estimate?: string
-  invoice_status?: 'issued' | 'collected' | 'delayed'
+  invoice_status?: InvoiceStatus
   status: CampaignStatus
-  service_type?: string
-  platform?: string
+  service_types?: string[]
+  platforms?: string[]
   start_date?: string
   end_date?: string
   client_health_score?: number
@@ -215,15 +227,25 @@ export const CAMPAIGN_HANDLER_ROLE_COLORS: Record<CampaignHandlerRole, string> =
   observer: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
 }
 
-export type InvoiceStatus = 'issued' | 'collected' | 'delayed'
+export const PRICING_MODEL_LABELS: Record<PricingModel, string> = {
+  service_fee: 'Service Fee',
+  revenue_share: 'Revenue Share',
+}
+
+export const PRICING_MODEL_COLORS: Record<PricingModel, string> = {
+  service_fee: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+  revenue_share: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+}
 
 export const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {
+  not_issued: 'Not Issued (Neemisă)',
   issued: 'Issued (Emisă)',
   collected: 'Collected (Încasată)',
   delayed: 'Delayed (Întârziată)',
 }
 
 export const INVOICE_STATUS_COLORS: Record<InvoiceStatus, string> = {
+  not_issued: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
   issued: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
   collected: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
   delayed: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',

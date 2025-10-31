@@ -278,40 +278,56 @@ export function FinancialTab({
                     <TableCell className="font-medium">{campaign.campaign_name}</TableCell>
                     <TableCell>{campaign.client_name}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="text-xs">
-                        {campaign.service_type_display || campaign.service_type || 'N/A'}
-                      </Badge>
+                      <div className="flex flex-wrap gap-1">
+                        {campaign.service_types && campaign.service_types.length > 0 ? (
+                          campaign.service_types.map((st: string, idx: number) => (
+                            <Badge key={idx} variant="outline" className="text-xs">
+                              {campaign.service_types_display[idx] || st}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-xs text-muted-foreground">N/A</span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
-                      {campaign.original_currency !== 'EUR' ? (
-                        <TooltipProvider>
-                          <UITooltip>
-                            <TooltipTrigger>
-                              €{campaign.value_eur.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Original: {campaign.original_currency} {campaign.original_value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                            </TooltipContent>
-                          </UITooltip>
-                        </TooltipProvider>
+                      {campaign.value_eur !== null ? (
+                        campaign.original_currency !== 'EUR' ? (
+                          <TooltipProvider>
+                            <UITooltip>
+                              <TooltipTrigger>
+                                €{campaign.value_eur.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Original: {campaign.original_currency} {campaign.original_value?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                              </TooltipContent>
+                            </UITooltip>
+                          </TooltipProvider>
+                        ) : (
+                          <span>€{campaign.value_eur.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        )
                       ) : (
-                        <span>€{campaign.value_eur.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
                     <TableCell>
-                      {campaign.original_currency !== 'EUR' ? (
-                        <TooltipProvider>
-                          <UITooltip>
-                            <TooltipTrigger>
-                              €{campaign.budget_spent_eur.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Original: {campaign.original_currency} {campaign.original_budget_spent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                            </TooltipContent>
-                          </UITooltip>
-                        </TooltipProvider>
+                      {campaign.budget_spent_eur !== null ? (
+                        campaign.original_currency !== 'EUR' ? (
+                          <TooltipProvider>
+                            <UITooltip>
+                              <TooltipTrigger>
+                                €{campaign.budget_spent_eur.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Original: {campaign.original_currency} {campaign.original_budget_spent?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                              </TooltipContent>
+                            </UITooltip>
+                          </TooltipProvider>
+                        ) : (
+                          <span>€{campaign.budget_spent_eur.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        )
                       ) : (
-                        <span>€{campaign.budget_spent_eur.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
                     <TableCell>

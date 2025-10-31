@@ -194,10 +194,10 @@ export default function CRM() {
     <AppLayout>
       <div className="space-y-8 pb-8">
         {/* Modern Glassmorphic Header with Gradient */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-pink-500/10 backdrop-blur-xl border border-white/20 dark:border-white/10 p-8 shadow-2xl">
-          {/* Animated gradient orbs */}
-          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-400/30 to-purple-500/30 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-pink-400/30 to-orange-500/30 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-pink-500/10 backdrop-blur-xl border border-white/20 dark:border-white/10 p-6 shadow-2xl">
+          {/* Gradient orbs - static, no animation */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-400/30 to-purple-500/30 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-pink-400/30 to-orange-500/30 rounded-full blur-3xl" />
 
           <div className="relative z-10 flex items-center justify-between">
             <div className="space-y-2">
@@ -214,7 +214,7 @@ export default function CRM() {
                 else setFormDialogOpen(true);
               }}
               size="lg"
-              className="h-12 px-6 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+              className="h-12 px-6 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg"
             >
               <Plus className="h-5 w-5 mr-2" />
               New {activeTab === 'campaigns' ? 'Campaign' : activeTab === 'clients' ? 'Client' : activeTab === 'artists' ? 'Artist' : 'Brand'}
@@ -231,25 +231,25 @@ export default function CRM() {
           <TabsList className="grid w-full grid-cols-4 p-2 bg-muted/50 backdrop-blur-xl rounded-2xl border border-white/10 h-14 shadow-lg">
             <TabsTrigger
               value="campaigns"
-              className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
+              className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg"
             >
               Campaigns
             </TabsTrigger>
             <TabsTrigger
               value="clients"
-              className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
+              className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg"
             >
               Clients
             </TabsTrigger>
             <TabsTrigger
               value="artists"
-              className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
+              className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg"
             >
               Artists
             </TabsTrigger>
             <TabsTrigger
               value="brands"
-              className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
+              className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg"
             >
               Brands
             </TabsTrigger>
@@ -259,32 +259,32 @@ export default function CRM() {
           <TabsContent value="campaigns" className="space-y-6 mt-8">
             {/* Glassmorphic Stats Cards */}
             {campaignStats && (
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card className="relative overflow-hidden rounded-2xl border-white/20 dark:border-white/10 bg-gradient-to-br from-blue-500/10 to-purple-500/10 backdrop-blur-xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <Card className="relative overflow-hidden rounded-xl border-white/20 dark:border-white/10 bg-gradient-to-br from-blue-500/10 to-purple-500/10 backdrop-blur-xl shadow-lg">
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 to-transparent" />
-                  <CardHeader className="relative flex flex-row items-center justify-between pb-2">
+                  <CardHeader className="relative flex flex-row items-center justify-between pb-2 space-y-0">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Total Campaigns</CardTitle>
-                    <div className="p-2 rounded-xl bg-blue-500/20 backdrop-blur-sm">
-                      <Target className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    <div className="p-1.5 rounded-lg bg-blue-500/20 backdrop-blur-sm">
+                      <Target className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                     </div>
                   </CardHeader>
-                  <CardContent className="relative">
-                    <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  <CardContent className="relative pb-3">
+                    <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                       {campaignStats.total_campaigns}
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card className="relative overflow-hidden rounded-2xl border-white/20 dark:border-white/10 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 backdrop-blur-xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+                <Card className="relative overflow-hidden rounded-xl border-white/20 dark:border-white/10 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 backdrop-blur-xl shadow-lg">
                   <div className="absolute inset-0 bg-gradient-to-br from-emerald-400/20 to-transparent" />
-                  <CardHeader className="relative flex flex-row items-center justify-between pb-2">
+                  <CardHeader className="relative flex flex-row items-center justify-between pb-2 space-y-0">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Total Value</CardTitle>
-                    <div className="p-2 rounded-xl bg-emerald-500/20 backdrop-blur-sm">
-                      <DollarSign className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    <div className="p-1.5 rounded-lg bg-emerald-500/20 backdrop-blur-sm">
+                      <DollarSign className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                     </div>
                   </CardHeader>
-                  <CardContent className="relative">
-                    <div className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                  <CardContent className="relative pb-3">
+                    <div className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
                       ${parseFloat(campaignStats.total_value).toLocaleString()}
                     </div>
                   </CardContent>
@@ -298,18 +298,18 @@ export default function CRM() {
                   const gradient = gradients[idx];
 
                   return (
-                    <Card key={status} className={cn("relative overflow-hidden rounded-2xl border-white/20 dark:border-white/10 backdrop-blur-xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 bg-gradient-to-br", gradient.from, gradient.to)}>
+                    <Card key={status} className={cn("relative overflow-hidden rounded-xl border-white/20 dark:border-white/10 backdrop-blur-xl shadow-lg bg-gradient-to-br", gradient.from, gradient.to)}>
                       <div className={cn("absolute inset-0 bg-gradient-to-br to-transparent", gradient.accent)} />
-                      <CardHeader className="relative flex flex-row items-center justify-between pb-2">
+                      <CardHeader className="relative flex flex-row items-center justify-between pb-2 space-y-0">
                         <CardTitle className="text-sm font-medium text-muted-foreground">
                           {CAMPAIGN_STATUS_LABELS[status as CampaignStatus]}
                         </CardTitle>
-                        <div className={cn("p-2 rounded-xl backdrop-blur-sm", gradient.bg)}>
-                          <TrendingUp className={cn("h-4 w-4", gradient.icon)} />
+                        <div className={cn("p-1.5 rounded-lg backdrop-blur-sm", gradient.bg)}>
+                          <TrendingUp className={cn("h-3.5 w-3.5", gradient.icon)} />
                         </div>
                       </CardHeader>
-                      <CardContent className="relative">
-                        <div className={cn("text-3xl font-bold bg-gradient-to-r bg-clip-text text-transparent", gradient.text)}>
+                      <CardContent className="relative pb-3">
+                        <div className={cn("text-2xl font-bold bg-gradient-to-r bg-clip-text text-transparent", gradient.text)}>
                           {count as number}
                         </div>
                       </CardContent>
@@ -320,19 +320,19 @@ export default function CRM() {
             )}
 
             {/* Modern Glassmorphic Filters */}
-            <div className="flex items-center gap-3 p-4 rounded-2xl bg-background/50 backdrop-blur-xl border border-white/10 shadow-lg">
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-background/50 backdrop-blur-xl border border-white/10 shadow-md">
               <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search campaigns..."
-                  className="pl-12 h-12 rounded-xl bg-background/50 border-white/10 focus:border-blue-500/50 transition-all duration-300"
+                  className="pl-11 h-10 rounded-lg bg-background/50 border-white/10 focus:border-blue-500/50"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
 
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[200px] h-12 rounded-xl bg-background/50 border-white/10">
+                <SelectTrigger className="w-[200px] h-10 rounded-lg bg-background/50 border-white/10">
                   <SelectValue placeholder="All statuses" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border-white/10">
@@ -345,32 +345,32 @@ export default function CRM() {
                 </SelectContent>
               </Select>
 
-              <div className="flex gap-2 p-1.5 rounded-xl bg-muted/50 backdrop-blur-sm border border-white/10">
+              <div className="flex gap-1 p-1 rounded-lg bg-muted/50 backdrop-blur-sm border border-white/10">
                 <Button
                   variant={campaignViewMode === 'kanban' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setCampaignViewMode('kanban')}
                   className={cn(
-                    "h-9 px-4 rounded-lg transition-all duration-300",
+                    "h-8 px-2.5 rounded-md",
                     campaignViewMode === 'kanban'
-                      ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg"
+                      ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-sm"
                       : "hover:bg-background/50"
                   )}
                 >
-                  <LayoutGrid className="h-4 w-4" />
+                  <LayoutGrid className="h-3.5 w-3.5" />
                 </Button>
                 <Button
                   variant={campaignViewMode === 'table' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setCampaignViewMode('table')}
                   className={cn(
-                    "h-9 px-4 rounded-lg transition-all duration-300",
+                    "h-8 px-2.5 rounded-md",
                     campaignViewMode === 'table'
-                      ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg"
+                      ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-sm"
                       : "hover:bg-background/50"
                   )}
                 >
-                  <LayoutList className="h-4 w-4" />
+                  <LayoutList className="h-3.5 w-3.5" />
                 </Button>
               </div>
             </div>
@@ -475,25 +475,25 @@ export default function CRM() {
                     <NoClientsEmptyState onPrimaryAction={() => setFormDialogOpen(true)} />
                   )
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                     {filteredClients.map((client) => (
                       <Card
                         key={client.id}
-                        className="cursor-pointer hover:shadow-lg transition-shadow"
+                        className="cursor-pointer"
                         onClick={() => {
                           setSelectedClientId(client.id);
                           navigate(`/crm?tab=clients&clientId=${client.id}`);
                         }}
                       >
-                        <CardHeader>
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-12 w-12">
-                              <AvatarFallback className="bg-primary/10 font-semibold">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center gap-2.5">
+                            <Avatar className="h-10 w-10">
+                              <AvatarFallback className="bg-primary/10 font-semibold text-sm">
                                 {getInitials(client.display_name)}
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold truncate">{client.display_name}</h3>
+                              <h3 className="font-semibold truncate text-sm">{client.display_name}</h3>
                               {client.kind === 'PJ' && (
                                 <Badge variant="secondary" className="mt-1">
                                   <Building2 className="h-3 w-3 mr-1" />
@@ -577,26 +577,26 @@ export default function CRM() {
                     />
                   )
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                     {filteredArtists.map((artist) => (
                       <Card
                         key={artist.id}
-                        className="cursor-pointer hover:shadow-lg transition-shadow"
+                        className="cursor-pointer"
                         onClick={() => {
                           setSelectedArtistId(artist.id);
                           navigate(`/crm?tab=artists&artistId=${artist.id}`);
                         }}
                       >
-                        <CardHeader>
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-12 w-12">
-                              <AvatarFallback className="bg-primary/10 font-semibold">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center gap-2.5">
+                            <Avatar className="h-10 w-10">
+                              <AvatarFallback className="bg-primary/10 font-semibold text-sm">
                                 {getInitials(artist.display_name)}
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold truncate">{artist.display_name}</h3>
-                              <Badge variant="secondary" className="mt-1">
+                              <h3 className="font-semibold truncate text-sm">{artist.display_name}</h3>
+                              <Badge variant="secondary" className="mt-1 text-xs">
                                 <Music className="h-3 w-3 mr-1" />
                                 Artist
                               </Badge>
@@ -669,26 +669,26 @@ export default function CRM() {
                     />
                   )
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                     {filteredBrands.map((brand) => (
                       <Card
                         key={brand.id}
-                        className="cursor-pointer hover:shadow-lg transition-shadow"
+                        className="cursor-pointer"
                         onClick={() => {
                           setSelectedBrandId(brand.id);
                           navigate(`/crm?tab=brands&brandId=${brand.id}`);
                         }}
                       >
-                        <CardHeader>
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-12 w-12">
-                              <AvatarFallback className="bg-primary/10 font-semibold">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center gap-2.5">
+                            <Avatar className="h-10 w-10">
+                              <AvatarFallback className="bg-primary/10 font-semibold text-sm">
                                 {getInitials(brand.display_name)}
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold truncate">{brand.display_name}</h3>
-                              <Badge variant="secondary" className="mt-1">
+                              <h3 className="font-semibold truncate text-sm">{brand.display_name}</h3>
+                              <Badge variant="secondary" className="mt-1 text-xs">
                                 <Package className="h-3 w-3 mr-1" />
                                 Brand
                               </Badge>

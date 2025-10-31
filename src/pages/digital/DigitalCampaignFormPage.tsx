@@ -34,7 +34,7 @@ import { ContactPersonFormDialog } from '@/pages/crm/components/ContactPersonFor
 import { FormProgress } from '@/components/ui/form-progress'
 import { ClientHealthScore } from '@/components/crm/ClientHealthScore'
 import { useCreateCampaign, useUpdateCampaign, useCampaign } from '@/api/hooks/useCampaigns'
-import { CAMPAIGN_STATUS_LABELS, CAMPAIGN_HANDLER_ROLE_LABELS } from '@/types/campaign'
+import { CAMPAIGN_STATUS_LABELS, CAMPAIGN_HANDLER_ROLE_LABELS, PRICING_MODEL_LABELS, INVOICE_STATUS_LABELS } from '@/types/campaign'
 import {
   SERVICE_TYPE_LABELS,
   PLATFORM_LABELS,
@@ -65,20 +65,23 @@ const digitalCampaignFormSchema = z.object({
   client_type: z.enum(['internal', 'external']),
   client: z.number({ required_error: 'Client is required' }),
   contact_person: z.number().optional().nullable(),
-  value: z.string().optional().refine((val) => !val || /^\d+(\.\d{1,2})?$/.test(val), 'Invalid value format'),
+  value: z.string().optional().nullable().refine((val) => !val || /^\d+(\.\d{1,2})?$/.test(val), 'Invalid value format'),
   status: z.enum(['lead', 'negotiation', 'confirmed', 'active', 'completed', 'lost']),
   confirmed_at: z.string().optional(),
   notes: z.string().optional(),
   handlers: z.array(handlerSchema).optional(),
   // Digital-specific fields
-  service_type: z.enum(SERVICE_TYPE_CHOICES as [string, ...string[]]).optional(),
+  service_types: z.array(z.enum(SERVICE_TYPE_CHOICES as [string, ...string[]])).optional(),
   platforms: z.array(z.enum(PLATFORM_CHOICES as [string, ...string[]])).optional(),
   currency: z.enum(['EUR', 'USD', 'RON']).default('EUR'),
+  pricing_model: z.enum(['service_fee', 'revenue_share']).default('service_fee'),
+  revenue_generated: z.string().optional().nullable().refine((val) => !val || /^\d+(\.\d{1,2})?$/.test(val), 'Invalid revenue format'),
+  partner_share_percentage: z.string().optional().nullable().refine((val) => !val || (/^\d+(\.\d{1,2})?$/.test(val) && parseFloat(val) >= 0 && parseFloat(val) <= 100), 'Must be between 0 and 100'),
   budget_allocated: z.string().optional(),
   budget_spent: z.string().optional(),
   profit: z.string().optional(),
   internal_cost_estimate: z.string().optional(),
-  invoice_status: z.enum(['issued', 'collected', 'delayed']).optional(),
+  invoice_status: z.enum(['not_issued', 'issued', 'collected', 'delayed']).optional(),
   start_date: z.string().min(1, 'Start date is required'),
   end_date: z.string().min(1, 'End date is required'),
   kpi_targets: z.array(kpiTargetSchema).optional(),
@@ -115,9 +118,12 @@ export function DigitalCampaignFormPage() {
       confirmed_at: '',
       notes: '',
       handlers: [],
-      service_type: undefined,
+      service_types: [],
       platforms: [],
       currency: 'EUR',
+      pricing_model: 'service_fee',
+      revenue_generated: '',
+      partner_share_percentage: '',
       budget_allocated: '',
       budget_spent: '0',
       profit: '',
@@ -129,10 +135,13 @@ export function DigitalCampaignFormPage() {
 
   const selectedClientId = form.watch('client')
   const selectedClientType = form.watch('client_type')
-  const selectedServiceType = form.watch('service_type')
+  const selectedServiceTypes = form.watch('service_types')
   const selectedPlatforms = form.watch('platforms')
   const selectedCurrency = form.watch('currency')
+  const selectedPricingModel = form.watch('pricing_model')
   const campaignValue = form.watch('value')
+  const revenueGenerated = form.watch('revenue_generated')
+  const partnerSharePercentage = form.watch('partner_share_percentage')
   const budgetAllocated = form.watch('budget_allocated')
   const budgetSpent = form.watch('budget_spent')
   const statusValue = form.watch('status')
@@ -183,33 +192,48 @@ export function DigitalCampaignFormPage() {
     }
   }
 
-  // Get platform recommendations based on service type
+  // Get platform recommendations based on service types
   const recommendedPlatforms = useMemo(() => {
-    switch (selectedServiceType) {
-      case 'ppc':
-        return ['meta', 'google', 'tiktok']
-      case 'tiktok_ugc':
-        return ['tiktok']
-      case 'dsp_distribution':
-        return ['spotify', 'apple_music', 'youtube']
-      case 'playlist_pitching':
-        return ['spotify', 'apple_music']
-      case 'radio_plugging':
-        return ['multi']
-      case 'youtube_cms':
-        return ['youtube']
-      case 'social_media_mgmt':
-        return ['meta', 'twitter', 'linkedin']
-      default:
-        return []
-    }
-  }, [selectedServiceType])
+    if (!selectedServiceTypes || selectedServiceTypes.length === 0) return []
 
-  // Get KPI recommendations based on service type
+    const platformsSet = new Set<string>()
+    selectedServiceTypes.forEach(serviceType => {
+      const platforms = (() => {
+        switch (serviceType) {
+          case 'ppc':
+            return ['meta', 'google', 'tiktok']
+          case 'tiktok_ugc':
+            return ['tiktok']
+          case 'dsp_distribution':
+            return ['spotify', 'apple_music', 'youtube']
+          case 'playlist_pitching':
+            return ['spotify', 'apple_music']
+          case 'radio_plugging':
+            return ['multi']
+          case 'youtube_cms':
+            return ['youtube']
+          case 'social_media_mgmt':
+            return ['meta', 'twitter', 'linkedin']
+          default:
+            return []
+        }
+      })()
+      platforms.forEach(p => platformsSet.add(p))
+    })
+    return Array.from(platformsSet)
+  }, [selectedServiceTypes])
+
+  // Get KPI recommendations based on service types
   const recommendedKPIs = useMemo(() => {
-    if (!selectedServiceType) return []
-    return SERVICE_KPI_PRESETS[selectedServiceType as keyof typeof SERVICE_KPI_PRESETS] || []
-  }, [selectedServiceType])
+    if (!selectedServiceTypes || selectedServiceTypes.length === 0) return []
+
+    const kpisSet = new Set<string>()
+    selectedServiceTypes.forEach(serviceType => {
+      const kpis = SERVICE_KPI_PRESETS[serviceType as keyof typeof SERVICE_KPI_PRESETS] || []
+      kpis.forEach(kpi => kpisSet.add(kpi))
+    })
+    return Array.from(kpisSet)
+  }, [selectedServiceTypes])
 
   // Load campaign data when editing
   useEffect(() => {
@@ -224,12 +248,17 @@ export function DigitalCampaignFormPage() {
         confirmed_at: campaign.confirmed_at || '',
         notes: campaign.notes || '',
         handlers: campaign.handlers?.map((h) => ({ user: h.user, role: h.role })) || [],
-        service_type: campaign.service_type,
-        platforms: campaign.platform ? [campaign.platform] : [],
+        service_types: campaign.service_types || [],
+        platforms: campaign.platforms || [],
         currency: campaign.currency || 'EUR',
+        pricing_model: campaign.pricing_model || 'service_fee',
+        revenue_generated: campaign.revenue_generated || '',
+        partner_share_percentage: campaign.partner_share_percentage || '',
         budget_allocated: campaign.budget_allocated || '',
         budget_spent: campaign.budget_spent || '0',
         profit: (campaign as any).profit || '',
+        internal_cost_estimate: campaign.internal_cost_estimate || '',
+        invoice_status: campaign.invoice_status || 'not_issued',
         start_date: campaign.start_date || '',
         end_date: campaign.end_date || '',
         kpi_targets: campaign.kpi_targets
@@ -275,9 +304,12 @@ export function DigitalCampaignFormPage() {
         confirmed_at: data.confirmed_at || undefined,
         notes: data.notes || undefined,
         handlers: validHandlers.length > 0 ? validHandlers : undefined,
-        service_type: data.service_type || undefined,
-        platform: data.platforms && data.platforms.length > 0 ? data.platforms[0] : undefined,
+        service_types: data.service_types || undefined,
+        platforms: data.platforms || undefined,
         currency: data.currency,
+        pricing_model: data.pricing_model || 'service_fee',
+        revenue_generated: data.revenue_generated || undefined,
+        partner_share_percentage: data.partner_share_percentage || undefined,
         budget_allocated: data.budget_allocated || undefined,
         budget_spent: data.budget_spent || undefined,
         profit: data.profit || undefined,
@@ -335,7 +367,7 @@ export function DigitalCampaignFormPage() {
     if (!hasClient) return 1
 
     // Step 2: Service & Budget
-    const hasServiceInfo = formValues.service_type || (formValues.platforms && formValues.platforms.length > 0) || formValues.budget_allocated
+    const hasServiceInfo = (formValues.service_types && formValues.service_types.length > 0) || (formValues.platforms && formValues.platforms.length > 0) || formValues.budget_allocated
     if (!hasServiceInfo) return 2
 
     // Step 3: KPIs & Final Details
@@ -640,35 +672,55 @@ export function DigitalCampaignFormPage() {
                 <CardDescription>Digital service type and platform selection</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Service Type */}
-                  <FormField
-                    control={form.control}
-                    name="service_type"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Service Type</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select service type" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {SERVICE_TYPE_CHOICES.map((value) => (
-                              <SelectItem key={value} value={value}>
-                                {SERVICE_TYPE_LABELS[value as keyof typeof SERVICE_TYPE_LABELS] || value}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>Type of digital service for this campaign</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                </div>
+                {/* Service Types Multi-Select */}
+                <FormField
+                  control={form.control}
+                  name="service_types"
+                  render={() => (
+                    <FormItem>
+                      <div className="mb-4">
+                        <FormLabel>Service Types (Select multiple)</FormLabel>
+                        <FormDescription>
+                          Select all service types that apply to this campaign
+                        </FormDescription>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {SERVICE_TYPE_CHOICES.map((serviceType) => (
+                          <FormField
+                            key={serviceType}
+                            control={form.control}
+                            name="service_types"
+                            render={({ field }) => {
+                              return (
+                                <FormItem
+                                  key={serviceType}
+                                  className="flex flex-row items-start space-x-3 space-y-0"
+                                >
+                                  <FormControl>
+                                    <Checkbox
+                                      checked={field.value?.includes(serviceType)}
+                                      onCheckedChange={(checked) => {
+                                        return checked
+                                          ? field.onChange([...(field.value || []), serviceType])
+                                          : field.onChange(
+                                              field.value?.filter((value: string) => value !== serviceType)
+                                            )
+                                      }}
+                                    />
+                                  </FormControl>
+                                  <FormLabel className="font-normal cursor-pointer">
+                                    {SERVICE_TYPE_LABELS[serviceType as keyof typeof SERVICE_TYPE_LABELS] || serviceType}
+                                  </FormLabel>
+                                </FormItem>
+                              )
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 {/* Platforms Multi-Select */}
                 <FormField
@@ -721,9 +773,9 @@ export function DigitalCampaignFormPage() {
                 />
 
                 {/* Platform Recommendations */}
-                {selectedServiceType && recommendedPlatforms.length > 0 && (
+                {selectedServiceTypes && selectedServiceTypes.length > 0 && recommendedPlatforms.length > 0 && (
                   <div className="rounded-lg border bg-muted/40 p-4">
-                    <p className="text-sm font-medium mb-2">Recommended platforms for this service:</p>
+                    <p className="text-sm font-medium mb-2">Recommended platforms for selected services:</p>
                     <div className="flex flex-wrap gap-2">
                       {recommendedPlatforms.map((platform) => (
                         <Badge
@@ -750,108 +802,259 @@ export function DigitalCampaignFormPage() {
             {/* Budget Tracking */}
             <Card>
               <CardHeader>
-                <CardTitle>Budget Tracking</CardTitle>
-                <CardDescription>Campaign value, budget allocation and spending monitoring</CardDescription>
+                <CardTitle>Financial Details</CardTitle>
+                <CardDescription>Pricing model, budget allocation and financial tracking</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Currency */}
-                <FormField
-                  control={form.control}
-                  name="currency"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Currency *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger className="w-[180px]">
-                            <SelectValue placeholder="Select currency" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="EUR">EUR (€)</SelectItem>
-                          <SelectItem value="USD">USD ($)</SelectItem>
-                          <SelectItem value="RON">RON (lei)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>Currency for all financial values</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-3 gap-4">
-                  {/* Campaign Value */}
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Currency */}
                   <FormField
                     control={form.control}
-                    name="value"
+                    name="currency"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Campaign Value</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="text"
-                            placeholder="10000.00"
-                            {...field}
-                            onChange={(e) => {
-                              const value = e.target.value.replace(/[^\d.]/g, '')
-                              field.onChange(value)
-                            }}
-                          />
-                        </FormControl>
-                        <FormDescription>Total contract value</FormDescription>
+                        <FormLabel>Currency *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select currency" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="EUR">EUR (€)</SelectItem>
+                            <SelectItem value="USD">USD ($)</SelectItem>
+                            <SelectItem value="RON">RON (lei)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>Currency for all financial values</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
-                  {/* Budget Allocated */}
+                  {/* Pricing Model */}
                   <FormField
                     control={form.control}
-                    name="budget_allocated"
+                    name="pricing_model"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Budget Allocated</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="text"
-                            placeholder="8000.00"
-                            {...field}
-                            onChange={(e) => {
-                              const value = e.target.value.replace(/[^\d.]/g, '')
-                              field.onChange(value)
-                            }}
-                          />
-                        </FormControl>
-                        <FormDescription>Budget for ads/services</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Budget Spent */}
-                  <FormField
-                    control={form.control}
-                    name="budget_spent"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Budget Spent</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="text"
-                            placeholder="0.00"
-                            {...field}
-                            onChange={(e) => {
-                              const value = e.target.value.replace(/[^\d.]/g, '')
-                              field.onChange(value)
-                            }}
-                          />
-                        </FormControl>
-                        <FormDescription>Amount spent so far</FormDescription>
+                        <FormLabel>Pricing Model *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select pricing model" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {Object.entries(PRICING_MODEL_LABELS).map(([value, label]) => (
+                              <SelectItem key={value} value={value}>
+                                {label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          {field.value === 'service_fee'
+                            ? 'Client pays us a fixed fee for services'
+                            : 'We generate revenue and share with partner'}
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 </div>
+
+                {/* Service Fee Model Fields */}
+                {selectedPricingModel === 'service_fee' && (
+                  <div className="grid grid-cols-3 gap-4">
+                    {/* Campaign Value */}
+                    <FormField
+                      control={form.control}
+                      name="value"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Campaign Value *</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="text"
+                              placeholder="10000.00"
+                              {...field}
+                              value={field.value || ''}
+                              onChange={(e) => {
+                                const value = e.target.value.replace(/[^\d.]/g, '')
+                                field.onChange(value)
+                              }}
+                            />
+                          </FormControl>
+                          <FormDescription>Total contract value (client pays us)</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* Budget Allocated */}
+                    <FormField
+                      control={form.control}
+                      name="budget_allocated"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Budget Allocated</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="text"
+                              placeholder="8000.00"
+                              {...field}
+                              onChange={(e) => {
+                                const value = e.target.value.replace(/[^\d.]/g, '')
+                                field.onChange(value)
+                              }}
+                            />
+                          </FormControl>
+                          <FormDescription>Budget for ads/services</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* Budget Spent */}
+                    <FormField
+                      control={form.control}
+                      name="budget_spent"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Budget Spent</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="text"
+                              placeholder="0.00"
+                              {...field}
+                              onChange={(e) => {
+                                const value = e.target.value.replace(/[^\d.]/g, '')
+                                field.onChange(value)
+                              }}
+                            />
+                          </FormControl>
+                          <FormDescription>Amount spent so far</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+
+                {/* Revenue Share Model Fields */}
+                {selectedPricingModel === 'revenue_share' && (
+                  <>
+                    <div className="grid grid-cols-3 gap-4">
+                      {/* Revenue Generated */}
+                      <FormField
+                        control={form.control}
+                        name="revenue_generated"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Revenue Generated</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="text"
+                                placeholder="20000.00"
+                                {...field}
+                                value={field.value || ''}
+                                onChange={(e) => {
+                                  const value = e.target.value.replace(/[^\d.]/g, '')
+                                  field.onChange(value)
+                                }}
+                              />
+                            </FormControl>
+                            <FormDescription>Total revenue we generated</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Partner Share Percentage */}
+                      <FormField
+                        control={form.control}
+                        name="partner_share_percentage"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Partner Share % *</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="text"
+                                placeholder="70.00"
+                                {...field}
+                                value={field.value || ''}
+                                onChange={(e) => {
+                                  const value = e.target.value.replace(/[^\d.]/g, '')
+                                  field.onChange(value)
+                                }}
+                              />
+                            </FormControl>
+                            <FormDescription>% of revenue paid to partner (0-100)</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Budget Allocated (Investment) */}
+                      <FormField
+                        control={form.control}
+                        name="budget_allocated"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Investment/Costs</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="text"
+                                placeholder="5000.00"
+                                {...field}
+                                onChange={(e) => {
+                                  const value = e.target.value.replace(/[^\d.]/g, '')
+                                  field.onChange(value)
+                                }}
+                              />
+                            </FormControl>
+                            <FormDescription>Our investment/operational costs</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    {/* Calculated Revenue Share Fields */}
+                    {revenueGenerated && partnerSharePercentage && (
+                      <div className="rounded-lg border bg-muted/40 p-4 space-y-2">
+                        <FormLabel>Revenue Share Breakdown</FormLabel>
+                        <div className="grid grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <p className="text-muted-foreground">Partner Payout</p>
+                            <p className="font-medium text-lg">
+                              {getCurrencySymbol(selectedCurrency)}
+                              {(parseFloat(revenueGenerated) * parseFloat(partnerSharePercentage) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Our Revenue</p>
+                            <p className="font-medium text-lg">
+                              {getCurrencySymbol(selectedCurrency)}
+                              {(parseFloat(revenueGenerated) * (100 - parseFloat(partnerSharePercentage)) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Our Profit</p>
+                            <p className="font-medium text-lg">
+                              {getCurrencySymbol(selectedCurrency)}
+                              {(
+                                parseFloat(revenueGenerated) * (100 - parseFloat(partnerSharePercentage)) / 100 -
+                                parseFloat(budgetAllocated || '0')
+                              ).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
 
                 {/* Profit (when completed) */}
                 {statusValue === 'completed' && (
@@ -918,12 +1121,18 @@ export function DigitalCampaignFormPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="issued">Issued (Emisă)</SelectItem>
-                            <SelectItem value="collected">Collected (Încasată)</SelectItem>
-                            <SelectItem value="delayed">Delayed (Întârziată)</SelectItem>
+                            {Object.entries(INVOICE_STATUS_LABELS).map(([value, label]) => (
+                              <SelectItem key={value} value={value}>
+                                {label}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
-                        <FormDescription>Current invoice status</FormDescription>
+                        <FormDescription>
+                          {selectedPricingModel === 'revenue_share'
+                            ? 'Invoice status for partner payout'
+                            : 'Invoice status from client'}
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -960,27 +1169,35 @@ export function DigitalCampaignFormPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* KPI Recommendations */}
-                {selectedServiceType && recommendedKPIs.length > 0 && (
+                {selectedServiceTypes && selectedServiceTypes.length > 0 && recommendedKPIs.length > 0 && (
                   <div className="rounded-lg border bg-muted/40 p-4">
                     <p className="text-sm font-medium mb-2">
-                      Recommended KPIs for {SERVICE_TYPE_LABELS[selectedServiceType as keyof typeof SERVICE_TYPE_LABELS]}:
+                      Recommended KPIs for selected services:
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      {recommendedKPIs.map((kpi) => (
+                      {Array.from(new Set(
+                        selectedServiceTypes.flatMap(st =>
+                          (SERVICE_KPI_PRESETS[st as keyof typeof SERVICE_KPI_PRESETS] || []).map(kpi => ({
+                            metric: kpi,
+                            unit: kpi.toLowerCase().includes('rate') || kpi.toLowerCase().includes('ctr') ? '%' :
+                                  kpi.toLowerCase().includes('cost') || kpi.toLowerCase().includes('cpa') || kpi.toLowerCase().includes('revenue') ? '€' : 'count'
+                          }))
+                        )
+                      )).map((kpiObj) => (
                         <Button
-                          key={kpi.metric}
+                          key={kpiObj.metric}
                           type="button"
                           variant="outline"
                           size="sm"
                           onClick={() => {
-                            const exists = kpiFields.some((field) => field.name === kpi.metric)
+                            const exists = kpiFields.some((field) => field.name === kpiObj.metric)
                             if (!exists) {
-                              appendKpi({ name: kpi.metric, target: '', unit: kpi.unit })
+                              appendKpi({ name: kpiObj.metric, target: '', unit: kpiObj.unit })
                             }
                           }}
                         >
                           <Plus className="h-3 w-3 mr-1" />
-                          {kpi.metric}
+                          {kpiObj.metric}
                         </Button>
                       ))}
                     </div>

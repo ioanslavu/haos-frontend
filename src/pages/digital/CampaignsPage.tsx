@@ -31,7 +31,7 @@ export default function DigitalCampaignsPage() {
   const uniqueClients = Array.from(
     new Set(
       campaigns?.results
-        ?.filter(c => c.department_display?.toLowerCase() === 'digital' || c.service_type)
+        ?.filter(c => c.department_display?.toLowerCase() === 'digital' || (c.service_types && c.service_types.length > 0))
         .map(c => JSON.stringify({ id: c.client.id, name: c.client.display_name }))
     )
   ).map(str => JSON.parse(str));
@@ -124,6 +124,11 @@ export default function DigitalCampaignsPage() {
                 <SelectItem value="radio_plugging">Radio Plugging</SelectItem>
                 <SelectItem value="playlist_pitching">Playlist Pitching</SelectItem>
                 <SelectItem value="youtube_cms">YouTube CMS</SelectItem>
+                <SelectItem value="social_media_mgmt">Social Media Management</SelectItem>
+                <SelectItem value="content_creation">Content Creation</SelectItem>
+                <SelectItem value="influencer_marketing">Influencer Marketing</SelectItem>
+                <SelectItem value="seo">SEO Optimization</SelectItem>
+                <SelectItem value="email_marketing">Email Marketing</SelectItem>
               </SelectContent>
             </Select>
 

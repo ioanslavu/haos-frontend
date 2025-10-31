@@ -24,7 +24,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { useEntities } from '@/api/hooks/useEntities';
+import { useEntities, useEntityStats } from '@/api/hooks/useEntities';
 import { EntityFormDialog } from './crm/components/EntityFormDialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -114,14 +114,21 @@ export default function Entities() {
   const [itemsPerPage] = useState(20);
 
   // Fetch entities based on filters with backend pagination
-  const { data: entitiesData, isLoading } = useEntities({
+  const entityParams = {
     ...(roleFilter !== 'all' && { has_role: roleFilter }),
     ...(internalFilter !== 'all' && { is_internal: internalFilter === 'internal' }),
+  };
+
+  const { data: entitiesData, isLoading } = useEntities({
+    ...entityParams,
     page: currentPage,
     page_size: itemsPerPage,
   });
   const entities = entitiesData?.results || [];
   const totalCount = entitiesData?.count || 0;
+
+  // Fetch stats using the same filters (without pagination)
+  const { data: statsData } = useEntityStats(entityParams);
 
   // Client-side filter and sort (for search and kind filter that aren't in backend yet)
   const filteredAndSortedEntities = useMemo(() => {
@@ -191,12 +198,13 @@ export default function Entities() {
     }
   };
 
+  // Use backend stats instead of client-side calculation
   const stats = useMemo(() => ({
-    total: entities.length,
-    physical: entities.filter(e => e.kind === 'PF').length,
-    legal: entities.filter(e => e.kind === 'PJ').length,
-    creative: entities.filter(e => e.roles?.some(r => ['artist', 'producer', 'composer', 'lyricist', 'audio_editor'].includes(r))).length,
-  }), [entities]);
+    total: statsData?.total || 0,
+    physical: statsData?.physical || 0,
+    legal: statsData?.legal || 0,
+    creative: statsData?.creative || 0,
+  }), [statsData]);
 
   const activeFiltersCount = useMemo(() => {
     let count = 0;
@@ -222,7 +230,7 @@ export default function Entities() {
                   Entities
                 </h1>
                 <p className="text-muted-foreground text-lg mt-2">
-                  {filteredAndSortedEntities.length} {filteredAndSortedEntities.length === 1 ? 'entity' : 'entities'}
+                  {stats.total} {stats.total === 1 ? 'entity' : 'entities'}
                   {activeFiltersCount > 0 && ` with ${activeFiltersCount} filter${activeFiltersCount > 1 ? 's' : ''} applied`}
                 </p>
               </div>

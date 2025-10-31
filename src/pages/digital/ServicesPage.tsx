@@ -27,7 +27,7 @@ export default function DigitalServicesPage() {
   const uniqueClients = Array.from(
     new Set(
       campaigns?.results
-        ?.filter(c => c.department_display?.toLowerCase() === 'digital' || c.service_type)
+        ?.filter(c => c.department_display?.toLowerCase() === 'digital' || (c.service_types && c.service_types.length > 0))
         .map(c => JSON.stringify({ id: c.client.id, name: c.client.display_name }))
     )
   ).map(str => JSON.parse(str));

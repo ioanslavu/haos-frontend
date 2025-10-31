@@ -36,6 +36,7 @@ export const useCampaigns = (params?: CampaignFilters & { page?: number; page_si
   return useQuery<PaginatedResponse<Campaign>>({
     queryKey: campaignKeys.list(params),
     queryFn: () => campaignsService.getCampaigns(params),
+    refetchOnMount: 'always',
   })
 }
 
