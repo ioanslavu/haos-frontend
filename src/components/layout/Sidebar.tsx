@@ -167,7 +167,12 @@ const bottomNavigation: NavigationItem[] = [
     name: 'Catalog',
     href: '/catalog',
     icon: Music,
-    show: (user) => user?.role !== 'guest', // All non-guests
+    show: (user) => {
+      const isDigital = user?.department?.name?.toLowerCase() === 'digital' ||
+                        user?.department?.toLowerCase() === 'digital';
+      // Hide for digital users, but show for admins even if they're in digital department
+      return user?.role !== 'guest' && (!isDigital || user?.role === 'administrator');
+    },
     tourId: 'catalog-nav',
   },
   {
