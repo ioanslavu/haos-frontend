@@ -82,6 +82,9 @@ const Releases = lazy(() => import("./pages/catalog/Releases"));
 const Entities = lazy(() => import("./pages/Entities"));
 const EntityDetail = lazy(() => import("./pages/EntityDetail"));
 
+// Activity pages
+const ActivitiesPage = lazy(() => import("./pages/activities/ActivitiesPage"));
+
 // CRM pages
 const CampaignFormPage = lazy(() => import("./pages/crm/CampaignFormPage"));
 
@@ -182,6 +185,11 @@ const App = () => (
             <Route path="/entity/:id" element={
               <ProtectedRoute>
                 <EntityDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/activities" element={
+              <ProtectedRoute>
+                <ActivitiesPage />
               </ProtectedRoute>
             } />
             <Route path="/catalog" element={

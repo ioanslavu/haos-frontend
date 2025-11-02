@@ -42,6 +42,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CAMPAIGN_STATUS_LABELS, CAMPAIGN_STATUS_COLORS } from '@/types/campaign';
+import { ActivityTimeline } from '@/components/activities/ActivityTimeline';
 import {
   Table,
   TableBody,
@@ -654,14 +655,7 @@ export function EntityDetailsSheet({
                 </TabsContent>
 
                 <TabsContent value="activity" className="space-y-4 mt-4">
-                  <div className="space-y-4">
-                    <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wider">
-                      Recent Activity
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      Activity tracking will be available in a future update.
-                    </p>
-                  </div>
+                  <ActivityTimeline entityId={entity.id} />
                 </TabsContent>
               </Tabs>
 

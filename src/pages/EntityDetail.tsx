@@ -15,6 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import { EntityFormDialog } from '@/pages/crm/components/EntityFormDialog';
 import { ContactPersonFormDialog } from '@/pages/crm/components/ContactPersonFormDialog';
 import { EntityRequestDialog } from '@/pages/crm/components/EntityRequestDialog';
+import { ActivityTimeline } from '@/components/activities/ActivityTimeline';
 import { toast } from '@/components/ui/use-toast';
 import { toast as sonnerToast } from 'sonner';
 import { ENGAGEMENT_STAGE_COLORS, CONTACT_SENTIMENT_COLORS } from '@/types/contact';
@@ -2227,15 +2228,7 @@ export default function EntityDetail() {
           </TabsContent>
 
           <TabsContent value="activity" className="space-y-6">
-            <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
-              <CardHeader>
-                <CardTitle>Activity Log</CardTitle>
-                <CardDescription>Recent activities and changes</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">No recent activity</p>
-              </CardContent>
-            </Card>
+            <ActivityTimeline entityId={Number(id)} />
           </TabsContent>
 
           {hasCreativeRole && (

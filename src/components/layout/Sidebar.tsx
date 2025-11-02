@@ -24,6 +24,7 @@ import {
   Settings2,
   DollarSign,
   ClipboardList,
+  Activity,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +32,7 @@ import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
 import { usePendingRequestsCount } from '@/api/hooks/useUsers';
 import { usePendingEntityRequests } from '@/api/hooks/useEntityRequests';
+import { useActivitiesNeedingFollowUp } from '@/api/hooks/useActivities';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -182,6 +184,13 @@ const bottomNavigation: NavigationItem[] = [
     show: (user) => user?.role !== 'guest', // All non-guests
     tourId: 'entities-nav',
   },
+  {
+    name: 'Activities',
+    href: '/activities',
+    icon: Activity,
+    show: (user) => user?.role !== 'guest', // All non-guests
+    tourId: 'activities-nav',
+  },
 ];
 
 const digitalSubmenu: NavigationItem[] = [
@@ -209,6 +218,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
   const { data: pendingCount } = usePendingRequestsCount();
   const { data: entityRequestsData } = usePendingEntityRequests();
   const pendingEntityRequestsCount = entityRequestsData?.results?.length || 0;
+
+  // Get follow-up activities count for badge
+  const { data: followUpActivitiesData } = useActivitiesNeedingFollowUp();
+  const followUpCount = followUpActivitiesData?.count || 0;
 
   // Check if user has admin role
   const isAdmin = user?.role === 'administrator';
@@ -363,7 +376,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             );
           })()}
 
-          {/* Bottom Navigation - Catalog and Entities */}
+          {/* Bottom Navigation - Catalog, Entities, and Activities */}
           {bottomNavigation.map((item) => {
             const shouldShow = !item.show || item.show(user);
             if (!shouldShow) return null;
@@ -386,7 +399,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                   }
                 >
                   <item.icon className="h-5 w-5 flex-shrink-0" />
-                  {!collapsed && <span>{item.name}</span>}
+                  {!collapsed && (
+                    <>
+                      <span className="flex-1">{item.name}</span>
+                      {item.name === 'Activities' && followUpCount > 0 && (
+                        <Badge className="h-5 min-w-5 px-1.5 text-xs bg-orange-500 text-white" aria-label={`${followUpCount} activities need follow-up`}>
+                          {followUpCount}
+                        </Badge>
+                      )}
+                    </>
+                  )}
                 </NavLink>
               </li>
             );

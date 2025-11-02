@@ -42,7 +42,7 @@ import {
   PLATFORM_CHOICES,
   SERVICE_KPI_PRESETS
 } from '@/api/types/campaigns'
-import { useUsersList } from '@/api/hooks/useUsers'
+import { useDepartmentUsers } from '@/api/hooks/useUsers'
 import { useAuthStore } from '@/stores/authStore'
 import { useContactPersons } from '@/api/hooks/useEntities'
 import { Plus, X, Users, UserPlus, ArrowLeft, Loader2, Target, TrendingUp } from 'lucide-react'
@@ -103,7 +103,7 @@ export function DigitalCampaignFormPage() {
   const updateCampaign = useUpdateCampaign()
 
   const currentUser = useAuthStore((state) => state.user)
-  const { data: usersData } = useUsersList({ is_active: true })
+  const { data: usersData } = useDepartmentUsers({ is_active: true })
   const users = usersData?.results || []
 
   const form = useForm<DigitalCampaignFormData>({

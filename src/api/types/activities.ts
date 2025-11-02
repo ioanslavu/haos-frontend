@@ -219,3 +219,38 @@ export const ACTIVITY_DIRECTION_ICONS: Record<ActivityDirection, string> = {
   outbound: '⬆️',
   internal: '🔄',
 };
+
+// Choice arrays for form dropdowns
+export const ACTIVITY_TYPE_CHOICES: ActivityType[] = [
+  'email',
+  'call',
+  'meeting',
+  'video_call',
+  'note',
+  'follow_up',
+  'task_created',
+  'status_change',
+  'document',
+  'social_media',
+  'event',
+  'negotiation',
+];
+
+export const ACTIVITY_SENTIMENT_CHOICES: ActivitySentiment[] = [
+  'very_positive',
+  'positive',
+  'neutral',
+  'negative',
+  'very_negative',
+];
+
+export const ACTIVITY_DIRECTION_CHOICES: ActivityDirection[] = [
+  'inbound',
+  'outbound',
+  'internal',
+];
+
+// Note: Activity model doesn't have a 'status' field - it has 'type' and 'direction'
+// If ActivityFormDialog uses status, it should be removed or mapped to another field
+export const ACTIVITY_STATUS_LABELS = ACTIVITY_DIRECTION_LABELS;
+export const ACTIVITY_STATUS_CHOICES = ACTIVITY_DIRECTION_CHOICES;

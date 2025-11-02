@@ -33,6 +33,7 @@ import { cn } from '@/lib/utils';
 import { ClientHealthScore } from '@/components/crm/ClientHealthScore';
 import { ServiceMetricsUpdateDialog } from '@/components/digital/ServiceMetricsUpdateDialog';
 import { KPIProgressUpdateDialog } from '@/components/digital/KPIProgressUpdateDialog';
+import { ActivityTimeline } from '@/components/activities/ActivityTimeline';
 
 export default function CampaignDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -822,6 +823,15 @@ export default function CampaignDetailPage() {
                   <div className="font-medium">{format(new Date(campaign.updated_at), 'PPP')}</div>
                 </div>
               </div>
+            </div>
+
+            {/* Activity Log Section */}
+            <div className="rounded-2xl bg-background/50 backdrop-blur-xl border border-white/10 p-6 shadow-lg">
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                Activity Log
+              </h2>
+              <ActivityTimeline campaignId={campaignId} />
             </div>
           </div>
         </div>

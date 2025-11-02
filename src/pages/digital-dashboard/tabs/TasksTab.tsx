@@ -26,21 +26,84 @@ import {
   Clock,
   Filter,
   Plus,
+  User,
   AlertTriangle,
+  ChevronRight,
+  Flag,
+  Tag as TagIcon,
 } from 'lucide-react';
 import { useTasks, useTaskStats, useMyTasks, useOverdueTasks, useUpdateTaskStatus } from '@/api/hooks/useTasks';
 import {
   Task,
   TASK_PRIORITY_LABELS,
+  TASK_PRIORITY_COLORS,
+  TASK_STATUS_LABELS,
+  TASK_STATUS_COLORS,
   TASK_TYPE_LABELS,
+  TASK_TAG_LABELS,
+  TASK_TAG_COLORS,
   TaskStatus,
 } from '@/api/types/tasks';
-import { format } from 'date-fns';
+import { formatDistanceToNow, format, isToday, isTomorrow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { TaskFormDialog } from '@/pages/digital/components/TaskFormDialog';
 import { TaskViewSheet } from '@/pages/digital/components/TaskViewSheet';
 import { EmployeeTaskFilter } from '@/pages/digital/components/EmployeeTaskFilter';
-import { TaskKanbanView } from '@/pages/digital/components/TaskKanbanView';
+import { useAuthStore } from '@/stores/authStore';
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  pointerWithin,
+} from '@dnd-kit/core';
+import { useDroppable } from '@dnd-kit/core';
+import { useDraggable } from '@dnd-kit/core';
+import { snapCenterToCursor } from '@dnd-kit/modifiers';
+
+// Droppable Column Component
+function DroppableColumn({ id, children }: { id: string; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        'transition-colors',
+        isOver && 'bg-primary/5 ring-2 ring-primary/50 rounded-lg'
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+// Draggable Task Card Component
+function DraggableTaskCard({ task, children, onClick }: { task: Task; children: React.ReactNode; onClick: () => void }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: task.id,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      className={cn(isDragging && 'opacity-30')}
+      onClick={(e) => {
+        // Only trigger onClick if not dragging
+        if (!isDragging) {
+          onClick();
+        }
+      }}
+    >
+      {children}
+    </div>
+  );
+}
 
 interface TasksTabProps {
   searchQuery: string;
@@ -59,8 +122,19 @@ export function TasksTab({ searchQuery, filterStatus, filterPriority, startDate,
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [taskFormOpen, setTaskFormOpen] = useState(false);
+  const [activeTask, setActiveTask] = useState<Task | null>(null);
 
+  const currentUser = useAuthStore((state) => state.user);
   const updateTaskStatus = useUpdateTaskStatus();
+
+  // Setup drag sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px movement required to start dragging
+      },
+    })
+  );
 
   // Build filter params
   const filterParams: any = {
@@ -93,6 +167,40 @@ export function TasksTab({ searchQuery, filterStatus, filterPriority, startDate,
     task.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Group tasks by status for kanban view
+  const tasksByStatus = {
+    todo: filteredTasks?.filter(t => t.status === 'todo') || [],
+    in_progress: filteredTasks?.filter(t => t.status === 'in_progress') || [],
+    blocked: filteredTasks?.filter(t => t.status === 'blocked') || [],
+    review: filteredTasks?.filter(t => t.status === 'review') || [],
+    done: filteredTasks?.filter(t => t.status === 'done') || [],
+  };
+
+  const statusColumns = [
+    { id: 'todo', label: 'To Do', color: 'bg-gray-500', icon: Clock },
+    { id: 'in_progress', label: 'In Progress', color: 'bg-blue-500', icon: AlertCircle },
+    { id: 'blocked', label: 'Blocked', color: 'bg-red-500', icon: AlertTriangle },
+    { id: 'review', label: 'In Review', color: 'bg-orange-500', icon: Calendar },
+    { id: 'done', label: 'Done', color: 'bg-green-500', icon: CheckCircle },
+  ];
+
+  const getPriorityColor = (priority: number) => {
+    const colors = {
+      1: 'text-gray-500',
+      2: 'text-blue-500',
+      3: 'text-orange-500',
+      4: 'text-red-500',
+    };
+    return colors[priority as keyof typeof colors] || 'text-gray-500';
+  };
+
+  const getDeadlineText = (dueDate: string) => {
+    const date = new Date(dueDate);
+    if (isToday(date)) return 'Due today';
+    if (isTomorrow(date)) return 'Due tomorrow';
+    return formatDistanceToNow(date, { addSuffix: true });
+  };
+
   const handleTaskClick = (task: Task) => {
     setSelectedTask(task);
     setTaskViewOpen(true);
@@ -104,15 +212,61 @@ export function TasksTab({ searchQuery, filterStatus, filterPriority, startDate,
     setTaskFormOpen(true);
   };
 
-  const handleStatusChange = async (task: Task, newStatus: TaskStatus) => {
-    try {
-      await updateTaskStatus.mutateAsync({ id: task.id, status: newStatus });
-    } catch (error) {
-      console.error('Failed to update task status:', error);
+  const handleNewTask = () => {
+    if (onNewTask) {
+      onNewTask();
     }
   };
 
+  const assignedUsers = (task: Task) => task.assigned_to_users_detail || [];
+
+  // Drag handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    const taskId = event.active.id as number;
+    const task = filteredTasks?.find((t) => t.id === taskId);
+    if (task) {
+      setActiveTask(task);
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over) {
+      setActiveTask(null);
+      return;
+    }
+
+    const taskId = active.id as number;
+    const newStatus = over.id as TaskStatus;
+
+    // Find the task
+    const task = filteredTasks?.find((t) => t.id === taskId);
+
+    if (task && task.status !== newStatus) {
+      // Update task status
+      try {
+        await updateTaskStatus.mutateAsync({ id: taskId, status: newStatus });
+      } catch (error) {
+        console.error('Failed to update task status:', error);
+      }
+    }
+
+    setActiveTask(null);
+  };
+
+  const handleDragCancel = () => {
+    setActiveTask(null);
+  };
+
   return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={pointerWithin}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
+    >
     <div className="space-y-6">
       {/* Task Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -224,12 +378,146 @@ export function TasksTab({ searchQuery, filterStatus, filterPriority, startDate,
       </div>
 
       {/* Kanban Board */}
-      <TaskKanbanView
-        tasks={filteredTasks || []}
-        onEdit={setEditingTask}
-        onStatusChange={handleStatusChange}
-        onClick={handleTaskClick}
-      />
+      <div className="grid grid-cols-5 gap-4">
+        {statusColumns.map((column) => {
+          const Icon = column.icon;
+          return (
+            <DroppableColumn key={column.id} id={column.id}>
+              <Card className="h-[600px] flex flex-col">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Icon className="h-4 w-4 text-muted-foreground" />
+                      <CardTitle className="text-sm">{column.label}</CardTitle>
+                    </div>
+                    <Badge variant="secondary">
+                      {tasksByStatus[column.id as keyof typeof tasksByStatus].length}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex-1 overflow-auto">
+                  <div className="space-y-2">
+                    {tasksByStatus[column.id as keyof typeof tasksByStatus].map((task) => (
+                      <DraggableTaskCard key={task.id} task={task} onClick={() => handleTaskClick(task)}>
+                        <Card className="p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow">
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <h4 className="text-sm font-medium line-clamp-2 flex-1">{task.title}</h4>
+                          <Flag className={cn("h-3 w-3 flex-shrink-0", getPriorityColor(task.priority))} />
+                        </div>
+
+                        {task.description && (
+                          <p className="text-xs text-muted-foreground line-clamp-2">
+                            {task.description}
+                          </p>
+                        )}
+
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <Badge variant="outline" className="text-xs">
+                            {TASK_TYPE_LABELS[task.task_type]}
+                          </Badge>
+                          <Badge variant="secondary" className="text-xs">
+                            {TASK_PRIORITY_LABELS[task.priority]}
+                          </Badge>
+                          {task.tag && (
+                            <Badge variant={TASK_TAG_COLORS[task.tag] as any} className="text-xs">
+                              <TagIcon className="mr-1 h-2 w-2" />
+                              {TASK_TAG_LABELS[task.tag]}
+                            </Badge>
+                          )}
+                        </div>
+
+                        {task.campaign_detail && (
+                          <div className="text-xs text-muted-foreground">
+                            <span className="font-medium">Campaign:</span> {task.campaign_detail.name}
+                          </div>
+                        )}
+
+                        {task.entity_detail && (
+                          <div className="text-xs text-muted-foreground">
+                            <span className="font-medium">Client:</span> {task.entity_detail.display_name}
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between pt-2 border-t">
+                          {assignedUsers(task).length > 0 ? (
+                            <div className="flex items-center gap-1">
+                              <div className="flex -space-x-2">
+                                {assignedUsers(task).slice(0, 3).map((user) => (
+                                  <Avatar key={user.id} className="h-5 w-5 border-2 border-background">
+                                    <AvatarFallback className="text-xs">
+                                      {user.full_name.substring(0, 2).toUpperCase()}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                ))}
+                              </div>
+                              {assignedUsers(task).length > 3 && (
+                                <span className="text-xs text-muted-foreground">
+                                  +{assignedUsers(task).length - 3}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <User className="h-3 w-3" />
+                              <span>Unassigned</span>
+                            </div>
+                          )}
+
+                          {task.due_date && (
+                            <div className={cn(
+                              "flex items-center gap-1 text-xs",
+                              task.is_overdue ? "text-red-600" : "text-muted-foreground"
+                            )}>
+                              <Clock className="h-3 w-3" />
+                              <span>{getDeadlineText(task.due_date)}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                        </Card>
+                      </DraggableTaskCard>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </DroppableColumn>
+          );
+        })}
+      </div>
+
+      {/* Drag Overlay - shows the task being dragged */}
+      <DragOverlay modifiers={[snapCenterToCursor]}>
+        {activeTask ? (
+          <Card className="p-3 cursor-grabbing shadow-2xl rotate-2 w-[280px]">
+            <div className="space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <h4 className="text-sm font-medium line-clamp-2 flex-1">{activeTask.title}</h4>
+                <Flag className={cn("h-3 w-3 flex-shrink-0", getPriorityColor(activeTask.priority))} />
+              </div>
+              {activeTask.description && (
+                <p className="text-xs text-muted-foreground line-clamp-2">
+                  {activeTask.description}
+                </p>
+              )}
+              <div className="flex items-center gap-1 flex-wrap">
+                <Badge variant="outline" className="text-xs">
+                  {TASK_TYPE_LABELS[activeTask.task_type]}
+                </Badge>
+                <Badge variant="secondary" className="text-xs">
+                  {TASK_PRIORITY_LABELS[activeTask.priority]}
+                </Badge>
+                {activeTask.tag && (
+                  <Badge variant={TASK_TAG_COLORS[activeTask.tag] as any} className="text-xs">
+                    <TagIcon className="mr-1 h-2 w-2" />
+                    {TASK_TAG_LABELS[activeTask.tag]}
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </Card>
+        ) : null}
+      </DragOverlay>
 
       {/* Follow-up Tasks */}
       <Card>
@@ -329,5 +617,6 @@ export function TasksTab({ searchQuery, filterStatus, filterPriority, startDate,
         onEdit={handleEditTask}
       />
     </div>
+    </DndContext>
   );
 }

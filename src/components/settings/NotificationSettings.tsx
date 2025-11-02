@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bell, Clock, Moon, Mail, Volume2, VolumeX } from 'lucide-react';
+import { Bell, Moon, Volume2, VolumeX } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -26,8 +26,6 @@ export function NotificationSettings() {
   const [quietHours, setQuietHours] = useState<'none' | 'evening' | 'night' | 'weekend' | 'custom'>('none');
   const [quietStart, setQuietStart] = useState('');
   const [quietEnd, setQuietEnd] = useState('');
-  const [enableDigest, setEnableDigest] = useState(false);
-  const [digestTime, setDigestTime] = useState('09:00:00');
   const [muteAll, setMuteAll] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -45,8 +43,6 @@ export function NotificationSettings() {
       setQuietHours(preferences.quiet_hours);
       setQuietStart(preferences.quiet_hours_start || '');
       setQuietEnd(preferences.quiet_hours_end || '');
-      setEnableDigest(preferences.enable_daily_digest);
-      setDigestTime(preferences.digest_time);
       setMuteAll(preferences.mute_all_alerts);
     }
   }, [preferences]);
@@ -65,8 +61,6 @@ export function NotificationSettings() {
         quiet_hours: quietHours,
         quiet_hours_start: quietStart || null,
         quiet_hours_end: quietEnd || null,
-        enable_daily_digest: enableDigest,
-        digest_time: digestTime,
         mute_all_alerts: muteAll,
       });
       setHasChanges(false);
@@ -362,53 +356,6 @@ export function NotificationSettings() {
                   }}
                 />
               </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Daily Digest Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Mail className="h-5 w-5" />
-            Daily Digest
-          </CardTitle>
-          <CardDescription>
-            Receive a daily summary instead of individual alerts
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="enable-digest">Enable Daily Digest</Label>
-              <p className="text-sm text-muted-foreground">
-                Get all alerts in one daily notification
-              </p>
-            </div>
-            <Switch
-              id="enable-digest"
-              checked={enableDigest}
-              onCheckedChange={(checked) => {
-                setEnableDigest(checked);
-                markChanged();
-              }}
-            />
-          </div>
-
-          {enableDigest && (
-            <div className="space-y-2">
-              <Label htmlFor="digest-time">Delivery Time</Label>
-              <Input
-                id="digest-time"
-                type="time"
-                value={digestTime}
-                onChange={(e) => {
-                  setDigestTime(e.target.value + ':00');
-                  markChanged();
-                }}
-                className="w-48"
-              />
             </div>
           )}
         </CardContent>
