@@ -6,6 +6,14 @@ import { toast } from 'sonner';
 // API endpoints
 const ACTIVITIES_BASE_URL = '/api/v1/crm/activities';
 
+// Paginated response type
+export interface PaginatedActivitiesResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: Activity[];
+}
+
 // Fetch activities with filters
 export const useActivities = (params?: {
   type?: string | string[];
@@ -22,6 +30,7 @@ export const useActivities = (params?: {
   my_activities?: boolean;
   activity_date_gte?: string;
   activity_date_lte?: string;
+  search?: string;
 }) => {
   const queryParams = new URLSearchParams();
 
@@ -42,7 +51,7 @@ export const useActivities = (params?: {
   return useQuery({
     queryKey: ['activities', params],
     queryFn: async () => {
-      const response = await apiClient.get<Activity[]>(
+      const response = await apiClient.get<PaginatedActivitiesResponse>(
         `${ACTIVITIES_BASE_URL}/${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
       );
       return response.data;

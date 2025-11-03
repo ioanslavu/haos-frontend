@@ -46,6 +46,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { useAuthStore } from '@/stores/authStore';
 
 interface ServicesTabProps {
   filterService: string;
@@ -233,6 +234,7 @@ const ServiceMetricCard = ({ title, icon: Icon, metrics, isEmpty, className, cam
 
 export function ServicesTab({ filterService, filterPeriod, startDate, endDate, filterClient, filterStatus }: ServicesTabProps) {
   const { data: campaigns } = useCampaigns();
+  const currentUser = useAuthStore((state) => state.user);
 
   // Filter digital campaigns
   const digitalCampaigns = useMemo(() => {
@@ -261,14 +263,15 @@ export function ServicesTab({ filterService, filterPeriod, startDate, endDate, f
       sum + parseFloat(c.budget_allocated || c.value || '0'), 0);
     const totalSpent = digitalCampaigns.reduce((sum, c) =>
       sum + parseFloat(c.budget_spent || '0'), 0);
-    const totalRevenue = digitalCampaigns.reduce((sum, c) =>
-      sum + parseFloat(c.value || '0'), 0);
+    const avgKpiCompletion = totalCampaigns > 0
+      ? digitalCampaigns.reduce((sum, c) => sum + (c.kpi_completion || 0), 0) / totalCampaigns
+      : 0;
 
     return {
       activeServices: uniqueServices.size,
       totalCampaigns,
       budgetUtilization: totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0,
-      totalRevenue
+      avgKpiCompletion
     };
   }, [digitalCampaigns]);
 
@@ -502,12 +505,13 @@ export function ServicesTab({ filterService, filterPeriod, startDate, endDate, f
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Avg KPI Completion</CardTitle>
+            <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">€{overallStats.totalRevenue.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">From all campaigns</p>
+            <div className="text-2xl font-bold">{overallStats.avgKpiCompletion.toFixed(1)}%</div>
+            <Progress value={overallStats.avgKpiCompletion} className="mt-2" />
+            <p className="text-xs text-muted-foreground mt-2">Across all campaigns</p>
           </CardContent>
         </Card>
       </div>
@@ -663,7 +667,7 @@ export function ServicesTab({ filterService, filterPeriod, startDate, endDate, f
                   <TableHead>Completed</TableHead>
                   <TableHead>Budget Utilization</TableHead>
                   <TableHead>Avg KPI</TableHead>
-                  <TableHead>Revenue</TableHead>
+                  {currentUser?.role !== 'digital_employee' && <TableHead>Revenue</TableHead>}
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -699,7 +703,9 @@ export function ServicesTab({ filterService, filterPeriod, startDate, endDate, f
                         <span>{stats.avgKpi.toFixed(1)}%</span>
                       </div>
                     </TableCell>
-                    <TableCell>€{stats.revenue.toLocaleString()}</TableCell>
+                    {currentUser?.role !== 'digital_employee' && (
+                      <TableCell>€{stats.revenue.toLocaleString()}</TableCell>
+                    )}
                     <TableCell>
                       <Badge variant={
                         stats.avgKpi >= 80 ? 'default' :

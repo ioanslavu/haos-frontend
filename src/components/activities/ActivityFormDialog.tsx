@@ -119,7 +119,7 @@ export function ActivityFormDialog({
 
   const users = usersData?.results || []
   const campaigns = campaignsData?.results || []
-  const tasks = tasksData || []
+  const tasks = tasksData?.results || []
 
   const form = useForm<ActivityFormData>({
     resolver: zodResolver(activityFormSchema),

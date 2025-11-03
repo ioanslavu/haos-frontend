@@ -4,23 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
-  ArrowUpRight,
-  ArrowDownRight,
   TrendingUp,
-  Users,
   DollarSign,
   Activity,
   Clock,
-  AlertCircle,
-  CheckCircle,
-  XCircle,
   MoreHorizontal
 } from 'lucide-react';
 import { useCampaigns } from '@/api/hooks/useCampaigns';
 import { useTaskStats } from '@/api/hooks/useTasks';
-import { useActivities } from '@/api/hooks/useActivities';
-import { cn } from '@/lib/utils';
-import { formatDistanceToNow } from 'date-fns';
 
 interface OverviewTabProps {
   searchQuery: string;
@@ -34,14 +25,9 @@ export function OverviewTab({ filterPeriod }: OverviewTabProps) {
     status: ['active', 'confirmed'],
   });
   const { data: taskStats } = useTaskStats();
-  const { data: recentActivities } = useActivities({
-    my_activities: true,
-    limit: 5
-  });
 
   // Calculate stats
   const campaignsList = campaigns?.results || [];
-  const activitiesList = recentActivities?.results || [];
   const stats = {
     activeCampaigns: campaignsList.length || 0,
     totalBudget: campaignsList.reduce((sum, c) => sum + parseFloat(c.budget_allocated || '0'), 0) || 0,
@@ -203,94 +189,6 @@ export function OverviewTab({ filterPeriod }: OverviewTabProps) {
           </div>
         </CardContent>
       </Card>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Activities */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Activities</CardTitle>
-            <CardDescription>Latest interactions and updates</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {activitiesList.slice(0, 5).map((activity) => (
-                <div key={activity.id} className="flex items-start gap-3">
-                  <div className={cn(
-                    "mt-1 rounded-full p-1",
-                    activity.type === 'email' && "bg-blue-100 text-blue-600",
-                    activity.type === 'call' && "bg-green-100 text-green-600",
-                    activity.type === 'meeting' && "bg-purple-100 text-purple-600",
-                    activity.type === 'note' && "bg-gray-100 text-gray-600"
-                  )}>
-                    {activity.type === 'email' && <AlertCircle className="h-3 w-3" />}
-                    {activity.type === 'call' && <CheckCircle className="h-3 w-3" />}
-                    {activity.type === 'meeting' && <Users className="h-3 w-3" />}
-                    {activity.type === 'note' && <AlertCircle className="h-3 w-3" />}
-                  </div>
-                  <div className="flex-1 space-y-1">
-                    <p className="text-sm font-medium">{activity.subject}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {activity.entity_detail?.display_name} • {formatDistanceToNow(new Date(activity.activity_date), { addSuffix: true })}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Service Performance */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Service Performance</CardTitle>
-            <CardDescription>Performance by service type</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-blue-500" />
-                  <span className="text-sm">PPC Campaigns</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">85%</span>
-                  <ArrowUpRight className="h-3 w-3 text-green-600" />
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-purple-500" />
-                  <span className="text-sm">TikTok UGC</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">92%</span>
-                  <ArrowUpRight className="h-3 w-3 text-green-600" />
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-green-500" />
-                  <span className="text-sm">DSP Distribution</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">78%</span>
-                  <ArrowDownRight className="h-3 w-3 text-red-600" />
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-orange-500" />
-                  <span className="text-sm">Playlist Pitching</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">70%</span>
-                  <ArrowUpRight className="h-3 w-3 text-green-600" />
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }

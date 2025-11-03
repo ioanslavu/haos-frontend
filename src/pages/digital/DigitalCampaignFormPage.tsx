@@ -866,31 +866,33 @@ export function DigitalCampaignFormPage() {
 
                 {/* Service Fee Model Fields */}
                 {selectedPricingModel === 'service_fee' && (
-                  <div className="grid grid-cols-3 gap-4">
-                    {/* Campaign Value */}
-                    <FormField
-                      control={form.control}
-                      name="value"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Campaign Value *</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="text"
-                              placeholder="10000.00"
-                              {...field}
-                              value={field.value || ''}
-                              onChange={(e) => {
-                                const value = e.target.value.replace(/[^\d.]/g, '')
-                                field.onChange(value)
-                              }}
-                            />
-                          </FormControl>
-                          <FormDescription>Total contract value (client pays us)</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  <div className={`grid gap-4 ${currentUser?.role === 'digital_employee' ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                    {/* Campaign Value - Hidden for digital_employee */}
+                    {currentUser?.role !== 'digital_employee' && (
+                      <FormField
+                        control={form.control}
+                        name="value"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Campaign Value *</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="text"
+                                placeholder="10000.00"
+                                {...field}
+                                value={field.value || ''}
+                                onChange={(e) => {
+                                  const value = e.target.value.replace(/[^\d.]/g, '')
+                                  field.onChange(value)
+                                }}
+                              />
+                            </FormControl>
+                            <FormDescription>Total contract value (client pays us)</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
 
                     {/* Budget Allocated */}
                     <FormField

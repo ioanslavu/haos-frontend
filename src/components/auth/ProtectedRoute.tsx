@@ -78,6 +78,16 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     }
   }
 
+  // Restrict digital_employee from accessing certain digital pages
+  const restrictedDigitalPaths = ['/digital/services', '/digital/financial', '/digital/reporting'];
+  const isRestrictedDigitalPath = restrictedDigitalPaths.some(path =>
+    location.pathname.startsWith(path)
+  );
+
+  if (user?.role === 'digital_employee' && isRestrictedDigitalPath) {
+    return <Navigate to="/digital/overview" replace />;
+  }
+
   // Check for admin requirement
   if (requireAdmin && !isAdmin()) {
     return (

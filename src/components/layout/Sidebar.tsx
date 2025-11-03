@@ -128,7 +128,8 @@ const digitalNavigation: NavigationItem[] = [
     show: (user) => {
       const isDigital = user?.department?.name?.toLowerCase() === 'digital' ||
                         user?.department?.toLowerCase() === 'digital';
-      return isDigital && user?.role !== 'administrator';
+      // Hide for digital_employee, show only for digital_manager
+      return isDigital && user?.role !== 'administrator' && user?.role !== 'digital_employee';
     },
   },
   {
@@ -138,7 +139,8 @@ const digitalNavigation: NavigationItem[] = [
     show: (user) => {
       const isDigital = user?.department?.name?.toLowerCase() === 'digital' ||
                         user?.department?.toLowerCase() === 'digital';
-      return isDigital && user?.role !== 'administrator';
+      // Hide for digital_employee, show only for digital_manager
+      return isDigital && user?.role !== 'administrator' && user?.role !== 'digital_employee';
     },
   },
   {
@@ -158,7 +160,8 @@ const digitalNavigation: NavigationItem[] = [
     show: (user) => {
       const isDigital = user?.department?.name?.toLowerCase() === 'digital' ||
                         user?.department?.toLowerCase() === 'digital';
-      return isDigital && user?.role !== 'administrator';
+      // Hide for digital_employee, show only for digital_manager
+      return isDigital && user?.role !== 'administrator' && user?.role !== 'digital_employee';
     },
   },
 ];
@@ -184,13 +187,13 @@ const bottomNavigation: NavigationItem[] = [
     show: (user) => user?.role !== 'guest', // All non-guests
     tourId: 'entities-nav',
   },
-  {
-    name: 'Activities',
-    href: '/activities',
-    icon: Activity,
-    show: (user) => user?.role !== 'guest', // All non-guests
-    tourId: 'activities-nav',
-  },
+  // {
+  //   name: 'Activities',
+  //   href: '/activities',
+  //   icon: Activity,
+  //   show: (user) => user?.role !== 'guest', // All non-guests
+  //   tourId: 'activities-nav',
+  // },
 ];
 
 const digitalSubmenu: NavigationItem[] = [

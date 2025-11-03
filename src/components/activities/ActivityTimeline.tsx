@@ -20,8 +20,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ActivityFormDialog } from './ActivityFormDialog'
-import { useActivities, useActivitiesByEntity, useDeleteActivity } from '@/api/hooks/useActivities'
-import { useTasks } from '@/api/hooks/useTasks'
+import { useActivities, useDeleteActivity } from '@/api/hooks/useActivities'
 import {
   Activity,
   ACTIVITY_TYPE_LABELS,
@@ -81,22 +80,20 @@ export function ActivityTimeline({
   const [createFollowUpTaskId, setCreateFollowUpTaskId] = useState<number | null>(null)
 
   // Fetch activities
-  const { data: activitiesData, isLoading } = entityId
-    ? useActivitiesByEntity(entityId)
-    : useActivities({
-        campaign: campaignId,
-        task: taskId,
-        activity_type: filterType !== 'all' ? filterType : undefined,
-        sentiment: filterSentiment !== 'all' ? filterSentiment : undefined,
-      })
+  const { data: activitiesData, isLoading } = useActivities({
+    entity: entityId,
+    campaign: campaignId,
+    type: filterType !== 'all' ? filterType : undefined,
+    sentiment: filterSentiment !== 'all' ? filterSentiment : undefined,
+  })
 
-  const activities = activitiesData || []
+  const activities = activitiesData?.results || []
   const deleteActivity = useDeleteActivity()
 
   // Filter activities based on search
   const filteredActivities = activities.filter(activity => {
     if (searchQuery && !activity.subject.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        (!activity.description || !activity.description.toLowerCase().includes(searchQuery.toLowerCase()))) {
+        (!activity.content || !activity.content.toLowerCase().includes(searchQuery.toLowerCase()))) {
       return false
     }
     return true
@@ -318,9 +315,9 @@ export function ActivityTimeline({
                                   )}
                                 </div>
 
-                                {activity.description && (
+                                {activity.content && (
                                   <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                                    {activity.description}
+                                    {activity.content}
                                   </p>
                                 )}
 

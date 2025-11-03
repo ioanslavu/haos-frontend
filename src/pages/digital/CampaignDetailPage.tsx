@@ -34,14 +34,16 @@ import { ClientHealthScore } from '@/components/crm/ClientHealthScore';
 import { ServiceMetricsUpdateDialog } from '@/components/digital/ServiceMetricsUpdateDialog';
 import { KPIProgressUpdateDialog } from '@/components/digital/KPIProgressUpdateDialog';
 import { ActivityTimeline } from '@/components/activities/ActivityTimeline';
+import { useAuthStore } from '@/stores/authStore';
 
 export default function CampaignDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const currentUser = useAuthStore((state) => state.user);
   const campaignId = Number(id);
   const { data: campaign, isLoading } = useCampaign(campaignId, !!id);
-  const { data: tasks } = useTasks();
-  const campaignTasks = tasks?.results?.filter(t => t.campaign?.id === Number(id)) || [];
+  const { data: tasks } = useTasks({ campaign: campaignId });
+  const campaignTasks = tasks?.results || [];
 
   // Parallel fetch: Start fetching health score immediately
   const { data: healthScoreProfile, isLoading: healthScoreLoading } = useClientProfileByEntity(
@@ -279,16 +281,18 @@ export default function CampaignDetailPage() {
                   </div>
                 )}
 
-                {/* Value */}
-                <div className="space-y-2">
-                  <div className="text-sm text-muted-foreground flex items-center gap-2">
-                    <DollarSign className="h-4 w-4" />
-                    Campaign Value
+                {/* Value - Hidden for digital_employee */}
+                {currentUser?.role !== 'digital_employee' && (
+                  <div className="space-y-2">
+                    <div className="text-sm text-muted-foreground flex items-center gap-2">
+                      <DollarSign className="h-4 w-4" />
+                      Campaign Value
+                    </div>
+                    <div className="font-medium text-lg">
+                      {formatCurrency(campaign.value)} {campaign.currency}
+                    </div>
                   </div>
-                  <div className="font-medium text-lg">
-                    {formatCurrency(campaign.value)} {campaign.currency}
-                  </div>
-                </div>
+                )}
               </div>
 
               <Separator className="my-6" />
@@ -476,41 +480,49 @@ export default function CampaignDetailPage() {
                   </div>
                 )}
 
-                {/* Profit */}
-                {campaign.profit !== null && campaign.profit !== undefined ? (
-                  <div className="space-y-2">
-                    <div className="text-sm text-muted-foreground">Profit</div>
-                    <div className={cn(
-                      "font-medium text-lg",
-                      Number(campaign.profit) >= 0 ? "text-green-600" : "text-red-600"
-                    )}>
-                      {formatCurrency(campaign.profit)} {campaign.currency}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="text-sm text-muted-foreground">Profit</div>
-                    <div className="text-sm text-muted-foreground">Not calculated</div>
-                  </div>
+                {/* Profit - Hidden for digital_employee */}
+                {currentUser?.role !== 'digital_employee' && (
+                  <>
+                    {campaign.profit !== null && campaign.profit !== undefined ? (
+                      <div className="space-y-2">
+                        <div className="text-sm text-muted-foreground">Profit</div>
+                        <div className={cn(
+                          "font-medium text-lg",
+                          Number(campaign.profit) >= 0 ? "text-green-600" : "text-red-600"
+                        )}>
+                          {formatCurrency(campaign.profit)} {campaign.currency}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="text-sm text-muted-foreground">Profit</div>
+                        <div className="text-sm text-muted-foreground">Not calculated</div>
+                      </div>
+                    )}
+                  </>
                 )}
 
-                {/* Internal Cost Estimate */}
-                {campaign.internal_cost_estimate ? (
-                  <div className="space-y-2">
-                    <div className="text-sm text-muted-foreground">Internal Cost Estimate</div>
-                    <div className="font-medium text-lg">
-                      {formatCurrency(campaign.internal_cost_estimate)} {campaign.currency}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="text-sm text-muted-foreground">Internal Cost Estimate</div>
-                    <div className="text-sm text-muted-foreground">Not set</div>
-                  </div>
+                {/* Internal Cost Estimate - Hidden for digital_employee */}
+                {currentUser?.role !== 'digital_employee' && (
+                  <>
+                    {campaign.internal_cost_estimate ? (
+                      <div className="space-y-2">
+                        <div className="text-sm text-muted-foreground">Internal Cost Estimate</div>
+                        <div className="font-medium text-lg">
+                          {formatCurrency(campaign.internal_cost_estimate)} {campaign.currency}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="text-sm text-muted-foreground">Internal Cost Estimate</div>
+                        <div className="text-sm text-muted-foreground">Not set</div>
+                      </div>
+                    )}
+                  </>
                 )}
 
-                {/* Revenue Share Fields */}
-                {campaign.pricing_model === 'revenue_share' && (
+                {/* Revenue Share Fields - Hidden for digital_employee */}
+                {currentUser?.role !== 'digital_employee' && campaign.pricing_model === 'revenue_share' && (
                   <>
                     {campaign.revenue_generated && (
                       <div className="space-y-2">
@@ -547,19 +559,23 @@ export default function CampaignDetailPage() {
                   </>
                 )}
 
-                {/* Invoice Status */}
-                {campaign.invoice_status ? (
-                  <div className="space-y-2">
-                    <div className="text-sm text-muted-foreground">Invoice Status</div>
-                    <Badge className={cn("text-white", getInvoiceStatusColor(campaign.invoice_status))}>
-                      {campaign.invoice_status_display || campaign.invoice_status}
-                    </Badge>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="text-sm text-muted-foreground">Invoice Status</div>
-                    <div className="text-sm text-muted-foreground">No invoice</div>
-                  </div>
+                {/* Invoice Status - Hidden for digital_employee */}
+                {currentUser?.role !== 'digital_employee' && (
+                  <>
+                    {campaign.invoice_status ? (
+                      <div className="space-y-2">
+                        <div className="text-sm text-muted-foreground">Invoice Status</div>
+                        <Badge className={cn("text-white", getInvoiceStatusColor(campaign.invoice_status))}>
+                          {campaign.invoice_status_display || campaign.invoice_status}
+                        </Badge>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="text-sm text-muted-foreground">Invoice Status</div>
+                        <div className="text-sm text-muted-foreground">No invoice</div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>

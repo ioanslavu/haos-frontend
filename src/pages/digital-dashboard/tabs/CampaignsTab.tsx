@@ -42,6 +42,7 @@ import { useCampaigns, useUpdateCampaign } from '@/api/hooks/useCampaigns';
 import { formatDistanceToNow, format } from 'date-fns';
 import { SERVICE_TYPE_LABELS, PLATFORM_LABELS } from '@/api/types/campaigns';
 import { ServiceMetricsUpdateDialog } from '@/components/digital/ServiceMetricsUpdateDialog';
+import { useAuthStore } from '@/stores/authStore';
 import {
   DndContext,
   DragEndEvent,
@@ -110,6 +111,7 @@ function DraggableCampaignCard({ campaign, children, onClick }: { campaign: any;
 
 export function CampaignsTab({ searchQuery, filterStatus, filterService, filterPeriod, startDate, endDate, filterClient }: CampaignsTabProps) {
   const navigate = useNavigate();
+  const currentUser = useAuthStore((state) => state.user);
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('table');
   const [activeCampaign, setActiveCampaign] = useState<any | null>(null);
   const { data: campaigns, isLoading } = useCampaigns({
@@ -335,12 +337,19 @@ export function CampaignsTab({ searchQuery, filterStatus, filterService, filterP
                       <div>
                         <p className="text-sm font-medium">
                           {campaign.currency || '€'}{parseFloat(campaign.budget_spent || '0').toLocaleString()} /
-                          {campaign.currency || '€'}{parseFloat(campaign.budget_allocated || campaign.value).toLocaleString()}
+                          {currentUser?.role === 'digital_employee'
+                            ? `${campaign.currency || '€'}${parseFloat(campaign.budget_allocated || '0').toLocaleString()}`
+                            : `${campaign.currency || '€'}${parseFloat(campaign.budget_allocated || campaign.value).toLocaleString()}`
+                          }
                         </p>
                         <Progress
                           value={
                             ((parseFloat(campaign.budget_spent || '0') /
-                            parseFloat(campaign.budget_allocated || campaign.value || '1')) * 100)
+                            parseFloat(
+                              currentUser?.role === 'digital_employee'
+                                ? campaign.budget_allocated || '1'
+                                : campaign.budget_allocated || campaign.value || '1'
+                            )) * 100)
                           }
                           className="w-20 h-1 mt-1"
                         />
@@ -500,12 +509,15 @@ export function CampaignsTab({ searchQuery, filterStatus, filterService, filterP
                         </div>
 
                         <div className="flex items-center justify-between pt-2 border-t">
-                          <div className="flex items-center gap-1">
-                            <DollarSign className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-xs">
-                              {campaign.currency || '€'}{parseFloat(campaign.value).toLocaleString()}
-                            </span>
-                          </div>
+                          {/* Campaign Value - Hidden for digital_employee */}
+                          {currentUser?.role !== 'digital_employee' && (
+                            <div className="flex items-center gap-1">
+                              <DollarSign className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-xs">
+                                {campaign.currency || '€'}{parseFloat(campaign.value).toLocaleString()}
+                              </span>
+                            </div>
+                          )}
                           <div className="flex items-center gap-1">
                             <Target className="h-3 w-3 text-muted-foreground" />
                             <span className="text-xs">

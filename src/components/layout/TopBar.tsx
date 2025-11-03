@@ -39,7 +39,7 @@ export const TopBar: React.FC<TopBarProps> = ({
 
       <div className="flex-1 max-w-2xl mx-6">
         <button
-          onClick={() => setOpen(true)}
+          // onClick={() => setOpen(true)}
           aria-label="Open command palette to search"
           className="w-full h-12 rounded-2xl bg-background/50 backdrop-blur-sm border border-white/20 dark:border-white/10 hover:border-blue-500/50 transition-all duration-300 shadow-inner flex items-center px-4 gap-3 text-left group"
         >
