@@ -25,6 +25,7 @@ import {
   DollarSign,
   ClipboardList,
   Activity,
+  TrendingUp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -122,14 +123,14 @@ const digitalNavigation: NavigationItem[] = [
     },
   },
   {
-    name: 'Services',
-    href: '/digital/services',
+    name: 'Distributions',
+    href: '/digital/distributions',
     icon: Settings2,
     show: (user) => {
       const isDigital = user?.department?.name?.toLowerCase() === 'digital' ||
                         user?.department?.toLowerCase() === 'digital';
       // Hide for digital_employee, show only for digital_manager
-      return isDigital && user?.role !== 'administrator' && user?.role !== 'digital_employee';
+      return isDigital && user?.role !== 'administrator';
     },
   },
   {
@@ -187,19 +188,20 @@ const bottomNavigation: NavigationItem[] = [
     show: (user) => user?.role !== 'guest', // All non-guests
     tourId: 'entities-nav',
   },
-  // {
-  //   name: 'Activities',
-  //   href: '/activities',
-  //   icon: Activity,
-  //   show: (user) => user?.role !== 'guest', // All non-guests
-  //   tourId: 'activities-nav',
-  // },
+  {
+    name: 'Activities',
+    href: '/activities',
+    icon: Activity,
+    show: (user) => user?.role !== 'guest', // All non-guests
+    tourId: 'activities-nav',
+  },
 ];
 
 const digitalSubmenu: NavigationItem[] = [
   { name: 'Overview', href: '/digital/overview', icon: LayoutDashboard },
   { name: 'Campanii', href: '/digital/campaigns', icon: Megaphone },
-  { name: 'Servicii', href: '/digital/services', icon: Settings2 },
+  // { name: 'Servicii', href: '/digital/services', icon: Settings2 },
+  { name: 'Distributions', href: '/digital/distributions', icon: TrendingUp },
   { name: 'Financiar', href: '/digital/financial', icon: DollarSign },
   { name: 'Task-uri', href: '/digital/tasks', icon: CheckSquare },
   { name: 'Raportare & Insights', href: '/digital/reporting', icon: BarChart3 },

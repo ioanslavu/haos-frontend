@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Campaign, CAMPAIGN_HANDLER_ROLE_LABELS } from '@/types/campaign'
+import { Campaign, CAMPAIGN_ASSIGNMENT_ROLE_LABELS } from '@/types/campaign'
 import { useUpdateCampaign } from '@/api/hooks/useCampaigns'
 import { useDepartmentUsers } from '@/api/hooks/useUsers'
 import { Plus, X, Users } from 'lucide-react'
@@ -38,11 +38,11 @@ const handlerSchema = z.object({
   role: z.enum(['lead', 'support', 'observer']),
 })
 
-const handlersFormSchema = z.object({
-  handlers: z.array(handlerSchema),
+const assignmentsFormSchema = z.object({
+  assignments: z.array(handlerSchema),
 })
 
-type HandlersFormData = z.infer<typeof handlersFormSchema>
+type AssignmentsFormData = z.infer<typeof assignmentsFormSchema>
 
 interface CampaignHandlersDialogProps {
   open: boolean
@@ -61,43 +61,43 @@ export function CampaignHandlersDialog({
   const { data: usersData } = useDepartmentUsers({ is_active: true })
   const users = usersData?.results || []
 
-  const form = useForm<HandlersFormData>({
-    resolver: zodResolver(handlersFormSchema),
+  const form = useForm<AssignmentsFormData>({
+    resolver: zodResolver(assignmentsFormSchema),
     defaultValues: {
-      handlers: [],
+      assignments: [],
     },
   })
 
   const {
-    fields: handlerFields,
-    append: appendHandler,
-    remove: removeHandler,
+    fields: assignmentFields,
+    append: appendAssignment,
+    remove: removeAssignment,
   } = useFieldArray({
     control: form.control,
-    name: 'handlers',
+    name: 'assignments',
   })
 
   // Reset form when dialog opens or campaign changes
   useEffect(() => {
     if (open && campaign) {
       form.reset({
-        handlers: campaign.handlers?.map(h => ({ user: h.user, role: h.role })) || [],
+        assignments: campaign.assignments?.map(a => ({ user: a.user, role: a.role })) || [],
       })
     }
   }, [open, campaign, form])
 
-  const onSubmit = async (data: HandlersFormData) => {
+  const onSubmit = async (data: AssignmentsFormData) => {
     try {
       await updateCampaign.mutateAsync({
         id: campaign.id,
         data: {
-          handlers: data.handlers,
+          assignments: data.assignments,
         },
       })
-      toast.success('Campaign handlers updated successfully')
+      toast.success('Campaign assignments updated successfully')
       onOpenChange(false)
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Failed to update handlers')
+      toast.error(error?.response?.data?.message || 'Failed to update assignments')
     }
   }
 
@@ -123,16 +123,16 @@ export function CampaignHandlersDialog({
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => appendHandler({ user: undefined as any, role: 'support' })}
+                  onClick={() => appendAssignment({ user: undefined as any, role: 'support' })}
                 >
                   <Plus className="h-4 w-4 mr-1" />
-                  Add Handler
+                  Add Assignment
                 </Button>
               </div>
 
-              {handlerFields.length > 0 ? (
+              {assignmentFields.length > 0 ? (
                 <div className="space-y-2">
-                  {handlerFields.map((field, index) => (
+                  {assignmentFields.map((field, index) => (
                     <div
                       key={field.id}
                       className="flex gap-2 items-start border rounded-md p-3 bg-muted/30"
@@ -141,7 +141,7 @@ export function CampaignHandlersDialog({
                         {/* User Selection */}
                         <FormField
                           control={form.control}
-                          name={`handlers.${index}.user`}
+                          name={`assignments.${index}.user`}
                           render={({ field }) => (
                             <FormItem>
                               <Select
@@ -175,7 +175,7 @@ export function CampaignHandlersDialog({
                         {/* Role Selection */}
                         <FormField
                           control={form.control}
-                          name={`handlers.${index}.role`}
+                          name={`assignments.${index}.role`}
                           render={({ field }) => (
                             <FormItem>
                               <Select
@@ -188,7 +188,7 @@ export function CampaignHandlersDialog({
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  {Object.entries(CAMPAIGN_HANDLER_ROLE_LABELS).map(
+                                  {Object.entries(CAMPAIGN_ASSIGNMENT_ROLE_LABELS).map(
                                     ([value, label]) => (
                                       <SelectItem key={value} value={value}>
                                         {label}
@@ -207,7 +207,7 @@ export function CampaignHandlersDialog({
                         type="button"
                         variant="ghost"
                         size="icon"
-                        onClick={() => removeHandler(index)}
+                        onClick={() => removeAssignment(index)}
                         className="text-destructive hover:text-destructive"
                       >
                         <X className="h-4 w-4" />

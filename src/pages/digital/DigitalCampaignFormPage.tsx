@@ -34,7 +34,7 @@ import { ContactPersonFormDialog } from '@/pages/crm/components/ContactPersonFor
 import { FormProgress } from '@/components/ui/form-progress'
 import { ClientHealthScore } from '@/components/crm/ClientHealthScore'
 import { useCreateCampaign, useUpdateCampaign, useCampaign } from '@/api/hooks/useCampaigns'
-import { CAMPAIGN_STATUS_LABELS, CAMPAIGN_HANDLER_ROLE_LABELS, PRICING_MODEL_LABELS, INVOICE_STATUS_LABELS } from '@/types/campaign'
+import { CAMPAIGN_STATUS_LABELS, CAMPAIGN_ASSIGNMENT_ROLE_LABELS, PRICING_MODEL_LABELS, INVOICE_STATUS_LABELS } from '@/types/campaign'
 import {
   SERVICE_TYPE_LABELS,
   PLATFORM_LABELS,
@@ -551,6 +551,7 @@ export function DigitalCampaignFormPage() {
                             onValueChange={field.onChange}
                             placeholder={`Search for ${selectedClientType} client...`}
                             filter={selectedClientType === 'internal' ? { is_internal: true } : { is_internal: false }}
+                            useBusinessEndpoint={true}
                           />
                         </FormControl>
                         <Button
@@ -1371,7 +1372,7 @@ export function DigitalCampaignFormPage() {
                                     </SelectTrigger>
                                   </FormControl>
                                   <SelectContent>
-                                    {Object.entries(CAMPAIGN_HANDLER_ROLE_LABELS).map(([value, label]) => (
+                                    {Object.entries(CAMPAIGN_ASSIGNMENT_ROLE_LABELS).map(([value, label]) => (
                                       <SelectItem key={value} value={value}>
                                         {label}
                                       </SelectItem>

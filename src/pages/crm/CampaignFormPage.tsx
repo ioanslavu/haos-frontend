@@ -31,7 +31,7 @@ import { EntityFormDialog } from './components/EntityFormDialog'
 import { ContactPersonFormDialog } from './components/ContactPersonFormDialog'
 import { FormProgress } from '@/components/ui/form-progress'
 import { useCreateCampaign, useUpdateCampaign, useCampaign } from '@/api/hooks/useCampaigns'
-import { CAMPAIGN_STATUS_LABELS, CAMPAIGN_HANDLER_ROLE_LABELS } from '@/types/campaign'
+import { CAMPAIGN_STATUS_LABELS, CAMPAIGN_ASSIGNMENT_ROLE_LABELS } from '@/types/campaign'
 import { useUsersList } from '@/api/hooks/useUsers'
 import { useAuthStore } from '@/stores/authStore'
 import { useContactPersons } from '@/api/hooks/useEntities'
@@ -611,7 +611,7 @@ export function CampaignFormPage() {
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  {Object.entries(CAMPAIGN_HANDLER_ROLE_LABELS).map(([value, label]) => (
+                                  {Object.entries(CAMPAIGN_ASSIGNMENT_ROLE_LABELS).map(([value, label]) => (
                                     <SelectItem key={value} value={value}>
                                       {label}
                                     </SelectItem>

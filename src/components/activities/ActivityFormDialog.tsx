@@ -33,10 +33,10 @@ import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { EntitySearchCombobox } from '@/components/entities/EntitySearchCombobox'
+import { UserSearchCombobox } from '@/components/users/UserSearchCombobox'
 import { useCreateActivity, useUpdateActivity } from '@/api/hooks/useActivities'
 import { useCampaigns } from '@/api/hooks/useCampaigns'
 import { useTasks } from '@/api/hooks/useTasks'
-import { useUsersList } from '@/api/hooks/useUsers'
 import { useAuthStore } from '@/stores/authStore'
 import {
   Activity,
@@ -113,11 +113,9 @@ export function ActivityFormDialog({
   const updateActivity = useUpdateActivity()
 
   // Fetch related data
-  const { data: usersData } = useUsersList({ is_active: true })
   const { data: campaignsData } = useCampaigns()
   const { data: tasksData } = useTasks()
 
-  const users = usersData?.results || []
   const campaigns = campaignsData?.results || []
   const tasks = tasksData?.results || []
 
@@ -256,7 +254,7 @@ export function ActivityFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[95vw] sm:max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Edit Activity' : 'Log Activity'}</DialogTitle>
           <DialogDescription>
@@ -529,29 +527,13 @@ export function ActivityFormDialog({
                   <FormDescription className="text-xs">
                     Select team members who participated in this activity
                   </FormDescription>
-                  <div className="space-y-2 max-h-32 overflow-y-auto border rounded-lg p-2">
-                    {users.map((user) => (
-                      <div key={user.id} className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id={`participant-${user.id}`}
-                          checked={field.value?.includes(user.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              field.onChange([...(field.value || []), user.id])
-                            } else {
-                              field.onChange((field.value || []).filter(id => id !== user.id))
-                            }
-                          }}
-                          className="rounded border-gray-300"
-                        />
-                        <label htmlFor={`participant-${user.id}`} className="text-sm">
-                          {user.full_name || user.email}
-                          {user.id === currentUser?.id && ' (You)'}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
+                  <FormControl>
+                    <UserSearchCombobox
+                      value={field.value || []}
+                      onValueChange={field.onChange}
+                      placeholder="Search and add participants..."
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

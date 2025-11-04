@@ -10,16 +10,18 @@ export type CampaignStatus =
   | 'completed'
   | 'lost'
 
-export type CampaignHandlerRole = 'lead' | 'support' | 'observer'
+export type CampaignAssignmentRole = 'lead' | 'support' | 'observer'
 
-export interface CampaignHandler {
+export interface CampaignAssignment {
   id?: number
   user: number
   user_email?: string
   user_name?: string
-  role: CampaignHandlerRole
+  role: CampaignAssignmentRole
   role_display?: string
   assigned_at?: string
+  assigned_by?: number
+  assigned_by_email?: string
 }
 
 export type PricingModel = 'service_fee' | 'revenue_share'
@@ -73,7 +75,7 @@ export interface Campaign {
   department_data?: Record<string, any>
 
   // Relationships
-  handlers?: CampaignHandler[]
+  assignments?: CampaignAssignment[]
   tasks_count?: number
   activities_count?: number
 
@@ -114,7 +116,7 @@ export interface CampaignFormData {
   department_data?: Record<string, any>
   confirmed_at?: string
   notes?: string
-  handlers?: CampaignHandler[]
+  assignments?: CampaignAssignment[]
 }
 
 export interface CampaignFilters {
@@ -215,13 +217,13 @@ export const CAMPAIGN_STATUS_COLORS: Record<CampaignStatus, string> = {
   lost: 'bg-red-100 text-red-800',
 }
 
-export const CAMPAIGN_HANDLER_ROLE_LABELS: Record<CampaignHandlerRole, string> = {
+export const CAMPAIGN_ASSIGNMENT_ROLE_LABELS: Record<CampaignAssignmentRole, string> = {
   lead: 'Lead',
   support: 'Support',
   observer: 'Observer',
 }
 
-export const CAMPAIGN_HANDLER_ROLE_COLORS: Record<CampaignHandlerRole, string> = {
+export const CAMPAIGN_ASSIGNMENT_ROLE_COLORS: Record<CampaignAssignmentRole, string> = {
   lead: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
   support: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
   observer: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',

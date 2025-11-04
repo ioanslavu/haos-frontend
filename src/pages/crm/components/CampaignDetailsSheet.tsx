@@ -36,7 +36,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Campaign, CAMPAIGN_STATUS_LABELS, CAMPAIGN_STATUS_COLORS, CAMPAIGN_HANDLER_ROLE_COLORS } from '@/types/campaign';
+import { Campaign, CAMPAIGN_STATUS_LABELS, CAMPAIGN_STATUS_COLORS, CAMPAIGN_ASSIGNMENT_ROLE_COLORS } from '@/types/campaign';
 import { CampaignHandlersDialog } from './CampaignHandlersDialog';
 import { ENGAGEMENT_STAGE_COLORS, CONTACT_SENTIMENT_COLORS } from '@/types/contact';
 
@@ -303,9 +303,9 @@ export function CampaignDetailsSheet({
                   </Button>
                 </div>
 
-                {campaign.handlers && campaign.handlers.length > 0 ? (
+                {campaign.assignments && campaign.assignments.length > 0 ? (
                   <div className="space-y-2">
-                    {campaign.handlers.map((handler) => (
+                    {campaign.assignments.map((handler) => (
                       <div
                         key={handler.id}
                         className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30"
@@ -317,7 +317,7 @@ export function CampaignDetailsSheet({
                             <div className="text-xs text-muted-foreground">{handler.user_email}</div>
                           )}
                         </div>
-                        <Badge className={CAMPAIGN_HANDLER_ROLE_COLORS[handler.role]}>
+                        <Badge className={CAMPAIGN_ASSIGNMENT_ROLE_COLORS[handler.role]}>
                           {handler.role_display || handler.role}
                         </Badge>
                       </div>

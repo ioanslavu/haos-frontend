@@ -166,13 +166,20 @@ export function TaskFormDialog({
 
   const onSubmit = async (values: TaskFormValues) => {
     try {
+      // Map assigned_to_users to assigned_user_ids for API
+      const { assigned_to_users, ...rest } = values;
+      const payload = {
+        ...rest,
+        assigned_user_ids: assigned_to_users,
+      };
+
       if (isEdit && task) {
         await updateTask.mutateAsync({
           id: task.id,
-          data: values as TaskUpdateInput,
+          data: payload as TaskUpdateInput,
         });
       } else {
-        await createTask.mutateAsync(values as TaskCreateInput);
+        await createTask.mutateAsync(payload as TaskCreateInput);
       }
       onOpenChange(false);
       form.reset();

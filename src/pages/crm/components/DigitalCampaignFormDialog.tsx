@@ -39,7 +39,7 @@ import { RecordingSearchCombobox } from '@/components/catalog/RecordingSearchCom
 import { EntityFormDialog } from './EntityFormDialog'
 import { ContactPersonFormDialog } from './ContactPersonFormDialog'
 import { useCreateCampaign, useUpdateCampaign } from '@/api/hooks/useCampaigns'
-import { Campaign, CampaignStatus, CAMPAIGN_STATUS_LABELS, CAMPAIGN_HANDLER_ROLE_LABELS } from '@/types/campaign'
+import { Campaign, CampaignStatus, CAMPAIGN_STATUS_LABELS, CAMPAIGN_ASSIGNMENT_ROLE_LABELS } from '@/types/campaign'
 import { useUsersList } from '@/api/hooks/useUsers'
 import { useAuthStore } from '@/stores/authStore'
 import { useContactPersons } from '@/api/hooks/useEntities'

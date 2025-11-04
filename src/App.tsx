@@ -50,6 +50,9 @@ const DigitalOverview = lazy(() => import("./pages/digital/OverviewPage"));
 const DigitalCampaigns = lazy(() => import("./pages/digital/CampaignsPage"));
 const DigitalCampaignDetail = lazy(() => import("./pages/digital/CampaignDetailPage"));
 const DigitalCampaignFormPage = lazy(() => import("./pages/digital/DigitalCampaignFormPage"));
+const DigitalDistributions = lazy(() => import("./pages/digital/DistributionsPage"));
+const DigitalDistributionDetail = lazy(() => import("./pages/digital/DistributionDetailPage"));
+const DigitalDistributionForm = lazy(() => import("./pages/digital/DistributionFormPage"));
 const DigitalServices = lazy(() => import("./pages/digital/ServicesPage"));
 const DigitalFinancial = lazy(() => import("./pages/digital/FinancialPage"));
 const DigitalTasks = lazy(() => import("./pages/digital/TasksPage"));
@@ -298,6 +301,26 @@ const App = () => (
             <Route path="/digital/campaigns/:id" element={
               <ProtectedRoute>
                 <DigitalCampaignDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/digital/distributions" element={
+              <ProtectedRoute>
+                <DigitalDistributions />
+              </ProtectedRoute>
+            } />
+            <Route path="/digital/distributions/new" element={
+              <ProtectedRoute>
+                <DigitalDistributionForm />
+              </ProtectedRoute>
+            } />
+            <Route path="/digital/distributions/:id/edit" element={
+              <ProtectedRoute>
+                <DigitalDistributionForm />
+              </ProtectedRoute>
+            } />
+            <Route path="/digital/distributions/:id" element={
+              <ProtectedRoute>
+                <DigitalDistributionDetail />
               </ProtectedRoute>
             } />
             <Route path="/digital/services" element={

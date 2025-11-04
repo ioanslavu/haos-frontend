@@ -36,7 +36,7 @@ import { RecordingSearchCombobox } from '@/components/catalog/RecordingSearchCom
 import { EntityFormDialog } from './EntityFormDialog'
 import { ContactPersonFormDialog } from './ContactPersonFormDialog'
 import { useCreateCampaign, useUpdateCampaign } from '@/api/hooks/useCampaigns'
-import { Campaign, CampaignStatus, CAMPAIGN_STATUS_LABELS, CAMPAIGN_HANDLER_ROLE_LABELS } from '@/types/campaign'
+import { Campaign, CampaignStatus, CAMPAIGN_STATUS_LABELS, CAMPAIGN_ASSIGNMENT_ROLE_LABELS } from '@/types/campaign'
 import { useUsersList } from '@/api/hooks/useUsers'
 import { useAuthStore } from '@/stores/authStore'
 import { useContactPersons } from '@/api/hooks/useEntities'
@@ -134,7 +134,7 @@ export function CampaignFormDialog({ open, onOpenChange, campaign }: CampaignFor
           status: campaign.status,
           confirmed_at: campaign.confirmed_at || '',
           notes: campaign.notes || '',
-          handlers: campaign.handlers?.map(h => ({ user: h.user, role: h.role })) || [],
+          handlers: campaign.assignments?.map(h => ({ user: h.user, role: h.role })) || [],
         })
       } else {
         form.reset({
@@ -170,7 +170,8 @@ export function CampaignFormDialog({ open, onOpenChange, campaign }: CampaignFor
         ...data,
         confirmed_at: data.confirmed_at || undefined,
         notes: data.notes || undefined,
-        handlers: validHandlers.length > 0 ? validHandlers : undefined,
+        assignments: validHandlers.length > 0 ? validHandlers : undefined,
+        handlers: undefined,  // Remove old field
       }
 
       if (isEdit && campaign) {
@@ -562,7 +563,7 @@ export function CampaignFormDialog({ open, onOpenChange, campaign }: CampaignFor
                                     </SelectTrigger>
                                   </FormControl>
                                   <SelectContent>
-                                    {Object.entries(CAMPAIGN_HANDLER_ROLE_LABELS).map(
+                                    {Object.entries(CAMPAIGN_ASSIGNMENT_ROLE_LABELS).map(
                                       ([value, label]) => (
                                         <SelectItem key={value} value={value}>
                                           {label}

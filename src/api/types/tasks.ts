@@ -83,6 +83,20 @@ export interface TaskUserDetail {
   full_name: string;
 }
 
+export type TaskAssignmentRole = 'assignee' | 'reviewer' | 'observer';
+
+export interface TaskAssignment {
+  id?: number;
+  user: number;
+  user_email?: string;
+  user_name?: string;
+  role: TaskAssignmentRole;
+  role_display?: string;
+  assigned_at?: string;
+  assigned_by?: number;
+  assigned_by_email?: string;
+}
+
 export interface TaskCampaignDetail {
   id: number;
   name: string;
@@ -121,10 +135,7 @@ export interface Task {
   contract_detail?: TaskContractDetail;
 
   // Assignment (multiple users)
-  assigned_to?: number;  // DEPRECATED
-  assigned_to_detail?: TaskUserDetail;  // DEPRECATED
-  assigned_to_users?: number[];
-  assigned_to_users_detail?: TaskUserDetail[];
+  assignments?: TaskAssignment[];
   created_by?: number;
   created_by_detail?: TaskUserDetail;
   department?: number;
@@ -169,8 +180,7 @@ export interface TaskCreateInput {
   campaign?: number;
   entity?: number;
   contract?: number;
-  assigned_to?: number;  // DEPRECATED
-  assigned_to_users?: number[];
+  assigned_user_ids?: number[];
   department?: number;
   due_date?: string;
   reminder_date?: string;

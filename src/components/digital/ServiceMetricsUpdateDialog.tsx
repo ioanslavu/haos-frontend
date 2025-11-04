@@ -133,9 +133,9 @@ export function ServiceMetricsUpdateDialog({
     // Admins can always update
     if (isAdminOrManager()) return true
 
-    // Check if user is a handler for this campaign
-    if (campaign.handlers && user) {
-      return campaign.handlers.some(handler => handler.user === Number(user.id))
+    // Check if user is assigned to this campaign
+    if (campaign.assignments && user) {
+      return campaign.assignments.some(assignment => assignment.user === Number(user.id))
     }
 
     return false

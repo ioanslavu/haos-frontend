@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -23,7 +24,8 @@ import {
   Phone,
   ListTodo,
   Package,
-  Activity
+  Activity,
+  Eye
 } from 'lucide-react';
 import { useCampaign } from '@/api/hooks/useCampaigns';
 import { useTasks } from '@/api/hooks/useTasks';
@@ -34,6 +36,7 @@ import { ClientHealthScore } from '@/components/crm/ClientHealthScore';
 import { ServiceMetricsUpdateDialog } from '@/components/digital/ServiceMetricsUpdateDialog';
 import { KPIProgressUpdateDialog } from '@/components/digital/KPIProgressUpdateDialog';
 import { ActivityTimeline } from '@/components/activities/ActivityTimeline';
+import { TaskViewSheet } from './components/TaskViewSheet';
 import { useAuthStore } from '@/stores/authStore';
 
 export default function CampaignDetailPage() {
@@ -44,6 +47,10 @@ export default function CampaignDetailPage() {
   const { data: campaign, isLoading } = useCampaign(campaignId, !!id);
   const { data: tasks } = useTasks({ campaign: campaignId });
   const campaignTasks = tasks?.results || [];
+
+  // Task view state
+  const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [taskViewOpen, setTaskViewOpen] = useState(false);
 
   // Parallel fetch: Start fetching health score immediately
   const { data: healthScoreProfile, isLoading: healthScoreLoading } = useClientProfileByEntity(
@@ -671,7 +678,14 @@ export default function CampaignDetailPage() {
                 </h2>
                 <div className="space-y-3">
                   {campaignTasks.map((task: any) => (
-                    <div key={task.id} className="flex items-center justify-between p-3 rounded-lg bg-background/30 border border-white/10">
+                    <div
+                      key={task.id}
+                      className="flex items-center justify-between p-3 rounded-lg bg-background/30 border border-white/10 cursor-pointer hover:bg-background/50 transition-colors"
+                      onClick={() => {
+                        setSelectedTask(task);
+                        setTaskViewOpen(true);
+                      }}
+                    >
                       <div className="flex-1">
                         <div className="font-medium">{task.title}</div>
                         {task.description && (
@@ -689,6 +703,7 @@ export default function CampaignDetailPage() {
                             {task.priority}
                           </Badge>
                         )}
+                        <Eye className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
                       </div>
                     </div>
                   ))}
@@ -776,14 +791,14 @@ export default function CampaignDetailPage() {
             />
 
             {/* Team Card */}
-            {campaign.handlers && campaign.handlers.length > 0 ? (
+            {campaign.assignments && campaign.assignments.length > 0 ? (
               <div className="rounded-2xl bg-background/50 backdrop-blur-xl border border-white/10 p-6 shadow-lg">
                 <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
                   <Users className="h-5 w-5" />
-                  Team ({campaign.handlers.length})
+                  Team ({campaign.assignments.length})
                 </h2>
                 <div className="space-y-4">
-                  {campaign.handlers.map((handler: any) => (
+                  {campaign.assignments.map((handler: any) => (
                     <div key={handler.id} className="flex items-center gap-3 p-3 rounded-lg bg-background/30 border border-white/10">
                       <Avatar>
                         <AvatarImage src={handler.user?.avatar} />
@@ -852,6 +867,16 @@ export default function CampaignDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Task View Sheet */}
+      <TaskViewSheet
+        task={selectedTask}
+        open={taskViewOpen}
+        onOpenChange={setTaskViewOpen}
+        onEdit={() => {
+          // Optional: Add edit functionality later if needed
+        }}
+      />
     </AppLayout>
   );
 }
