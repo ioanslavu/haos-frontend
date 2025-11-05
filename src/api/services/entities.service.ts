@@ -147,6 +147,7 @@ export interface EntityListItem {
   email?: string;
   phone?: string;
   roles?: string[];
+  has_internal_role?: boolean;
   created_at: string;
 }
 
@@ -473,6 +474,23 @@ class EntitiesService {
 
   async deleteContactPerson(id: number): Promise<void> {
     await apiClient.delete(`${this.BASE_PATH}/contact-persons/${id}/`);
+  }
+
+  // Global search (bypasses department filtering)
+  async searchGlobal(query: string): Promise<EntityListItem[]> {
+    const { data } = await apiClient.get<EntityListItem[]>(
+      `${this.BASE_PATH}/entities/search_global/`,
+      { params: { q: query } }
+    );
+    return data;
+  }
+
+  // Add entity to user's department
+  async addToMyDepartment(entityId: number): Promise<{ status: string; message?: string }> {
+    const { data } = await apiClient.post<{ status: string; message?: string }>(
+      `${this.BASE_PATH}/entities/${entityId}/add_to_my_department/`
+    );
+    return data;
   }
 }
 

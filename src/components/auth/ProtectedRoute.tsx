@@ -78,6 +78,15 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     }
   }
 
+  // Redirect digital users (digital_employee and digital_manager) from admin dashboard to digital overview
+  const isDigitalUser = user?.role === 'digital_employee' || user?.role === 'digital_manager';
+  const isDigitalDepartment = user?.department?.name?.toLowerCase() === 'digital' ||
+                               user?.department?.toLowerCase() === 'digital';
+
+  if ((isDigitalUser || isDigitalDepartment) && location.pathname === '/') {
+    return <Navigate to="/digital/overview" replace />;
+  }
+
   // Restrict digital_employee from accessing certain digital pages
   const restrictedDigitalPaths = ['/digital/services', '/digital/financial', '/digital/reporting'];
   const isRestrictedDigitalPath = restrictedDigitalPaths.some(path =>

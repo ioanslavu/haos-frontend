@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +26,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
 import {
   Calendar,
   Clock,
@@ -114,11 +123,28 @@ export function CampaignsTab({ searchQuery, filterStatus, filterService, filterP
   const currentUser = useAuthStore((state) => state.user);
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('table');
   const [activeCampaign, setActiveCampaign] = useState<any | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(20);
+
   const { data: campaigns, isLoading } = useCampaigns({
     status: filterStatus !== 'all' ? filterStatus : undefined,
     service_type: filterService !== 'all' ? filterService : undefined,
+    page: currentPage,
+    page_size: itemsPerPage,
   });
   const updateCampaign = useUpdateCampaign();
+
+  // Extract campaigns from paginated response
+  const campaignsList = campaigns?.results || [];
+  const totalCount = campaigns?.count || 0;
+
+  // Calculate total pages
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterStatus, filterService, filterPeriod, startDate, endDate, filterClient]);
 
   // Setup drag sensors
   const sensors = useSensors(
@@ -128,9 +154,6 @@ export function CampaignsTab({ searchQuery, filterStatus, filterService, filterP
       },
     })
   );
-
-  // Extract campaigns from paginated response
-  const campaignsList = campaigns?.results || [];
 
   // Filter campaigns based on search, date range, and client
   const filteredCampaigns = campaignsList.filter(campaign => {
@@ -574,6 +597,58 @@ export function CampaignsTab({ searchQuery, filterStatus, filterService, filterP
           ) : null}
         </DragOverlay>
         </DndContext>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-6">
+          <p className="text-sm text-muted-foreground">
+            Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} campaigns
+          </p>
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                />
+              </PaginationItem>
+              {[...Array(totalPages)].map((_, i) => {
+                const pageNum = i + 1;
+                if (
+                  pageNum === 1 ||
+                  pageNum === totalPages ||
+                  (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                ) {
+                  return (
+                    <PaginationItem key={pageNum}>
+                      <PaginationLink
+                        onClick={() => setCurrentPage(pageNum)}
+                        isActive={currentPage === pageNum}
+                        className="cursor-pointer"
+                      >
+                        {pageNum}
+                      </PaginationLink>
+                    </PaginationItem>
+                  );
+                } else if (pageNum === currentPage - 2 || pageNum === currentPage + 2) {
+                  return (
+                    <PaginationItem key={pageNum}>
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  );
+                }
+                return null;
+              })}
+              <PaginationItem>
+                <PaginationNext
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
       )}
     </div>
   );

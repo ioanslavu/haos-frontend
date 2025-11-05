@@ -117,6 +117,7 @@ export default function Entities() {
   const entityParams = {
     ...(roleFilter !== 'all' && { has_role: roleFilter }),
     ...(internalFilter !== 'all' && { is_internal: internalFilter === 'internal' }),
+    ...(searchQuery && { search: searchQuery }),
   };
 
   const { data: entitiesData, isLoading } = useEntities({
@@ -130,19 +131,12 @@ export default function Entities() {
   // Fetch stats using the same filters (without pagination)
   const { data: statsData } = useEntityStats(entityParams);
 
-  // Client-side filter and sort (for search and kind filter that aren't in backend yet)
+  // Client-side filter and sort (for kind filter that isn't in backend yet)
   const filteredAndSortedEntities = useMemo(() => {
+    // Filter by kind (client-side since backend doesn't support it yet)
     let filtered = entities.filter((entity) => {
-      const matchesSearch =
-        !searchQuery ||
-        entity.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        entity.stage_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        entity.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        entity.phone?.toLowerCase().includes(searchQuery.toLowerCase());
-
       const matchesKind = kindFilter === 'all' || entity.kind === kindFilter;
-
-      return matchesSearch && matchesKind;
+      return matchesKind;
     });
 
     // Sort
@@ -170,7 +164,7 @@ export default function Entities() {
     });
 
     return filtered;
-  }, [entities, searchQuery, kindFilter, sortField, sortOrder]);
+  }, [entities, kindFilter, sortField, sortOrder]);
 
   // Pagination (backend handles the actual pagination)
   const totalPages = Math.ceil(totalCount / itemsPerPage);
@@ -704,6 +698,11 @@ function GridView({
                       </p>
                     )}
                     <div className="flex flex-wrap gap-1">
+                      {entity.has_internal_role && (
+                        <Badge variant="default" className="text-xs h-5 bg-green-600 hover:bg-green-700">
+                          Internal
+                        </Badge>
+                      )}
                       {entity.kind === 'PJ' ? (
                         <Badge variant="outline" className="text-xs h-5">
                           <Building2 className="h-3 w-3 mr-1" />
@@ -843,6 +842,11 @@ function TableView({
                 </TableCell>
                 <TableCell onClick={() => onEntityClick(entity.id)}>
                   <div className="flex flex-wrap gap-1">
+                    {entity.has_internal_role && (
+                      <Badge variant="default" className="text-xs bg-green-600 hover:bg-green-700">
+                        Internal
+                      </Badge>
+                    )}
                     {entity.roles?.slice(0, 3).map((role) => (
                       <Badge
                         key={role}

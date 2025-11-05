@@ -24,6 +24,7 @@ export const entityKeys = {
   producers: () => [...entityKeys.all, 'producers'] as const,
   business: (params?: EntitySearchParams) => [...entityKeys.all, 'business', params] as const,
   stats: (params?: EntitySearchParams) => [...entityKeys.all, 'stats', params] as const,
+  searchGlobal: (query: string) => [...entityKeys.all, 'searchGlobal', query] as const,
   sensitiveIdentity: (entityId: number) => ['sensitiveIdentity', entityId] as const,
   contactPersons: (entityId?: number) => ['contactPersons', entityId] as const,
   contactPerson: (id: number) => ['contactPerson', id] as const,
@@ -215,6 +216,28 @@ export const useDeleteClient = useDeleteEntity;
 
 // Alias for better clarity in detail pages
 export const useEntityDetail = useEntity;
+
+// Global search hook (bypasses department filtering)
+export const useSearchGlobal = (query: string, enabled = true) => {
+  return useQuery({
+    queryKey: entityKeys.searchGlobal(query),
+    queryFn: () => entitiesService.searchGlobal(query),
+    enabled: enabled && query.length >= 2,
+  });
+};
+
+// Add entity to department mutation
+export const useAddToMyDepartment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (entityId: number) => entitiesService.addToMyDepartment(entityId),
+    onSuccess: () => {
+      // Invalidate entity lists to show the newly added entity
+      queryClient.invalidateQueries({ queryKey: entityKeys.lists() });
+    },
+  });
+};
 
 // Contact Person hooks
 export const useContactPersons = (entityId?: number, enabled = true) => {

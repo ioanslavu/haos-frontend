@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Check, ChevronsUpDown, Loader2, X, Building2, User } from 'lucide-react';
+import { Check, ChevronsUpDown, Loader2, X, Building2, User, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { useSearchEntities, useBusinessEntities, useEntity } from '@/api/hooks/useEntities';
 import { EntityListItem } from '@/api/services/entities.service';
+import { AddEntityModal } from './AddEntityModal';
 
 interface EntitySearchComboboxProps {
   value?: number | null;
@@ -21,6 +23,14 @@ interface EntitySearchComboboxProps {
    * Set to true for client/brand searches to ensure same list
    */
   useBusinessEndpoint?: boolean;
+  /**
+   * Allow adding entities from global search when not found
+   */
+  allowAddEntity?: boolean;
+  /**
+   * Callback when user wants to create a new entity
+   */
+  onCreateNew?: () => void;
 }
 
 export function EntitySearchCombobox({
@@ -31,10 +41,13 @@ export function EntitySearchCombobox({
   className,
   filter,
   useBusinessEndpoint = false,
+  allowAddEntity = false,
+  onCreateNew,
 }: EntitySearchComboboxProps) {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedEntity, setSelectedEntity] = useState<EntityListItem | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -193,8 +206,23 @@ export function EntitySearchCombobox({
                   Start typing to search entities...
                 </div>
               ) : filteredEntities.length === 0 ? (
-                <div className="py-6 text-center text-sm text-muted-foreground">
-                  No entities found.
+                <div className="py-6 text-center">
+                  <p className="text-sm text-muted-foreground mb-3">
+                    No entities found in your department.
+                  </p>
+                  {allowAddEntity && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setOpen(false);
+                        setShowAddModal(true);
+                      }}
+                    >
+                      <Search className="h-4 w-4 mr-2" />
+                      Search All Entities
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <div className="p-1">
@@ -245,6 +273,16 @@ export function EntitySearchCombobox({
           </div>
         </div>
       )}
+
+      {/* Add Entity Modal */}
+      <AddEntityModal
+        open={showAddModal}
+        onOpenChange={setShowAddModal}
+        onEntityAdded={() => {
+          // Refresh will happen automatically via query invalidation
+        }}
+        onCreateNew={onCreateNew}
+      />
     </div>
   );
 }
