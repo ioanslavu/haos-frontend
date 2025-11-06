@@ -26,6 +26,11 @@ import {
   ClipboardList,
   Activity,
   TrendingUp,
+  Target,
+  FileCheck,
+  Handshake,
+  Palette,
+  Package,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -207,6 +212,15 @@ const digitalSubmenu: NavigationItem[] = [
   { name: 'Raportare & Insights', href: '/digital/reporting', icon: BarChart3 },
 ];
 
+const artistSalesSubmenu: NavigationItem[] = [
+  { name: 'Briefs', href: '/artist-sales/briefs', icon: ClipboardList },
+  { name: 'Opportunities', href: '/artist-sales/opportunities', icon: Target },
+  { name: 'Proposals', href: '/artist-sales/proposals', icon: FileCheck },
+  { name: 'Deals', href: '/artist-sales/deals', icon: Handshake },
+  { name: 'Deliverable Packs', href: '/artist-sales/admin/deliverable-packs', icon: Package },
+  { name: 'Usage Terms', href: '/artist-sales/admin/usage-terms', icon: FileText },
+];
+
 const adminNavigation: NavigationItem[] = [
   { name: 'User Management', href: '/users/management', icon: UserCog, tourId: 'users-nav' },
   { name: 'Entity Requests', href: '/admin/entity-requests', icon: ClipboardList, tourId: 'entity-requests-nav' },
@@ -218,6 +232,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
   const navigate = useNavigate();
   const { user, logout, isGuest, isAdminOrManager } = useAuthStore();
   const [digitalOpen, setDigitalOpen] = React.useState(false);
+  const [artistSalesOpen, setArtistSalesOpen] = React.useState(false);
 
   // Get pending requests count for admins/managers
   const { data: pendingCount } = usePendingRequestsCount();
@@ -356,6 +371,63 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                 {!collapsed && digitalOpen && (
                   <ul className="ml-4 mt-2 space-y-1.5">
                     {digitalSubmenu.map((item) => (
+                      <li key={item.name}>
+                        <NavLink
+                          to={item.href}
+                          aria-label={`Navigate to ${item.name}`}
+                          className={({ isActive }) =>
+                            cn(
+                              "flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-300",
+                              "hover:bg-white/10 dark:hover:bg-white/5 backdrop-blur-sm",
+                              isActive
+                                ? "bg-gradient-to-r from-blue-500/20 to-purple-600/20 text-foreground font-semibold"
+                                : "text-muted-foreground"
+                            )
+                          }
+                        >
+                          <item.icon className="h-4 w-4 flex-shrink-0" />
+                          <span>{item.name}</span>
+                        </NavLink>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            );
+          })()}
+
+          {/* Artist Sales Dropdown - Show for non-guest users */}
+          {(() => {
+            const canSeeArtistSales = user?.role !== 'guest';
+
+            return canSeeArtistSales && (
+              <li>
+                <button
+                  onClick={() => setArtistSalesOpen(!artistSalesOpen)}
+                  aria-label={artistSalesOpen ? "Collapse artist sales menu" : "Expand artist sales menu"}
+                  aria-expanded={artistSalesOpen}
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-300 w-full",
+                    "hover:bg-white/20 dark:hover:bg-white/10 backdrop-blur-sm text-foreground hover:scale-105",
+                    collapsed && "justify-center px-3"
+                  )}
+                >
+                  <Palette className="h-5 w-5 flex-shrink-0" />
+                  {!collapsed && (
+                    <>
+                      <span className="flex-1 text-left">Artist Sales</span>
+                      <ChevronDown
+                        className={cn(
+                          "h-4 w-4 transition-transform duration-300",
+                          artistSalesOpen && "rotate-180"
+                        )}
+                      />
+                    </>
+                  )}
+                </button>
+                {!collapsed && artistSalesOpen && (
+                  <ul className="ml-4 mt-2 space-y-1.5">
+                    {artistSalesSubmenu.map((item) => (
                       <li key={item.name}>
                         <NavLink
                           to={item.href}

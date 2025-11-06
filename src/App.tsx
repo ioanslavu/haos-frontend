@@ -91,6 +91,26 @@ const ActivitiesPage = lazy(() => import("./pages/activities/ActivitiesPage"));
 // CRM pages
 const CampaignFormPage = lazy(() => import("./pages/crm/CampaignFormPage"));
 
+// Artist Sales pages
+const BriefList = lazy(() => import("./pages/artist-sales/briefs/BriefList"));
+const BriefKanban = lazy(() => import("./pages/artist-sales/briefs/BriefKanban"));
+const BriefForm = lazy(() => import("./pages/artist-sales/briefs/BriefForm"));
+const BriefDetail = lazy(() => import("./pages/artist-sales/briefs/BriefDetail"));
+const OpportunityList = lazy(() => import("./pages/artist-sales/opportunities/OpportunityList"));
+const OpportunityPipeline = lazy(() => import("./pages/artist-sales/opportunities/OpportunityPipeline"));
+const OpportunityForm = lazy(() => import("./pages/artist-sales/opportunities/OpportunityForm"));
+const OpportunityDetail = lazy(() => import("./pages/artist-sales/opportunities/OpportunityDetail"));
+const ProposalList = lazy(() => import("./pages/artist-sales/proposals/ProposalList"));
+const ProposalForm = lazy(() => import("./pages/artist-sales/proposals/ProposalForm"));
+const ProposalDetail = lazy(() => import("./pages/artist-sales/proposals/ProposalDetail"));
+const DealList = lazy(() => import("./pages/artist-sales/deals/DealList"));
+const DealKanban = lazy(() => import("./pages/artist-sales/deals/DealKanban"));
+const DealForm = lazy(() => import("./pages/artist-sales/deals/DealForm"));
+const DealDetail = lazy(() => import("./pages/artist-sales/deals/DealDetail"));
+const DeliverablePacksList = lazy(() => import("./pages/artist-sales/admin/DeliverablePacksList"));
+const DeliverablePackDetail = lazy(() => import("./pages/artist-sales/admin/DeliverablePackDetail"));
+const UsageTermsList = lazy(() => import("./pages/artist-sales/admin/UsageTermsList"));
+
 // Admin pages
 const EntityRequestsPage = lazy(() => import("./pages/admin/EntityRequestsPage"));
 
@@ -173,6 +193,116 @@ const App = () => (
             <Route path="/crm/campaigns/:id/edit" element={
               <ProtectedRoute>
                 <CampaignFormPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/artist-sales/briefs" element={
+              <ProtectedRoute>
+                <BriefList />
+              </ProtectedRoute>
+            } />
+            <Route path="/artist-sales/briefs/kanban" element={
+              <ProtectedRoute>
+                <BriefKanban />
+              </ProtectedRoute>
+            } />
+            <Route path="/artist-sales/briefs/new" element={
+              <ProtectedRoute>
+                <BriefForm />
+              </ProtectedRoute>
+            } />
+            <Route path="/artist-sales/briefs/:id/edit" element={
+              <ProtectedRoute>
+                <BriefForm />
+              </ProtectedRoute>
+            } />
+            <Route path="/artist-sales/briefs/:id" element={
+              <ProtectedRoute>
+                <BriefDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/artist-sales/opportunities" element={
+              <ProtectedRoute>
+                <OpportunityList />
+              </ProtectedRoute>
+            } />
+            <Route path="/artist-sales/opportunities/pipeline" element={
+              <ProtectedRoute>
+                <OpportunityPipeline />
+              </ProtectedRoute>
+            } />
+            <Route path="/artist-sales/opportunities/new" element={
+              <ProtectedRoute>
+                <OpportunityForm />
+              </ProtectedRoute>
+            } />
+            <Route path="/artist-sales/opportunities/:id/edit" element={
+              <ProtectedRoute>
+                <OpportunityForm />
+              </ProtectedRoute>
+            } />
+            <Route path="/artist-sales/opportunities/:id" element={
+              <ProtectedRoute>
+                <OpportunityDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/artist-sales/proposals" element={
+              <ProtectedRoute>
+                <ProposalList />
+              </ProtectedRoute>
+            } />
+            <Route path="/artist-sales/proposals/new" element={
+              <ProtectedRoute>
+                <ProposalForm />
+              </ProtectedRoute>
+            } />
+            <Route path="/artist-sales/proposals/:id/edit" element={
+              <ProtectedRoute>
+                <ProposalForm />
+              </ProtectedRoute>
+            } />
+            <Route path="/artist-sales/proposals/:id" element={
+              <ProtectedRoute>
+                <ProposalDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/artist-sales/deals" element={
+              <ProtectedRoute>
+                <DealList />
+              </ProtectedRoute>
+            } />
+            <Route path="/artist-sales/deals/kanban" element={
+              <ProtectedRoute>
+                <DealKanban />
+              </ProtectedRoute>
+            } />
+            <Route path="/artist-sales/deals/new" element={
+              <ProtectedRoute>
+                <DealForm />
+              </ProtectedRoute>
+            } />
+            <Route path="/artist-sales/deals/:id/edit" element={
+              <ProtectedRoute>
+                <DealForm />
+              </ProtectedRoute>
+            } />
+            <Route path="/artist-sales/deals/:id" element={
+              <ProtectedRoute>
+                <DealDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/artist-sales/admin/deliverable-packs" element={
+              <ProtectedRoute>
+                <DeliverablePacksList />
+              </ProtectedRoute>
+            } />
+            <Route path="/artist-sales/admin/deliverable-packs/:id" element={
+              <ProtectedRoute>
+                <DeliverablePackDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/artist-sales/admin/usage-terms" element={
+              <ProtectedRoute>
+                <UsageTermsList />
               </ProtectedRoute>
             } />
             <Route path="/entities" element={

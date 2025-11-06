@@ -4,9 +4,27 @@ export type UserRole =
   | 'digital_manager'
   | 'digital_employee'
   | 'sales_manager'
-  | 'sales_employee';
+  | 'sales_employee'
+  | 'publishing_manager'
+  | 'publishing_employee'
+  | 'label_manager'
+  | 'label_employee'
+  | 'marketing_manager'
+  | 'marketing_employee'
+  | 'finance_manager'
+  | 'finance_employee'
+  | 'special_operations_manager';
 
-export type Department = 'digital' | 'sales' | null;
+export type Department =
+  | 'digital'
+  | 'sales'
+  | 'legal'
+  | 'publishing'
+  | 'label'
+  | 'marketing'
+  | 'finance'
+  | 'special_operations'
+  | null;
 
 export interface UserProfile {
   id: number;
@@ -51,7 +69,15 @@ export interface DepartmentRequest {
   user: number;
   user_email: string;
   user_name: string;
-  requested_department: 'digital' | 'sales';
+  requested_department:
+    | 'digital'
+    | 'sales'
+    | 'legal'
+    | 'publishing'
+    | 'label'
+    | 'marketing'
+    | 'finance'
+    | 'special_operations';
   status: DepartmentRequestStatus;
   message: string;
   reviewed_by: number | null;
@@ -63,7 +89,15 @@ export interface DepartmentRequest {
 }
 
 export interface CreateDepartmentRequestRequest {
-  requested_department: 'digital' | 'sales';
+  requested_department:
+    | 'digital'
+    | 'sales'
+    | 'legal'
+    | 'publishing'
+    | 'label'
+    | 'marketing'
+    | 'finance'
+    | 'special_operations';
   message?: string;
 }
 

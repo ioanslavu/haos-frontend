@@ -47,46 +47,6 @@ export default function WorkDetail() {
   const [writerSplitDialogOpen, setWriterSplitDialogOpen] = useState(false);
   const [publisherSplitDialogOpen, setPublisherSplitDialogOpen] = useState(false);
 
-  // Mock activity data (in production, this would come from API)
-  const activities: Activity[] = [
-    {
-      id: '1',
-      type: 'edit',
-      user: { name: 'Sarah Johnson', initials: 'SJ' },
-      action: 'updated the ISWC code for',
-      target: work?.title || 'this work',
-      timestamp: new Date(Date.now() - 1000 * 60 * 30), // 30 min ago
-      metadata: { category: 'Metadata' },
-    },
-    {
-      id: '2',
-      type: 'create',
-      user: { name: 'Michael Chen', initials: 'MC' },
-      action: 'added a new credit to',
-      target: work?.title || 'this work',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-      metadata: { category: 'Credits' },
-    },
-    {
-      id: '3',
-      type: 'assign',
-      user: { name: 'Emily Davis', initials: 'ED' },
-      action: 'assigned publishing split to',
-      target: 'Universal Music',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-      metadata: { category: 'Rights', status: '50%' },
-    },
-    {
-      id: '4',
-      type: 'create',
-      user: { name: 'Alex Thompson', initials: 'AT' },
-      action: 'created',
-      target: work?.title || 'this work',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3), // 3 days ago
-      metadata: { status: 'New Work' },
-    },
-  ];
-
   if (isLoading) {
     return (
       <AppLayout>
@@ -147,6 +107,46 @@ export default function WorkDetail() {
   const credits = workDetails.credits;
   const recordings = workDetails.recordings;
   const stats = workDetails.statistics;
+
+  // Mock activity data (in production, this would come from API)
+  const activities: Activity[] = [
+    {
+      id: '1',
+      type: 'edit',
+      user: { name: 'Sarah Johnson', initials: 'SJ' },
+      action: 'updated the ISWC code for',
+      target: work?.title || 'this work',
+      timestamp: new Date(Date.now() - 1000 * 60 * 30), // 30 min ago
+      metadata: { category: 'Metadata' },
+    },
+    {
+      id: '2',
+      type: 'create',
+      user: { name: 'Michael Chen', initials: 'MC' },
+      action: 'added a new credit to',
+      target: work?.title || 'this work',
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
+      metadata: { category: 'Credits' },
+    },
+    {
+      id: '3',
+      type: 'assign',
+      user: { name: 'Emily Davis', initials: 'ED' },
+      action: 'assigned publishing split to',
+      target: 'Universal Music',
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
+      metadata: { category: 'Rights', status: '50%' },
+    },
+    {
+      id: '4',
+      type: 'create',
+      user: { name: 'Alex Thompson', initials: 'AT' },
+      action: 'created',
+      target: work?.title || 'this work',
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3), // 3 days ago
+      metadata: { status: 'New Work' },
+    },
+  ];
 
   // Calculate total split percentages
   const writerTotal = writerSplits?.reduce((sum, split) => sum + split.share, 0) || 0;

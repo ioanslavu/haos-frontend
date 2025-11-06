@@ -33,6 +33,13 @@ const roleColors: Record<string, string> = {
   sales_employee: 'bg-green-50 text-green-600',
   publishing_manager: 'bg-orange-100 text-orange-700',
   publishing_employee: 'bg-orange-50 text-orange-600',
+  label_manager: 'bg-pink-100 text-pink-700',
+  label_employee: 'bg-pink-50 text-pink-600',
+  marketing_manager: 'bg-yellow-100 text-yellow-700',
+  marketing_employee: 'bg-yellow-50 text-yellow-600',
+  finance_manager: 'bg-emerald-100 text-emerald-700',
+  finance_employee: 'bg-emerald-50 text-emerald-600',
+  special_operations_manager: 'bg-red-100 text-red-700',
 };
 
 export function RoleImpersonator() {
