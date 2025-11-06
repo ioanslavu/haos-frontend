@@ -114,6 +114,12 @@ const UsageTermsList = lazy(() => import("./pages/artist-sales/admin/UsageTermsL
 // Admin pages
 const EntityRequestsPage = lazy(() => import("./pages/admin/EntityRequestsPage"));
 
+// Song Workflow pages
+const SongListPage = lazy(() => import("./pages/songs/SongListPage"));
+const SongDetailPage = lazy(() => import("./pages/songs/SongDetailPage"));
+const SongCreatePage = lazy(() => import("./pages/songs/SongCreatePage"));
+const MyQueuePage = lazy(() => import("./pages/songs/MyQueuePage"));
+
 const App = () => (
   <ErrorBoundary>
     <QueryProvider>
@@ -398,6 +404,27 @@ const App = () => (
             <Route path="/task-management" element={
               <ProtectedRoute>
                 <TaskManagement />
+              </ProtectedRoute>
+            } />
+            {/* Song Workflow routes */}
+            <Route path="/songs" element={
+              <ProtectedRoute>
+                <SongListPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/songs/create" element={
+              <ProtectedRoute>
+                <SongCreatePage />
+              </ProtectedRoute>
+            } />
+            <Route path="/songs/my-queue" element={
+              <ProtectedRoute>
+                <MyQueuePage />
+              </ProtectedRoute>
+            } />
+            <Route path="/songs/:id" element={
+              <ProtectedRoute>
+                <SongDetailPage />
               </ProtectedRoute>
             } />
             {/* Redirect old digital-dashboard route to new structure */}

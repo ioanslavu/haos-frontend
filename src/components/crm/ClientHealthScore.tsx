@@ -22,17 +22,9 @@ interface ClientHealthScoreProps {
   // Optional: Pre-fetched data for parallel loading
   profile?: ClientProfile;
   isLoading?: boolean;
-  // Optional: Override department (useful when called from campaign detail page)
-  departmentId?: number | null;
 }
 
-export function ClientHealthScore({ entityId, className, profile: externalProfile, isLoading: externalLoading, departmentId: externalDepartmentId }: ClientHealthScoreProps) {
-  const currentUser = useAuthStore((state) => state.user);
-  const userDepartmentId = currentUser?.profile?.department?.id;
-
-  // Use external department if provided, otherwise fall back to user's department
-  const departmentId = externalDepartmentId ?? userDepartmentId;
-
+export function ClientHealthScore({ entityId, className, profile: externalProfile, isLoading: externalLoading }: ClientHealthScoreProps) {
   // Only fetch internally if no external data is provided
   const { data: internalProfile, isLoading: internalLoading } = useClientProfileByEntity(
     entityId,
@@ -123,10 +115,6 @@ export function ClientHealthScore({ entityId, className, profile: externalProfil
       toast.error('Missing client information');
       return;
     }
-    if (!departmentId) {
-      toast.error('Missing department information. Please ensure the campaign has a department assigned.');
-      return;
-    }
 
     try {
       if (profile) {
@@ -140,7 +128,6 @@ export function ClientHealthScore({ entityId, className, profile: externalProfil
         // Create new profile
         await createProfile.mutateAsync({
           entity: entityId,
-          department: departmentId,
           ...formData,
         });
         toast.success('Client health score created');
@@ -198,7 +185,7 @@ export function ClientHealthScore({ entityId, className, profile: externalProfil
             </CardDescription>
           </div>
           {!isEditing && profile && (
-            <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+            <Button type="button" variant="outline" size="sm" onClick={() => setIsEditing(true)}>
               <Edit className="h-4 w-4" />
             </Button>
           )}
@@ -346,6 +333,7 @@ export function ClientHealthScore({ entityId, className, profile: externalProfil
 
             <div className="flex items-center gap-2 pt-2">
               <Button
+                type="button"
                 onClick={handleSave}
                 disabled={createProfile.isPending || updateProfile.isPending}
                 size="sm"
@@ -364,6 +352,7 @@ export function ClientHealthScore({ entityId, className, profile: externalProfil
               </Button>
               {profile && (
                 <Button
+                  type="button"
                   onClick={handleCancel}
                   disabled={createProfile.isPending || updateProfile.isPending}
                   variant="ghost"

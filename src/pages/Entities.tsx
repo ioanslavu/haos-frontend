@@ -134,7 +134,7 @@ export default function Entities() {
   // Client-side filter and sort (for kind filter that isn't in backend yet)
   const filteredAndSortedEntities = useMemo(() => {
     // Filter by kind (client-side since backend doesn't support it yet)
-    let filtered = entities.filter((entity) => {
+    const filtered = entities.filter((entity) => {
       const matchesKind = kindFilter === 'all' || entity.kind === kindFilter;
       return matchesKind;
     });

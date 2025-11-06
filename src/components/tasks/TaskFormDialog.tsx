@@ -56,10 +56,10 @@ import { toast } from 'sonner'
 
 const taskFormSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200),
-  description: z.string().optional(),
-  task_type: z.enum(TASK_TYPE_CHOICES as [string, ...string[]]),
-  priority: z.number().min(1).max(4),
-  status: z.enum(TASK_STATUS_CHOICES as [string, ...string[]]),
+  description: z.string().optional().or(z.literal('')).nullable(),
+  task_type: z.enum(TASK_TYPE_CHOICES as [string, ...string[]]).optional().nullable(),
+  priority: z.number().min(1).max(4).optional().nullable(),
+  status: z.enum(TASK_STATUS_CHOICES as [string, ...string[]]).optional().nullable(),
   due_date: z.date().optional().nullable(),
   estimated_hours: z.number().min(0).optional().nullable(),
   actual_hours: z.number().min(0).optional().nullable(),
@@ -67,11 +67,11 @@ const taskFormSchema = z.object({
   entity: z.number().optional().nullable(),
   campaign: z.number().optional().nullable(),
   parent_task: z.number().optional().nullable(),
-  dependencies: z.array(z.number()).optional(),
-  is_milestone: z.boolean().optional(),
-  completion_percentage: z.number().min(0).max(100).optional(),
+  dependencies: z.array(z.number()).optional().nullable(),
+  is_milestone: z.boolean().optional().nullable(),
+  completion_percentage: z.number().min(0).max(100).optional().nullable(),
   recurring_pattern: z.string().optional().nullable(),
-  labels: z.array(z.string()).optional(),
+  labels: z.array(z.string()).optional().nullable(),
 })
 
 type TaskFormData = z.infer<typeof taskFormSchema>

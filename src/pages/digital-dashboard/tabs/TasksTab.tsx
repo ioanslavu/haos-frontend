@@ -108,9 +108,9 @@ function DraggableTaskCard({ task, children, onClick }: { task: Task; children: 
 interface TasksTabProps {
   searchQuery: string;
   filterStatus: string;
-  filterPriority?: string; // eslint-disable-line @typescript-eslint/no-unused-vars
-  startDate?: Date; // eslint-disable-line @typescript-eslint/no-unused-vars
-  endDate?: Date; // eslint-disable-line @typescript-eslint/no-unused-vars
+  filterPriority?: string;  
+  startDate?: Date;  
+  endDate?: Date;  
   onNewTask?: () => void;
 }
 

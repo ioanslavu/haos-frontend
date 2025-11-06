@@ -8,6 +8,7 @@ import {
   BarChart3,
   Users,
   Music,
+  Music2,
   Calendar,
   CheckSquare,
   Settings,
@@ -99,6 +100,18 @@ const navigation: NavigationItem[] = [
       return user?.role !== 'guest' && (user?.department || user?.role === 'administrator') && !isDigital;
     },
     tourId: 'crm-nav',
+  },
+  {
+    name: 'Songs',
+    href: '/songs',
+    icon: Music2,
+    show: (user) => {
+      // Hide Songs for digital department users
+      const isDigital = user?.department?.name?.toLowerCase() === 'digital' ||
+                        user?.department?.toLowerCase() === 'digital';
+      return user?.role !== 'guest' && (user?.department || user?.role === 'administrator') && !isDigital;
+    },
+    tourId: 'songs-nav',
   },
   // { name: 'Studio', href: '/studio', icon: Calendar },
   // { name: 'Tasks', href: '/tasks', icon: CheckSquare },
@@ -396,9 +409,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             );
           })()}
 
-          {/* Artist Sales Dropdown - Show for non-guest users */}
+          {/* Artist Sales Dropdown - Hide for digital users */}
           {(() => {
-            const canSeeArtistSales = user?.role !== 'guest';
+            const isDigital = user?.department?.name?.toLowerCase() === 'digital' ||
+                              user?.department?.toLowerCase() === 'digital';
+            const canSeeArtistSales = user?.role !== 'guest' && !isDigital;
 
             return canSeeArtistSales && (
               <li>

@@ -58,19 +58,19 @@ import { Loader2 } from 'lucide-react';
 
 const taskFormSchema = z.object({
   title: z.string().min(1, 'Title is required'),
-  description: z.string().optional(),
-  task_type: z.enum(TASK_TYPE_CHOICES as [string, ...string[]]).default('general'),
-  status: z.enum(TASK_STATUS_CHOICES as [string, ...string[]]).default('todo'),
-  priority: z.number().min(1).max(4).default(2),
-  tag: z.enum(TASK_TAG_CHOICES as [string, ...string[]]).optional(),
-  campaign: z.number().optional(),
-  entity: z.number().optional(),
-  assigned_to_users: z.array(z.number()).optional(),
-  due_date: z.string().optional(),
-  reminder_date: z.string().optional(),
-  estimated_hours: z.number().optional(),
-  actual_hours: z.number().optional(),
-  notes: z.string().optional(),
+  description: z.string().optional().or(z.literal('')).nullable(),
+  task_type: z.enum(TASK_TYPE_CHOICES as [string, ...string[]]).optional().nullable(),
+  status: z.enum(TASK_STATUS_CHOICES as [string, ...string[]]).optional().nullable(),
+  priority: z.number().min(1).max(4).optional().nullable(),
+  tag: z.enum(TASK_TAG_CHOICES as [string, ...string[]]).optional().nullable(),
+  campaign: z.number().optional().nullable(),
+  entity: z.number().optional().nullable(),
+  assigned_to_users: z.array(z.number()).optional().nullable(),
+  due_date: z.string().optional().or(z.literal('')).nullable(),
+  reminder_date: z.string().optional().or(z.literal('')).nullable(),
+  estimated_hours: z.number().optional().nullable(),
+  actual_hours: z.number().optional().nullable(),
+  notes: z.string().optional().or(z.literal('')).nullable(),
 });
 
 type TaskFormValues = z.infer<typeof taskFormSchema>;
