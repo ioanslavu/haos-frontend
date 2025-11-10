@@ -112,6 +112,9 @@ const SongWorkCreate = lazy(() => import("./pages/songs/SongWorkCreate"));
 const SongWorkEdit = lazy(() => import("./pages/songs/SongWorkEdit"));
 const SongWorkDetail = lazy(() => import("./pages/songs/SongWorkDetail"));
 
+// Notes pages
+const NotesPage = lazy(() => import("./pages/notes/Index"));
+
 const App = () => (
   <ErrorBoundary>
     <QueryProvider>
@@ -433,6 +436,11 @@ const App = () => (
             <Route path="/digital/reporting" element={
               <ProtectedRoute>
                 <DigitalReporting />
+              </ProtectedRoute>
+            } />
+            <Route path="/notes" element={
+              <ProtectedRoute>
+                <NotesPage />
               </ProtectedRoute>
             } />
             <Route path="/settings" element={

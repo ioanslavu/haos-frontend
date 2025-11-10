@@ -32,6 +32,7 @@ import {
   Handshake,
   Palette,
   Package,
+  StickyNote,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -124,6 +125,13 @@ const navigation: NavigationItem[] = [
       return user?.role !== 'guest' && (user?.department || user?.role === 'administrator') && !isDigital;
     },
     tourId: 'task-management-nav',
+  },
+  {
+    name: 'Notes',
+    href: '/notes',
+    icon: StickyNote,
+    show: (user) => user?.role !== 'guest',
+    tourId: 'notes-nav',
   },
   // { name: 'Studio', href: '/studio', icon: Calendar },
 ];
