@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { StageBadge } from '@/components/songs/StageBadge';
 import { ProgressBar } from '@/components/songs/ProgressBar';
 import { ChecklistSection } from '@/components/songs/ChecklistSection';
+import { AssignChecklistDialog } from '@/components/songs/AssignChecklistDialog';
 import { ActivityLogItem, ActivityType } from '@/components/songs/ActivityLogItem';
 import { AssetCard } from '@/components/songs/AssetCard';
 import { AssetUploader } from '@/components/songs/AssetUploader';
@@ -23,6 +24,10 @@ import { WorkflowProgressBar } from '@/components/songs/WorkflowProgressBar';
 import { StageInfoCard } from '@/components/songs/StageInfoCard';
 import { QuickActionButtons } from '@/components/songs/QuickActionButtons';
 import { TransitionTimeline } from '@/components/songs/TransitionTimeline';
+import { ArtistManagementSection } from '@/components/songs/ArtistManagementSection';
+import { WorkTab } from '@/components/songs/WorkTab';
+import { RelatedTasks } from '@/components/tasks/RelatedTasks';
+import { SongTriggerButton } from '@/components/tasks/ManualTriggerButton';
 import {
   fetchSongDetail,
   fetchChecklist,
@@ -43,6 +48,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { SongStageTransition, SongNote, SongChecklistItem, SongAsset } from '@/types/song';
+import apiClient from '@/api/client';
 
 export default function SongDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -54,6 +60,8 @@ export default function SongDetailPage() {
   const [showAssetUploader, setShowAssetUploader] = useState(false);
   const [showAddNote, setShowAddNote] = useState(false);
   const [activityFilter, setActivityFilter] = useState<'all' | ActivityType>('all');
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [selectedChecklistItem, setSelectedChecklistItem] = useState<SongChecklistItem | null>(null);
 
   const songId = parseInt(id || '0');
 
@@ -88,17 +96,24 @@ export default function SongDetailPage() {
     enabled: !!songId,
   });
 
+  const song = songData?.data;
+
+  // Fetch work from song context (consistent with recordings)
+  // Backend returns 404 if no work exists - this is expected, not an error
   const { data: workData, isLoading: workLoading, error: workError } = useQuery({
     queryKey: ['song-work', songId],
     queryFn: () => fetchSongWork(songId),
-    enabled: !!songId && activeTab === 'work',
+    enabled: activeTab === 'work',
+    retry: (failureCount, error: any) => {
+      // Don't retry if it's a 404 (no work exists yet)
+      if (error?.response?.status === 404) return false;
+      return failureCount < 3;
+    },
   });
-
-  const song = songData?.data;
-  const checklist = Array.isArray(checklistData?.data) ? checklistData.data : [];
-  const notes = Array.isArray(notesData?.data) ? notesData.data : [];
-  const transitions = Array.isArray(transitionsData?.data) ? transitionsData.data : [];
-  const assets = Array.isArray(assetsData?.data) ? assetsData.data : [];
+  const checklist = Array.isArray(checklistData?.data?.results) ? checklistData.data.results : (Array.isArray(checklistData?.data) ? checklistData.data : []);
+  const notes = Array.isArray(notesData?.data?.results) ? notesData.data.results : (Array.isArray(notesData?.data) ? notesData.data : []);
+  const transitions = Array.isArray(transitionsData?.data?.results) ? transitionsData.data.results : (Array.isArray(transitionsData?.data) ? transitionsData.data : []);
+  const assets = Array.isArray(assetsData?.data?.results) ? assetsData.data.results : (Array.isArray(assetsData?.data) ? assetsData.data : []);
   const work = workData?.data;
 
   // Mutations
@@ -201,7 +216,7 @@ export default function SongDetailPage() {
 
     // Add completed checklist items
     checklist
-      .filter((item) => item.is_completed && item.completed_at)
+      .filter((item) => item.is_complete && item.completed_at)
       .forEach((item) => {
         items.push({
           id: `checklist-${item.id}`,
@@ -261,59 +276,127 @@ export default function SongDetailPage() {
   return (
     <AppLayout>
       <div className="container mx-auto py-6 space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/songs')}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold">{song.title}</h1>
-            <p className="text-muted-foreground">{song.artist?.display_name || 'No artist'}</p>
+        {/* Modern Header with Gradient Background */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-background to-background border border-white/10 p-8 shadow-xl">
+          {/* Gradient Orbs */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-blue-400/20 to-purple-500/20 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-pink-400/20 to-orange-500/20 rounded-full blur-3xl" />
+
+          <div className="relative z-10">
+            <Button variant="ghost" size="sm" onClick={() => navigate('/songs')} className="mb-4 hover:bg-white/10">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Songs
+            </Button>
+
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text mb-2">
+                  {song.title}
+                </h1>
+                <p className="text-muted-foreground text-lg">{song.artist?.display_name || 'No artist'}</p>
+              </div>
+              {song.current_stage && <StageBadge stage={song.current_stage} />}
+            </div>
           </div>
-          {song.current_stage && <StageBadge stage={song.current_stage} />}
         </div>
 
-      <Card>
-        <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Progress</p>
-              <ProgressBar progress={song.checklist_progress} showLabel={true} />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Time in Stage</p>
-              <p className="text-lg font-semibold">
-                {song.days_in_current_stage} {song.days_in_current_stage === 1 ? 'day' : 'days'}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Target Release</p>
-              <p className="text-lg font-semibold">
-                {song.target_release_date
-                  ? new Date(song.target_release_date).toLocaleDateString()
-                  : 'Not set'}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Created</p>
-              <p className="text-lg font-semibold">
-                {formatDistanceToNow(new Date(song.created_at), { addSuffix: true })}
-              </p>
-            </div>
+      {/* Glassmorphic Info Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="relative overflow-hidden rounded-xl border-white/20 dark:border-white/10 bg-gradient-to-br from-blue-500/10 to-purple-500/10 backdrop-blur-xl shadow-lg p-5">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 to-transparent" />
+          <div className="relative">
+            <p className="text-sm font-medium text-muted-foreground mb-2">Progress</p>
+            <ProgressBar progress={song.checklist_progress} showLabel={true} />
           </div>
-        </CardContent>
-      </Card>
+        </Card>
 
+        <Card className="relative overflow-hidden rounded-xl border-white/20 dark:border-white/10 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 backdrop-blur-xl shadow-lg p-5">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-400/20 to-transparent" />
+          <div className="relative">
+            <p className="text-sm font-medium text-muted-foreground mb-2">Time in Stage</p>
+            <p className="text-2xl font-bold">
+              {song.days_in_current_stage} {song.days_in_current_stage === 1 ? 'day' : 'days'}
+            </p>
+          </div>
+        </Card>
+
+        <Card className="relative overflow-hidden rounded-xl border-white/20 dark:border-white/10 bg-gradient-to-br from-orange-500/10 to-red-500/10 backdrop-blur-xl shadow-lg p-5">
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-400/20 to-transparent" />
+          <div className="relative">
+            <p className="text-sm font-medium text-muted-foreground mb-2">Target Release</p>
+            <p className="text-lg font-bold">
+              {song.target_release_date
+                ? new Date(song.target_release_date).toLocaleDateString()
+                : 'Not set'}
+            </p>
+          </div>
+        </Card>
+
+        <Card className="relative overflow-hidden rounded-xl border-white/20 dark:border-white/10 bg-gradient-to-br from-pink-500/10 to-purple-500/10 backdrop-blur-xl shadow-lg p-5">
+          <div className="absolute inset-0 bg-gradient-to-br from-pink-400/20 to-transparent" />
+          <div className="relative">
+            <p className="text-sm font-medium text-muted-foreground mb-2">Created</p>
+            <p className="text-lg font-bold">
+              {formatDistanceToNow(new Date(song.created_at), { addSuffix: true })}
+            </p>
+          </div>
+        </Card>
+      </div>
+
+      {/* Modern iOS-style Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="work">Work</TabsTrigger>
-          <TabsTrigger value="recording">Recording</TabsTrigger>
-          <TabsTrigger value="assets">Assets</TabsTrigger>
-          <TabsTrigger value="release">Release</TabsTrigger>
-          <TabsTrigger value="activity">Activity Log</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-8 p-2 bg-muted/50 backdrop-blur-xl rounded-2xl border border-white/10 h-14 shadow-lg">
+          <TabsTrigger
+            value="overview"
+            className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
+          >
+            Overview
+          </TabsTrigger>
+          <TabsTrigger
+            value="artists"
+            className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
+          >
+            Artists
+          </TabsTrigger>
+          <TabsTrigger
+            value="work"
+            className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
+          >
+            Work
+          </TabsTrigger>
+          <TabsTrigger
+            value="recording"
+            className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
+          >
+            Recording
+          </TabsTrigger>
+          <TabsTrigger
+            value="assets"
+            className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
+          >
+            Assets
+          </TabsTrigger>
+          <TabsTrigger
+            value="release"
+            className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
+          >
+            Release
+          </TabsTrigger>
+          <TabsTrigger
+            value="tasks"
+            className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
+          >
+            Tasks
+          </TabsTrigger>
+          <TabsTrigger
+            value="activity"
+            className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
+          >
+            Activity Log
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-6">
+        <TabsContent value="overview" className="space-y-6 mt-6">
           {/* Workflow Progress Bar */}
           <Card className="rounded-2xl border-white/10 bg-background/50 backdrop-blur-xl shadow-xl">
             <CardHeader>
@@ -335,9 +418,17 @@ export default function SongDetailPage() {
             {/* Checklist Section - Takes up 2 columns */}
             <div className="lg:col-span-2">
               <ChecklistSection
+                songId={songId}
                 items={checklist}
                 currentStage={currentStage}
                 onToggle={(itemId) => toggleChecklistMutation.mutate(itemId)}
+                onAssign={(itemId) => {
+                  const item = checklist.find(i => i.id === itemId);
+                  if (item) {
+                    setSelectedChecklistItem(item);
+                    setAssignDialogOpen(true);
+                  }
+                }}
                 onValidateAll={() => validateAllMutation.mutate()}
                 onSendToMarketing={
                   currentStage === 'label_recording'
@@ -383,36 +474,21 @@ export default function SongDetailPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="work">
-          <Card>
-            <CardHeader>
-              <CardTitle>Work Details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {song.work ? (
-                <div>
-                  <p className="text-sm text-muted-foreground">Work ID: {song.work.id}</p>
-                  {song.work.iswc && (
-                    <p className="text-sm text-muted-foreground">ISWC: {song.work.iswc}</p>
-                  )}
-                  <Button variant="outline" className="mt-4" onClick={() => navigate(`/catalog/works/${song.work?.id}`)}>
-                    View Work Details
-                  </Button>
-                </div>
-              ) : (
-                <p className="text-muted-foreground">No work created yet.</p>
-              )}
-            </CardContent>
-          </Card>
+        <TabsContent value="artists" className="mt-6">
+          <ArtistManagementSection song={song} />
         </TabsContent>
 
-        <TabsContent value="recording">
-          <RecordingTab songId={songId} songStage={song.current_stage} />
+        <TabsContent value="work" className="mt-6">
+          <WorkTab song={song} />
         </TabsContent>
 
-        <TabsContent value="assets" className="space-y-6">
+        <TabsContent value="recording" className="mt-6">
+          <RecordingTab songId={songId} songStage={song.current_stage} songTitle={song.title} workId={song.work?.id} />
+        </TabsContent>
+
+        <TabsContent value="assets" className="space-y-6 mt-6">
           {canUploadAssets && (
-            <Card>
+            <Card className="rounded-2xl border-white/10 bg-background/50 backdrop-blur-xl shadow-xl">
               <CardHeader>
                 <CardTitle>Upload Marketing Assets</CardTitle>
                 <p className="text-sm text-muted-foreground">
@@ -421,7 +497,10 @@ export default function SongDetailPage() {
               </CardHeader>
               <CardContent>
                 {!showAssetUploader ? (
-                  <Button onClick={() => setShowAssetUploader(true)}>
+                  <Button
+                    onClick={() => setShowAssetUploader(true)}
+                    className="rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg"
+                  >
                     Upload New Asset
                   </Button>
                 ) : (
@@ -452,7 +531,7 @@ export default function SongDetailPage() {
             </Card>
           )}
 
-          <Card>
+          <Card className="rounded-2xl border-white/10 bg-background/50 backdrop-blur-xl shadow-xl">
             <CardHeader>
               <CardTitle>Asset Gallery</CardTitle>
               <p className="text-sm text-muted-foreground">
@@ -488,15 +567,39 @@ export default function SongDetailPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="release" className="space-y-6">
+        <TabsContent value="release" className="space-y-6 mt-6">
           <ReleaseTab
             songId={songId}
             releaseId={song.release?.id}
-            onCreateRelease={() => setShowCreateReleaseDialog(true)}
+            onCreateRelease={() => navigate(`/catalog/releases/create?songId=${songId}`)}
           />
         </TabsContent>
 
-        <TabsContent value="activity" className="space-y-6">
+        <TabsContent value="tasks" className="space-y-6 mt-6">
+          {/* Manual trigger buttons */}
+          <Card className="rounded-2xl border-white/10 bg-background/50 backdrop-blur-xl shadow-xl">
+            <CardHeader>
+              <CardTitle>Quick Actions</CardTitle>
+              <CardDescription>Create tasks for this song</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                <SongTriggerButton songId={songId} />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Related tasks */}
+          <RelatedTasks
+            entityType="song"
+            entityId={songId}
+            title="Song Tasks"
+            description="Tasks automatically created and updated based on this song's progress"
+            showEmpty={true}
+          />
+        </TabsContent>
+
+        <TabsContent value="activity" className="space-y-6 mt-6">
           {/* Stage Transition Timeline */}
           {transitions.length > 0 && (
             <TransitionTimeline transitions={transitions} />
@@ -524,7 +627,10 @@ export default function SongDetailPage() {
                     </SelectContent>
                   </Select>
                   {!showAddNote && (
-                    <Button onClick={() => setShowAddNote(true)} className="rounded-xl">
+                    <Button
+                      onClick={() => setShowAddNote(true)}
+                      className="rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg"
+                    >
                       <Plus className="h-4 w-4 mr-2" />
                       Add Note
                     </Button>
@@ -592,6 +698,14 @@ export default function SongDetailPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Assign Checklist Dialog */}
+      <AssignChecklistDialog
+        open={assignDialogOpen}
+        onOpenChange={setAssignDialogOpen}
+        songId={songId}
+        checklistItem={selectedChecklistItem}
+      />
     </div>
     </AppLayout>
   );

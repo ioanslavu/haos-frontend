@@ -522,10 +522,11 @@ export const useDepartmentRequests = (status?: 'pending' | 'approved' | 'rejecte
     queryKey: ['department-requests', status],
     queryFn: async () => {
       const params = status ? { status } : {};
-      const response = await apiClient.get<DepartmentRequest[]>('/api/v1/department-requests/', {
+      const response = await apiClient.get<{ count: number; results: DepartmentRequest[] } | DepartmentRequest[]>('/api/v1/department-requests/', {
         params,
       });
-      return response.data.results || response.data;
+      // Handle both paginated and non-paginated responses
+      return Array.isArray(response.data) ? response.data : response.data.results;
     },
   });
 };

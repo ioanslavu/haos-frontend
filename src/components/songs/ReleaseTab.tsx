@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit, ExternalLink, AlertCircle, CheckCircle2, Clock, TrendingUp } from 'lucide-react';
+import { Plus, Edit, ExternalLink, AlertCircle, CheckCircle2, Clock, TrendingUp, Disc3 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,7 @@ import { EditReleaseDialog } from './EditReleaseDialog';
 import { AddPlatformDialog } from './AddPlatformDialog';
 import { EditPublicationDialog } from './EditPublicationDialog';
 import { DistributionChecklist } from './DistributionChecklist';
+import { LinkReleaseDialog } from './LinkReleaseDialog';
 import catalogService from '@/api/services/catalog.service';
 import { fetchReleasePublications } from '@/api/songApi';
 import { useAuthStore } from '@/stores/authStore';
@@ -34,6 +35,7 @@ export function ReleaseTab({ songId, releaseId, onCreateRelease }: ReleaseTabPro
   const [showEditReleaseDialog, setShowEditReleaseDialog] = useState(false);
   const [showAddPlatformDialog, setShowAddPlatformDialog] = useState(false);
   const [selectedPublication, setSelectedPublication] = useState<Publication | null>(null);
+  const [showLinkReleaseDialog, setShowLinkReleaseDialog] = useState(false);
 
   // Query release details
   const { data: releaseData, isLoading: releaseLoading } = useQuery({
@@ -83,36 +85,60 @@ export function ReleaseTab({ songId, releaseId, onCreateRelease }: ReleaseTabPro
   // No release yet
   if (!releaseId) {
     return (
-      <div className="space-y-6">
-        <Card className="rounded-2xl border-white/10 bg-background/50 backdrop-blur-xl shadow-xl">
-          <CardHeader>
-            <CardTitle>Release Information</CardTitle>
-            <CardDescription>
-              {canEdit
-                ? 'Create a release to start distribution'
-                : 'No release created yet'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-12">
-              <AlertCircle className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-20" />
-              <p className="text-muted-foreground mb-4">
-                This song has not been set up for release yet.
-              </p>
-              {canEdit && onCreateRelease && (
-                <Button
-                  onClick={onCreateRelease}
-                  size="lg"
-                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-                >
-                  <Plus className="h-5 w-5 mr-2" />
-                  Create Release
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <>
+        <div className="space-y-6">
+          <Card className="rounded-2xl border-white/10 bg-background/50 backdrop-blur-xl shadow-xl">
+            <CardHeader>
+              <CardTitle>Release Information</CardTitle>
+              <CardDescription>
+                {canEdit
+                  ? 'Create a release to start distribution'
+                  : 'No release created yet'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-12">
+                <AlertCircle className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-20" />
+                <p className="text-muted-foreground mb-4">
+                  This song has not been set up for release yet.
+                </p>
+                {canEdit && (
+                  <div className="flex items-center justify-center gap-3">
+                    {onCreateRelease && (
+                      <Button
+                        onClick={onCreateRelease}
+                        size="lg"
+                        className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                      >
+                        <Plus className="h-5 w-5 mr-2" />
+                        Create New Release
+                      </Button>
+                    )}
+                    <Button
+                      onClick={() => setShowLinkReleaseDialog(true)}
+                      size="lg"
+                      variant="outline"
+                    >
+                      <Disc3 className="h-5 w-5 mr-2" />
+                      Link Existing Release
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Link Release Dialog */}
+        <LinkReleaseDialog
+          open={showLinkReleaseDialog}
+          onOpenChange={setShowLinkReleaseDialog}
+          songId={songId}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['song', songId] });
+          }}
+        />
+      </>
     );
   }
 

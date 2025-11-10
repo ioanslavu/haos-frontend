@@ -227,7 +227,7 @@ export interface RecordingDetails {
 }
 
 class CatalogService {
-  private readonly BASE_PATH = '/api/v1/catalog';
+  private readonly BASE_PATH = '/api/v1';
 
   // Works
   async getWorks(params?: WorkSearchParams): Promise<PaginatedResponse<Work>> {

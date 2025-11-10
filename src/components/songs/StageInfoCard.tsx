@@ -7,6 +7,7 @@ import { StageTransitionDialog } from './StageTransitionDialog';
 import { Song, SongStage, SongChecklistItem } from '@/types/song';
 import { ArrowRight, ArrowLeft, Clock, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/stores/authStore';
 
 interface StageInfoCardProps {
   song: Song;
@@ -54,6 +55,7 @@ export const StageInfoCard = ({ song, checklist, className }: StageInfoCardProps
   const [showTransitionDialog, setShowTransitionDialog] = useState(false);
   const [transitionTarget, setTransitionTarget] = useState<SongStage | null>(null);
   const [isRejection, setIsRejection] = useState(false);
+  const { isAdmin } = useAuthStore();
 
   const currentStage = song.current_stage || 'draft';
   const currentIndex = stageFlow.indexOf(currentStage);
@@ -61,9 +63,9 @@ export const StageInfoCard = ({ song, checklist, className }: StageInfoCardProps
   const previousStage = currentIndex > 0 ? stageFlow[currentIndex - 1] : null;
 
   const isOverdue = song.days_in_current_stage > estimatedDays[currentStage];
-  const completedItems = checklist.filter((item) => item.is_completed).length;
+  const completedItems = checklist.filter((item) => item.is_complete).length;
   const totalItems = checklist.length;
-  const checklistProgress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+  const checklistProgress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 100; // 100% if no items (nothing to block)
 
   const handleTransitionClick = (target: SongStage, rejection = false) => {
     setTransitionTarget(target);
@@ -151,7 +153,7 @@ export const StageInfoCard = ({ song, checklist, className }: StageInfoCardProps
             {nextStage && currentStage !== 'released' && currentStage !== 'archived' && (
               <Button
                 onClick={() => handleTransitionClick(nextStage, false)}
-                disabled={checklistProgress < 100}
+                disabled={checklistProgress < 100 && !isAdmin()}
                 className="w-full rounded-xl shadow-lg hover:shadow-xl transition-all bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                 size="lg"
               >

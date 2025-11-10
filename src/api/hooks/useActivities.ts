@@ -84,10 +84,11 @@ export const useActivityTimeline = (params: {
   return useQuery({
     queryKey: ['activities', 'timeline', params],
     queryFn: async () => {
-      const response = await apiClient.get<Activity[]>(
+      const response = await apiClient.get<{ count: number; results: Activity[] } | Activity[]>(
         `${ACTIVITIES_BASE_URL}/timeline/?${queryParams.toString()}`
       );
-      return response.data;
+      // Handle both paginated and non-paginated responses
+      return Array.isArray(response.data) ? response.data : response.data.results;
     },
     enabled: !!(params.entity || params.campaign),
   });

@@ -137,23 +137,39 @@ export const TransitionTimeline = ({ transitions, className }: TransitionTimelin
 
                     {/* Metadata */}
                     <div className="flex items-center justify-between gap-4 text-xs text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-6 w-6">
-                          <AvatarFallback className="text-[10px] bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-                            {getUserInitials(transition.created_by.full_name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span>{transition.created_by.full_name}</span>
-                      </div>
+                      {transition.created_by && (
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-6 w-6">
+                            <AvatarFallback className="text-[10px] bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+                              {getUserInitials(transition.created_by.full_name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span>{transition.created_by.full_name}</span>
+                        </div>
+                      )}
 
                       <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          <span>{format(new Date(transition.created_at), 'MMM d, yyyy')}</span>
-                        </div>
-                        <span className="text-muted-foreground/60">
-                          {formatDistanceToNow(new Date(transition.created_at), { addSuffix: true })}
-                        </span>
+                        {transition.created_at && (() => {
+                          try {
+                            const date = new Date(transition.created_at);
+                            if (!isNaN(date.getTime())) {
+                              return (
+                                <>
+                                  <div className="flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" />
+                                    <span>{format(date, 'MMM d, yyyy')}</span>
+                                  </div>
+                                  <span className="text-muted-foreground/60">
+                                    {formatDistanceToNow(date, { addSuffix: true })}
+                                  </span>
+                                </>
+                              );
+                            }
+                          } catch (e) {
+                            return null;
+                          }
+                          return null;
+                        })()}
                       </div>
                     </div>
                   </div>
@@ -193,7 +209,20 @@ export const TransitionTimeline = ({ transitions, className }: TransitionTimelin
             </div>
             <div className="text-center p-4 rounded-xl bg-muted/50">
               <p className="text-2xl font-bold text-foreground">
-                {format(new Date(sortedTransitions[sortedTransitions.length - 1].created_at), 'MMM d')}
+                {(() => {
+                  try {
+                    const firstTransition = sortedTransitions[sortedTransitions.length - 1];
+                    if (firstTransition?.created_at) {
+                      const date = new Date(firstTransition.created_at);
+                      if (!isNaN(date.getTime())) {
+                        return format(date, 'MMM d');
+                      }
+                    }
+                  } catch (e) {
+                    return '-';
+                  }
+                  return '-';
+                })()}
               </p>
               <p className="text-xs text-muted-foreground mt-1">Started</p>
             </div>

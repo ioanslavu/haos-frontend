@@ -5,6 +5,7 @@ import { StageTransitionDialog } from './StageTransitionDialog';
 import { Song, SongStage, SongChecklistItem } from '@/types/song';
 import { Send, CheckCircle, Upload, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/stores/authStore';
 
 interface QuickActionButtonsProps {
   song: Song;
@@ -65,6 +66,7 @@ const quickActions: QuickAction[] = [
 export const QuickActionButtons = ({ song, checklist, className }: QuickActionButtonsProps) => {
   const [showTransitionDialog, setShowTransitionDialog] = useState(false);
   const [selectedAction, setSelectedAction] = useState<QuickAction | null>(null);
+  const { isAdmin } = useAuthStore();
 
   const currentStage = song.current_stage || 'draft';
 
@@ -74,9 +76,9 @@ export const QuickActionButtons = ({ song, checklist, className }: QuickActionBu
   );
 
   // Check if checklist is complete
-  const completedItems = checklist.filter((item) => item.is_completed).length;
+  const completedItems = checklist.filter((item) => item.is_complete).length;
   const totalItems = checklist.length;
-  const checklistProgress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+  const checklistProgress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 100; // 100% if no items
   const isChecklistComplete = checklistProgress === 100;
 
   if (availableActions.length === 0) {
@@ -104,7 +106,7 @@ export const QuickActionButtons = ({ song, checklist, className }: QuickActionBu
               <Button
                 key={action.id}
                 onClick={() => handleActionClick(action)}
-                disabled={!isChecklistComplete}
+                disabled={!isChecklistComplete && !isAdmin()}
                 className={cn(
                   'w-full h-auto py-4 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-start justify-start gap-4 text-left',
                   action.gradient && `bg-gradient-to-r ${action.gradient} hover:opacity-90`
@@ -122,7 +124,7 @@ export const QuickActionButtons = ({ song, checklist, className }: QuickActionBu
             );
           })}
 
-          {!isChecklistComplete && (
+          {!isChecklistComplete && !isAdmin() && (
             <div className="mt-4 p-4 rounded-xl bg-muted/50 border border-border">
               <p className="text-sm text-muted-foreground text-center">
                 Complete checklist ({completedItems}/{totalItems}) to unlock quick actions

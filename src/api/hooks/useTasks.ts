@@ -15,6 +15,14 @@ export const useTasks = (params?: {
   department?: number;
   campaign?: number;
   entity?: number;
+  // Universal task system entity filters
+  entity_type?: 'song' | 'work' | 'recording' | 'opportunity' | 'deliverable' | 'checklist_item';
+  song?: number;
+  work?: number;
+  recording?: number;
+  opportunity?: number;
+  deliverable?: number;
+  checklist_item?: number;
   is_overdue?: boolean;
   is_blocked?: boolean;
   my_tasks?: boolean;
@@ -38,10 +46,11 @@ export const useTasks = (params?: {
   return useQuery({
     queryKey: ['tasks', params],
     queryFn: async () => {
-      const response = await apiClient.get<Task[]>(
+      const response = await apiClient.get<{ count: number; results: Task[] } | Task[]>(
         `${TASKS_BASE_URL}/${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
       );
-      return response.data;
+      // Handle both paginated and non-paginated responses
+      return Array.isArray(response.data) ? response.data : response.data.results;
     },
     refetchOnMount: 'always',
   });
@@ -181,4 +190,25 @@ export const useMyTasks = (additionalParams?: any) => {
 // Overdue tasks shorthand
 export const useOverdueTasks = (additionalParams?: any) => {
   return useTasks({ is_overdue: true, ...additionalParams });
+};
+
+// Entity-specific task shortcuts
+export const useSongTasks = (songId: number, additionalParams?: any) => {
+  return useTasks({ song: songId, ...additionalParams });
+};
+
+export const useWorkTasks = (workId: number, additionalParams?: any) => {
+  return useTasks({ work: workId, ...additionalParams });
+};
+
+export const useRecordingTasks = (recordingId: number, additionalParams?: any) => {
+  return useTasks({ recording: recordingId, ...additionalParams });
+};
+
+export const useOpportunityTasks = (opportunityId: number, additionalParams?: any) => {
+  return useTasks({ opportunity: opportunityId, ...additionalParams });
+};
+
+export const useDeliverableTasks = (deliverableId: number, additionalParams?: any) => {
+  return useTasks({ deliverable: deliverableId, ...additionalParams });
 };

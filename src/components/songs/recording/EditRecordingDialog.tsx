@@ -101,7 +101,7 @@ export function EditRecordingDialog({
 
   const updateMutation = useMutation({
     mutationFn: (data: RecordingUpdate) =>
-      apiClient.patch(`/api/v1/catalog/recordings/${recording.id}/`, data),
+      apiClient.patch(`/api/v1/recordings/${recording.id}/`, data),
     onSuccess: () => {
       onSuccess();
     },

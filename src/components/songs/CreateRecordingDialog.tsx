@@ -21,8 +21,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import catalogService from '@/api/services/catalog.service';
-import apiClient from '@/api/client';
+import { createRecordingInSongContext } from '@/api/songApi';
 
 interface CreateRecordingDialogProps {
   open: boolean;
@@ -75,8 +74,8 @@ export function CreateRecordingDialog({
 
   const createRecordingMutation = useMutation({
     mutationFn: async (data: RecordingFormData) => {
-      // Step 1: Create the recording
-      const recording = await catalogService.createRecording({
+      // Create recording and automatically link to song in a single atomic operation
+      const response = await createRecordingInSongContext(songId, {
         title: data.title,
         type: data.type as any,
         work: data.work,
@@ -90,12 +89,9 @@ export function CreateRecordingDialog({
         status: 'draft',
       });
 
-      // Step 2: Link the recording to the song via the M2M relationship
-      await apiClient.post(`/api/v1/songs/${songId}/link_recording/`, {
-        recording_id: recording.id,
-      });
+      console.log('Created and linked recording:', response.data);
 
-      return recording;
+      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['song-recordings', songId] });
@@ -108,9 +104,17 @@ export function CreateRecordingDialog({
       resetForm();
     },
     onError: (error: any) => {
+      console.error('Recording creation error:', error);
+      console.error('Error response:', error.response?.data);
+
+      const errorMessage = error.response?.data?.error ||
+                          error.response?.data?.detail ||
+                          error.message ||
+                          'Failed to create recording. Please try again.';
+
       toast({
         title: 'Error Creating Recording',
-        description: error.response?.data?.detail || 'Failed to create recording. Please try again.',
+        description: errorMessage,
         variant: 'destructive',
       });
     },

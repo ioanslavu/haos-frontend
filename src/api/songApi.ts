@@ -149,17 +149,36 @@ export const markAllAlertsRead = () => {
   return apiClient.post('/api/v1/alerts/mark_all_read/');
 };
 
+// Work - Create in Song Context
+export const createWorkInSongContext = (songId: number, data: Partial<WorkWithSplits>) => {
+  return apiClient.post<WorkWithSplits>(`${SONGS_BASE}/${songId}/create-work/`, data);
+};
+
+// Work - Fetch from Song Context
+export const fetchSongWork = (songId: number) => {
+  return apiClient.get<WorkWithSplits>(`${SONGS_BASE}/${songId}/work/`);
+};
+
 // Recordings
 export const fetchSongRecordings = (songId: number) => {
   return apiClient.get<Recording[]>(`${SONGS_BASE}/${songId}/recordings/`);
 };
 
+export const createRecordingInSongContext = (songId: number, data: Partial<Recording>) => {
+  return apiClient.post<Recording>(`${SONGS_BASE}/${songId}/create-recording/`, data);
+};
+
 export const updateRecording = (recordingId: number, data: Partial<Recording>) => {
-  return apiClient.patch<Recording>(`/api/v1/catalog/recordings/${recordingId}/`, data);
+  return apiClient.patch<Recording>(`/api/v1/recordings/${recordingId}/`, data);
 };
 
 export const deleteRecording = (recordingId: number) => {
-  return apiClient.delete(`/api/v1/catalog/recordings/${recordingId}/`);
+  return apiClient.delete(`/api/v1/recordings/${recordingId}/`);
+};
+
+// Checklist Item Assignment
+export const assignChecklistItem = (songId: number, checklistItemId: number, data: { user_id: number; priority?: number; due_date?: string }) => {
+  return apiClient.post(`${SONGS_BASE}/${songId}/checklist/${checklistItemId}/assign/`, data);
 };
 
 // Recording Credits
@@ -230,17 +249,47 @@ export const deleteRecordingAsset = (assetId: number) => {
   return apiClient.delete(`/api/v1/catalog/recording-assets/${assetId}/`);
 };
 
-// Work details
-export const fetchSongWork = (songId: number) => {
-  return apiClient.get<WorkWithSplits>(`${SONGS_BASE}/${songId}/work/`);
-};
-
 // Release and Publications
 export const fetchReleasePublications = (releaseId: number) => {
-  return apiClient.get<Publication[]>(`/api/v1/catalog/releases/${releaseId}/publications/`);
+  return apiClient.get<Publication[]>(`/api/v1/releases/${releaseId}/publications/`);
 };
 
 // Contracts
 export const fetchSongContracts = (songId: number) => {
   return apiClient.get<any[]>(`${SONGS_BASE}/${songId}/contracts/`);
+};
+
+// Catalog Management - Recordings
+export const addRecordingToSong = (songId: number, recordingId: number) => {
+  return apiClient.post(`${SONGS_BASE}/${songId}/add-recording/`, { recording_id: recordingId });
+};
+
+export const removeRecordingFromSong = (songId: number, recordingId: number) => {
+  return apiClient.delete(`${SONGS_BASE}/${songId}/recordings/${recordingId}/`);
+};
+
+// Catalog Management - Releases
+export const addReleaseToSong = (songId: number, releaseId: number) => {
+  return apiClient.post(`${SONGS_BASE}/${songId}/add-release/`, { release_id: releaseId });
+};
+
+export const removeReleaseFromSong = (songId: number, releaseId: number) => {
+  return apiClient.delete(`${SONGS_BASE}/${songId}/releases/${releaseId}/`);
+};
+
+// Featured Artists Management
+export const addFeaturedArtist = (songId: number, data: {
+  artist_id: number;
+  role?: string;
+  order?: number;
+}) => {
+  return apiClient.post(`${SONGS_BASE}/${songId}/add-artist/`, data);
+};
+
+export const removeFeaturedArtist = (songId: number, creditId: number) => {
+  return apiClient.delete(`${SONGS_BASE}/${songId}/artists/${creditId}/`);
+};
+
+export const reorderFeaturedArtists = (songId: number, artistCredits: Array<{ id: number; order: number }>) => {
+  return apiClient.patch(`${SONGS_BASE}/${songId}/reorder-artists/`, { artist_credits: artistCredits });
 };

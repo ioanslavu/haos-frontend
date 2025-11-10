@@ -61,7 +61,7 @@ export function AddMasterSplitDialog({
   // Get current splits to show remaining percentage
   const { data: recordingData } = useQuery({
     queryKey: ['recording-detail', recordingId],
-    queryFn: () => apiClient.get(`/api/v1/catalog/recordings/${recordingId}/`),
+    queryFn: () => apiClient.get(`/api/v1/recordings/${recordingId}/`),
     enabled: open,
   });
 

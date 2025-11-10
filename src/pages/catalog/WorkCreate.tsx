@@ -1,14 +1,15 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { ArrowLeft, Loader2, Music } from 'lucide-react';
+import { ArrowLeft, Loader2, Music, Info, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Select,
   SelectContent,
@@ -28,7 +29,10 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useCreateWork } from '@/api/hooks/useCatalog';
+import { createWorkInSongContext } from '@/api/songApi';
 import { toast as sonnerToast } from 'sonner';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import apiClient from '@/api/client';
 
 // Form schema
 const workFormSchema = z.object({
@@ -48,8 +52,26 @@ type WorkFormValues = z.infer<typeof workFormSchema>;
 
 export default function WorkCreate() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
   const createWork = useCreateWork();
   const [activeTab, setActiveTab] = useState('basic');
+
+  // Get songId from URL params
+  const songIdParam = searchParams.get('songId');
+  const songId = songIdParam ? parseInt(songIdParam) : undefined;
+
+  // Fetch song if songId provided
+  const { data: songData } = useQuery({
+    queryKey: ['song', songId],
+    queryFn: async () => {
+      const response = await apiClient.get(`/api/v1/songs/${songId}/`);
+      return response.data;
+    },
+    enabled: !!songId,
+  });
+
+  const song = songData?.data || songData;
 
   const form = useForm<WorkFormValues>({
     resolver: zodResolver(workFormSchema),
@@ -66,6 +88,21 @@ export default function WorkCreate() {
       adaptation_of: '' as any,
     },
   });
+
+  // Pre-fill form from song
+  useEffect(() => {
+    if (song) {
+      if (song.title && !form.getValues('title')) {
+        form.setValue('title', song.title);
+      }
+      if (song.genre && !form.getValues('genre')) {
+        form.setValue('genre', song.genre);
+      }
+      if (song.language && !form.getValues('language')) {
+        form.setValue('language', song.language);
+      }
+    }
+  }, [song, form]);
 
   const onSubmit = async (values: WorkFormValues) => {
     try {
@@ -88,9 +125,22 @@ export default function WorkCreate() {
       if (values.translation_of && values.translation_of !== '') payload.translation_of = Number(values.translation_of);
       if (values.adaptation_of && values.adaptation_of !== '') payload.adaptation_of = Number(values.adaptation_of);
 
-      const createdWork = await createWork.mutateAsync(payload);
-      sonnerToast.success('Work created successfully');
-      navigate(`/catalog/works/${createdWork.id}`);
+      // If songId exists, create work in song context (nested endpoint)
+      if (songId) {
+        const response = await createWorkInSongContext(Number(songId), payload);
+        const createdWork = response.data;
+        console.log('Created and linked work:', createdWork);
+        sonnerToast.success('Work created and linked to song');
+        queryClient.invalidateQueries({ queryKey: ['song', songId] });
+        queryClient.invalidateQueries({ queryKey: ['song-work', Number(songId)] });
+        navigate(`/songs/${songId}`);
+      } else {
+        // Standalone work creation (will fail because create() is disabled in backend)
+        const createdWork = await createWork.mutateAsync(payload);
+        console.log('Created work:', createdWork);
+        sonnerToast.success('Work created successfully');
+        navigate(`/catalog/works/${createdWork.id}`);
+      }
     } catch (error: any) {
       console.error('Failed to create work:', error);
       sonnerToast.error(error.response?.data?.detail || 'Failed to create work');
@@ -98,6 +148,10 @@ export default function WorkCreate() {
   };
 
   const isSubmitting = createWork.isPending;
+
+  const handleCancel = () => {
+    navigate(songId ? `/songs/${songId}` : '/catalog/works');
+  };
 
   return (
     <AppLayout>
@@ -107,7 +161,7 @@ export default function WorkCreate() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate('/catalog/works')}
+            onClick={handleCancel}
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -116,6 +170,17 @@ export default function WorkCreate() {
             <h1 className="text-3xl font-bold tracking-tight">Create New Work</h1>
           </div>
         </div>
+
+        {/* Context Banner */}
+        {song && (
+          <Alert className="border-primary/20 bg-primary/5">
+            <FileText className="h-4 w-4 text-primary" />
+            <AlertDescription>
+              Creating work for song: <strong>{song.title}</strong>
+              {song.artist?.display_name && ` by ${song.artist.display_name}`}
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Form */}
         <Form {...form}>
@@ -376,7 +441,7 @@ export default function WorkCreate() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate('/catalog/works')}
+                onClick={handleCancel}
                 disabled={isSubmitting}
               >
                 Cancel

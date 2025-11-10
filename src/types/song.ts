@@ -11,6 +11,25 @@ export type SongStage =
   | 'released'
   | 'archived';
 
+export interface SongArtist {
+  id: number;
+  artist_id: number;
+  artist_name: string;
+  artist_display_name: string;
+  role: 'featured' | 'remixer' | 'producer' | 'composer' | 'featuring';
+  role_display: string;
+  order: number;
+  created_at: string;
+}
+
+export interface ArtistInfo {
+  id: number;
+  name: string;
+  role: string;
+  is_primary: boolean;
+  order: number;
+}
+
 export interface Song {
   id: number;
   title: string;
@@ -45,25 +64,35 @@ export interface Song {
     id: number;
     upc?: string;
   };
+  // Featured artists fields
+  featured_artists?: SongArtist[];
+  all_artists?: ArtistInfo[];
+  display_artists?: string;
 }
 
 export interface SongChecklistItem {
   id: number;
   song: number;
+  recording?: number | null;
+  recording_title?: string | null;
   stage: SongStage;
   category: string;
+  item_name: string;
   description: string;
-  is_completed: boolean;
-  is_automatic: boolean;
-  validation_field?: string;
+  is_complete: boolean;
+  required: boolean;
+  validation_type: string;
+  validation_rule: Record<string, any>;
   help_text?: string;
+  help_link?: string;
   order: number;
   completed_at?: string;
-  completed_by?: {
-    id: number;
-    email: string;
-    full_name: string;
-  };
+  completed_by?: number | null;
+  completed_by_name?: string | null;
+  assigned_to?: number | null;
+  assigned_to_name?: string | null;
+  is_blocker: boolean;
+  depends_on?: number | null;
 }
 
 export interface SongStageTransition {

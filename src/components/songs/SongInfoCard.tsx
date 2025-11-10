@@ -19,11 +19,16 @@ export const SongInfoCard = ({ song }: SongInfoCardProps) => {
           {/* Artist */}
           <div className="flex items-start gap-3">
             <User className="h-5 w-5 text-muted-foreground mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Artist</p>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-muted-foreground">Artist{song.featured_artists && song.featured_artists.length > 0 ? 's' : ''}</p>
               <p className="text-sm font-semibold">
-                {song.artist?.display_name || 'No artist'}
+                {song.display_artists || song.artist?.display_name || 'No artist'}
               </p>
+              {song.featured_artists && song.featured_artists.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Primary + {song.featured_artists.length} featured
+                </p>
+              )}
             </div>
           </div>
 

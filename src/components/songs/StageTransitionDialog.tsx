@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { StageBadge } from './StageBadge';
 import { transitionSong } from '@/api/songApi';
 import { Song, SongStage, SongChecklistItem } from '@/types/song';
@@ -20,7 +21,8 @@ import {
   Music,
   Image as ImageIcon,
   Clock,
-  Shield
+  Shield,
+  AlertCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -108,15 +110,21 @@ export const StageTransitionDialog = ({
 }: StageTransitionDialogProps) => {
   const [notes, setNotes] = useState('');
   const [rejectionCategory, setRejectionCategory] = useState('');
+  const [acknowledgeIncomplete, setAcknowledgeIncomplete] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { isAdmin } = useAuthStore();
 
   // Calculate validation
-  const completedItems = checklist.filter((item) => item.is_completed).length;
+  const completedItems = checklist.filter((item) => item.is_complete).length;
   const totalItems = checklist.length;
   const checklistProgress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
   const isChecklistComplete = checklistProgress === 100;
+
+  // Get incomplete items
+  const incompleteItems = checklist.filter((item) => !item.is_complete);
+  const incompleteRequired = incompleteItems.filter((item) => item.required);
+  const incompleteOptional = incompleteItems.filter((item) => !item.required);
 
   // Validate required data based on target stage
   const validationIssues: { type: 'error' | 'warning'; message: string }[] = [];
@@ -146,7 +154,8 @@ export const StageTransitionDialog = ({
 
   // Check if transition is allowed
   const hasBlockingIssues = validationIssues.some((issue) => issue.type === 'error');
-  const canProceed = !hasBlockingIssues || isAdmin();
+  const requiresAcknowledgment = !isChecklistComplete && incompleteRequired.length > 0 && isAdmin();
+  const canProceed = !hasBlockingIssues && (isAdmin() || isChecklistComplete) && (!requiresAcknowledgment || acknowledgeIncomplete);
 
   const transitionMutation = useMutation({
     mutationFn: () =>
@@ -306,6 +315,76 @@ export const StageTransitionDialog = ({
                   <AlertDescription className="text-sm">{issue.message}</AlertDescription>
                 </Alert>
               ))}
+            </div>
+          )}
+
+          {/* Admin Bypass - Incomplete Items Warning */}
+          {!isChecklistComplete && isAdmin() && !hasBlockingIssues && (
+            <div className="space-y-4 p-4 rounded-xl border-2 border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/20">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-orange-600 dark:text-orange-400 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h4 className="font-semibold text-sm text-orange-900 dark:text-orange-100 mb-2">
+                    Incomplete Checklist Items
+                  </h4>
+                  <p className="text-xs text-orange-800 dark:text-orange-200 mb-3">
+                    The following items are not yet complete. As an admin, you can proceed, but these items will need to be completed later.
+                  </p>
+                </div>
+              </div>
+
+              {/* Incomplete Required Items */}
+              {incompleteRequired.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-orange-900 dark:text-orange-100 flex items-center gap-2">
+                    <Badge variant="destructive" className="text-xs">Required</Badge>
+                    {incompleteRequired.length} {incompleteRequired.length === 1 ? 'item' : 'items'}
+                  </p>
+                  <ul className="space-y-1.5 ml-2">
+                    {incompleteRequired.map((item) => (
+                      <li key={item.id} className="flex items-start gap-2 text-xs text-orange-800 dark:text-orange-200">
+                        <span className="text-orange-500 mt-0.5">•</span>
+                        <span>{item.description}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Incomplete Optional Items */}
+              {incompleteOptional.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-orange-900 dark:text-orange-100 flex items-center gap-2">
+                    <Badge variant="secondary" className="text-xs">Optional</Badge>
+                    {incompleteOptional.length} {incompleteOptional.length === 1 ? 'item' : 'items'}
+                  </p>
+                  <ul className="space-y-1.5 ml-2">
+                    {incompleteOptional.map((item) => (
+                      <li key={item.id} className="flex items-start gap-2 text-xs text-orange-800 dark:text-orange-200">
+                        <span className="text-orange-500 mt-0.5">•</span>
+                        <span>{item.description}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Acknowledgment Checkbox */}
+              {requiresAcknowledgment && (
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-orange-100 dark:bg-orange-900/30 border border-orange-300 dark:border-orange-700">
+                  <Checkbox
+                    id="acknowledge-incomplete"
+                    checked={acknowledgeIncomplete}
+                    onCheckedChange={(checked) => setAcknowledgeIncomplete(checked as boolean)}
+                  />
+                  <Label
+                    htmlFor="acknowledge-incomplete"
+                    className="text-xs font-medium text-orange-900 dark:text-orange-100 cursor-pointer leading-relaxed"
+                  >
+                    I understand this stage is incomplete and acknowledge that the {incompleteRequired.length} required {incompleteRequired.length === 1 ? 'item' : 'items'} listed above will need to be completed later. I am proceeding with this transition as an administrator.
+                  </Label>
+                </div>
+              )}
             </div>
           )}
 

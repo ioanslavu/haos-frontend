@@ -117,6 +117,48 @@ export interface TaskContractDetail {
   status: string;
 }
 
+export interface TaskSongDetail {
+  id: number;
+  title: string;
+  stage: string;
+  artist?: string;
+}
+
+export interface TaskWorkDetail {
+  id: number;
+  title: string;
+  iswc?: string;
+  writers?: string[];
+}
+
+export interface TaskRecordingDetail {
+  id: number;
+  title: string;
+  isrc?: string;
+  artist?: string;
+}
+
+export interface TaskOpportunityDetail {
+  id: number;
+  title: string;
+  stage: string;
+  value?: string;
+}
+
+export interface TaskDeliverableDetail {
+  id: number;
+  deliverable_type: string;
+  status: string;
+  due_date?: string;
+}
+
+export interface TaskChecklistItemDetail {
+  id: number;
+  name: string;
+  checklist_name: string;
+  is_complete: boolean;
+}
+
 export interface Task {
   id: number;
   title: string;
@@ -133,6 +175,21 @@ export interface Task {
   entity_detail?: TaskEntityDetail;
   contract?: number;
   contract_detail?: TaskContractDetail;
+
+  // Universal task system entity relationships
+  song?: number;
+  song_detail?: TaskSongDetail;
+  work?: number;
+  work_detail?: TaskWorkDetail;
+  recording?: number;
+  recording_detail?: TaskRecordingDetail;
+  opportunity?: number;
+  opportunity_detail?: TaskOpportunityDetail;
+  deliverable?: number;
+  deliverable_detail?: TaskDeliverableDetail;
+  checklist_item?: number;
+  checklist_item_detail?: TaskChecklistItemDetail;
+  source_stage?: string;
 
   // Assignment (multiple users)
   assignments?: TaskAssignment[];

@@ -1,12 +1,13 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useMutation } from '@tanstack/react-query';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, X, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Form,
   FormControl,
@@ -16,11 +17,21 @@ import {
   FormMessage,
   FormDescription,
 } from '@/components/ui/form';
-import { createSong, transitionSong } from '@/api/songApi';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { createSong, transitionSong, addFeaturedArtist } from '@/api/songApi';
 import { useToast } from '@/hooks/use-toast';
 import { SongCreate } from '@/types/song';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { EntitySearchCombobox } from '@/components/entities/EntitySearchCombobox';
+import { Separator } from '@/components/ui/separator';
 
 const formSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200),
@@ -32,9 +43,19 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+interface FeaturedArtist {
+  artist_id: number;
+  artist_name: string;
+  role: 'featured' | 'remixer' | 'producer' | 'composer' | 'featuring';
+}
+
 export default function SongCreatePage() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [featuredArtists, setFeaturedArtists] = useState<FeaturedArtist[]>([]);
+  const [newArtistId, setNewArtistId] = useState<number | null>(null);
+  const [newArtistName, setNewArtistName] = useState<string>('');
+  const [newArtistRole, setNewArtistRole] = useState<'featured' | 'remixer' | 'producer' | 'composer' | 'featuring'>('featured');
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -52,6 +73,18 @@ export default function SongCreatePage() {
       // Create song in DRAFT stage
       const songResponse = await createSong(data);
       const song = songResponse.data;
+
+      // Add featured artists if any
+      if (featuredArtists.length > 0) {
+        for (let i = 0; i < featuredArtists.length; i++) {
+          const artist = featuredArtists[i];
+          await addFeaturedArtist(song.id, {
+            artist_id: artist.artist_id,
+            role: artist.role,
+            order: i,
+          });
+        }
+      }
 
       // Immediately transition to PUBLISHING stage
       await transitionSong(song.id, {
@@ -79,6 +112,53 @@ export default function SongCreatePage() {
 
   const onSubmit = (data: FormValues) => {
     createMutation.mutate(data as SongCreate);
+  };
+
+  const handleAddFeaturedArtist = () => {
+    if (!newArtistId || !newArtistName) {
+      toast({
+        title: 'Error',
+        description: 'Please select an artist',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Check if artist already added
+    if (featuredArtists.some(a => a.artist_id === newArtistId)) {
+      toast({
+        title: 'Error',
+        description: 'This artist has already been added',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Check if same as primary artist
+    const primaryArtistId = form.getValues('artist');
+    if (primaryArtistId === newArtistId) {
+      toast({
+        title: 'Error',
+        description: 'This artist is already set as the primary artist',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setFeaturedArtists([...featuredArtists, {
+      artist_id: newArtistId,
+      artist_name: newArtistName,
+      role: newArtistRole,
+    }]);
+
+    // Reset
+    setNewArtistId(null);
+    setNewArtistName('');
+    setNewArtistRole('featured');
+  };
+
+  const handleRemoveFeaturedArtist = (artistId: number) => {
+    setFeaturedArtists(featuredArtists.filter(a => a.artist_id !== artistId));
   };
 
   return (
@@ -134,7 +214,7 @@ export default function SongCreatePage() {
                 name="artist"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Artist</FormLabel>
+                    <FormLabel>Primary Artist</FormLabel>
                     <FormControl>
                       <EntitySearchCombobox
                         value={field.value || null}
@@ -144,12 +224,102 @@ export default function SongCreatePage() {
                       />
                     </FormControl>
                     <FormDescription>
-                      Search and select an artist from the entity database
+                      The main artist for this song
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {/* Featured Artists Section */}
+              <div className="space-y-4">
+                <Separator />
+                <div>
+                  <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                    <UserPlus className="h-4 w-4" />
+                    Featured Artists (Optional)
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Add additional artists who collaborate on this song
+                  </p>
+
+                  {/* Add Featured Artist Form */}
+                  <Card className="bg-accent/50 border-dashed">
+                    <CardContent className="pt-6">
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                        <div className="md:col-span-6">
+                          <Label className="text-xs mb-2 block">Artist</Label>
+                          <EntitySearchCombobox
+                            value={newArtistId}
+                            onValueChange={(id, entity) => {
+                              setNewArtistId(id);
+                              setNewArtistName(entity?.display_name || '');
+                            }}
+                            placeholder="Search for artist..."
+                            filter={{ has_role: 'artist' }}
+                          />
+                        </div>
+                        <div className="md:col-span-4">
+                          <Label className="text-xs mb-2 block">Role</Label>
+                          <Select value={newArtistRole} onValueChange={(value: any) => setNewArtistRole(value)}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="featured">Featured</SelectItem>
+                              <SelectItem value="featuring">Featuring</SelectItem>
+                              <SelectItem value="remixer">Remixer</SelectItem>
+                              <SelectItem value="producer">Producer</SelectItem>
+                              <SelectItem value="composer">Composer</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="md:col-span-2 flex items-end">
+                          <Button
+                            type="button"
+                            onClick={handleAddFeaturedArtist}
+                            size="sm"
+                            className="w-full"
+                          >
+                            <Plus className="h-4 w-4 mr-1" />
+                            Add
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Featured Artists List */}
+                  {featuredArtists.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      {featuredArtists.map((artist, index) => (
+                        <Card key={artist.artist_id} className="bg-background border-primary/20">
+                          <CardContent className="py-3 px-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <span className="text-sm text-muted-foreground">#{index + 1}</span>
+                              <div>
+                                <p className="font-medium text-sm">{artist.artist_name}</p>
+                                <Badge variant="outline" className="mt-1 text-xs capitalize">
+                                  {artist.role}
+                                </Badge>
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveFeaturedArtist(artist.artist_id)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <Separator />
+              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField

@@ -59,6 +59,7 @@ const DigitalTasks = lazy(() => import("./pages/digital/TasksPage"));
 const DigitalReporting = lazy(() => import("./pages/digital/ReportingPage"));
 const Settings = lazy(() => import("./pages/Settings"));
 const CompanySettings = lazy(() => import("./pages/CompanySettings"));
+const AlertSettingsPage = lazy(() => import("./pages/settings/AlertSettingsPage"));
 const Profile = lazy(() => import("./pages/profile/Index"));
 const Users = lazy(() => import("./pages/users/Index"));
 const UserDetail = lazy(() => import("./pages/users/UserDetail"));
@@ -80,6 +81,7 @@ const RecordingDetail = lazy(() => import("./pages/catalog/RecordingDetail"));
 const RecordingContractGeneration = lazy(() => import("./pages/catalog/RecordingContractGeneration"));
 const CoProdContractGeneration = lazy(() => import("./pages/catalog/CoProdContractGeneration"));
 const Releases = lazy(() => import("./pages/catalog/Releases"));
+const ReleaseCreate = lazy(() => import("./pages/catalog/ReleaseCreate"));
 
 // Entity pages
 const Entities = lazy(() => import("./pages/Entities"));
@@ -91,25 +93,12 @@ const ActivitiesPage = lazy(() => import("./pages/activities/ActivitiesPage"));
 // CRM pages
 const CampaignFormPage = lazy(() => import("./pages/crm/CampaignFormPage"));
 
-// Artist Sales pages
-const BriefList = lazy(() => import("./pages/artist-sales/briefs/BriefList"));
-const BriefKanban = lazy(() => import("./pages/artist-sales/briefs/BriefKanban"));
-const BriefForm = lazy(() => import("./pages/artist-sales/briefs/BriefForm"));
-const BriefDetail = lazy(() => import("./pages/artist-sales/briefs/BriefDetail"));
-const OpportunityList = lazy(() => import("./pages/artist-sales/opportunities/OpportunityList"));
-const OpportunityPipeline = lazy(() => import("./pages/artist-sales/opportunities/OpportunityPipeline"));
-const OpportunityForm = lazy(() => import("./pages/artist-sales/opportunities/OpportunityForm"));
-const OpportunityDetail = lazy(() => import("./pages/artist-sales/opportunities/OpportunityDetail"));
-const ProposalList = lazy(() => import("./pages/artist-sales/proposals/ProposalList"));
-const ProposalForm = lazy(() => import("./pages/artist-sales/proposals/ProposalForm"));
-const ProposalDetail = lazy(() => import("./pages/artist-sales/proposals/ProposalDetail"));
-const DealList = lazy(() => import("./pages/artist-sales/deals/DealList"));
-const DealKanban = lazy(() => import("./pages/artist-sales/deals/DealKanban"));
-const DealForm = lazy(() => import("./pages/artist-sales/deals/DealForm"));
-const DealDetail = lazy(() => import("./pages/artist-sales/deals/DealDetail"));
-const DeliverablePacksList = lazy(() => import("./pages/artist-sales/admin/DeliverablePacksList"));
-const DeliverablePackDetail = lazy(() => import("./pages/artist-sales/admin/DeliverablePackDetail"));
-const UsageTermsList = lazy(() => import("./pages/artist-sales/admin/UsageTermsList"));
+// Opportunities pages (unified artist sales system)
+const OpportunitiesKanban = lazy(() => import("./pages/opportunities/OpportunitiesKanban"));
+const OpportunityDetail = lazy(() => import("./pages/opportunities/OpportunityDetail"));
+const OpportunityForm = lazy(() => import("./pages/opportunities/OpportunityForm"));
+const DeliverablePacksAdmin = lazy(() => import("./pages/opportunities/DeliverablePacksAdmin"));
+const UsageTermsAdmin = lazy(() => import("./pages/opportunities/UsageTermsAdmin"));
 
 // Admin pages
 const EntityRequestsPage = lazy(() => import("./pages/admin/EntityRequestsPage"));
@@ -119,6 +108,9 @@ const SongListPage = lazy(() => import("./pages/songs/SongListPage"));
 const SongDetailPage = lazy(() => import("./pages/songs/SongDetailPage"));
 const SongCreatePage = lazy(() => import("./pages/songs/SongCreatePage"));
 const MyQueuePage = lazy(() => import("./pages/songs/MyQueuePage"));
+const SongWorkCreate = lazy(() => import("./pages/songs/SongWorkCreate"));
+const SongWorkEdit = lazy(() => import("./pages/songs/SongWorkEdit"));
+const SongWorkDetail = lazy(() => import("./pages/songs/SongWorkDetail"));
 
 const App = () => (
   <ErrorBoundary>
@@ -201,116 +193,39 @@ const App = () => (
                 <CampaignFormPage />
               </ProtectedRoute>
             } />
-            <Route path="/artist-sales/briefs" element={
+
+            {/* Opportunities routes (unified artist sales system) */}
+            <Route path="/opportunities" element={
               <ProtectedRoute>
-                <BriefList />
+                <OpportunitiesKanban />
               </ProtectedRoute>
             } />
-            <Route path="/artist-sales/briefs/kanban" element={
-              <ProtectedRoute>
-                <BriefKanban />
-              </ProtectedRoute>
-            } />
-            <Route path="/artist-sales/briefs/new" element={
-              <ProtectedRoute>
-                <BriefForm />
-              </ProtectedRoute>
-            } />
-            <Route path="/artist-sales/briefs/:id/edit" element={
-              <ProtectedRoute>
-                <BriefForm />
-              </ProtectedRoute>
-            } />
-            <Route path="/artist-sales/briefs/:id" element={
-              <ProtectedRoute>
-                <BriefDetail />
-              </ProtectedRoute>
-            } />
-            <Route path="/artist-sales/opportunities" element={
-              <ProtectedRoute>
-                <OpportunityList />
-              </ProtectedRoute>
-            } />
-            <Route path="/artist-sales/opportunities/pipeline" element={
-              <ProtectedRoute>
-                <OpportunityPipeline />
-              </ProtectedRoute>
-            } />
-            <Route path="/artist-sales/opportunities/new" element={
+            <Route path="/opportunities/new" element={
               <ProtectedRoute>
                 <OpportunityForm />
               </ProtectedRoute>
             } />
-            <Route path="/artist-sales/opportunities/:id/edit" element={
-              <ProtectedRoute>
-                <OpportunityForm />
-              </ProtectedRoute>
-            } />
-            <Route path="/artist-sales/opportunities/:id" element={
+            <Route path="/opportunities/:id" element={
               <ProtectedRoute>
                 <OpportunityDetail />
               </ProtectedRoute>
             } />
-            <Route path="/artist-sales/proposals" element={
+            <Route path="/opportunities/:id/edit" element={
               <ProtectedRoute>
-                <ProposalList />
-              </ProtectedRoute>
-            } />
-            <Route path="/artist-sales/proposals/new" element={
-              <ProtectedRoute>
-                <ProposalForm />
-              </ProtectedRoute>
-            } />
-            <Route path="/artist-sales/proposals/:id/edit" element={
-              <ProtectedRoute>
-                <ProposalForm />
-              </ProtectedRoute>
-            } />
-            <Route path="/artist-sales/proposals/:id" element={
-              <ProtectedRoute>
-                <ProposalDetail />
-              </ProtectedRoute>
-            } />
-            <Route path="/artist-sales/deals" element={
-              <ProtectedRoute>
-                <DealList />
-              </ProtectedRoute>
-            } />
-            <Route path="/artist-sales/deals/kanban" element={
-              <ProtectedRoute>
-                <DealKanban />
-              </ProtectedRoute>
-            } />
-            <Route path="/artist-sales/deals/new" element={
-              <ProtectedRoute>
-                <DealForm />
-              </ProtectedRoute>
-            } />
-            <Route path="/artist-sales/deals/:id/edit" element={
-              <ProtectedRoute>
-                <DealForm />
-              </ProtectedRoute>
-            } />
-            <Route path="/artist-sales/deals/:id" element={
-              <ProtectedRoute>
-                <DealDetail />
+                <OpportunityForm />
               </ProtectedRoute>
             } />
             <Route path="/artist-sales/admin/deliverable-packs" element={
               <ProtectedRoute>
-                <DeliverablePacksList />
-              </ProtectedRoute>
-            } />
-            <Route path="/artist-sales/admin/deliverable-packs/:id" element={
-              <ProtectedRoute>
-                <DeliverablePackDetail />
+                <DeliverablePacksAdmin />
               </ProtectedRoute>
             } />
             <Route path="/artist-sales/admin/usage-terms" element={
               <ProtectedRoute>
-                <UsageTermsList />
+                <UsageTermsAdmin />
               </ProtectedRoute>
             } />
+
             <Route path="/entities" element={
               <ProtectedRoute>
                 <Entities />
@@ -391,6 +306,11 @@ const App = () => (
                 <Releases />
               </ProtectedRoute>
             } />
+            <Route path="/catalog/releases/create" element={
+              <ProtectedRoute>
+                <ReleaseCreate />
+              </ProtectedRoute>
+            } />
             <Route path="/studio" element={
               <ProtectedRoute>
                 <Studio />
@@ -425,6 +345,21 @@ const App = () => (
             <Route path="/songs/:id" element={
               <ProtectedRoute>
                 <SongDetailPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/songs/:id/work/create" element={
+              <ProtectedRoute>
+                <SongWorkCreate />
+              </ProtectedRoute>
+            } />
+            <Route path="/songs/:id/work/edit" element={
+              <ProtectedRoute>
+                <SongWorkEdit />
+              </ProtectedRoute>
+            } />
+            <Route path="/songs/:id/work" element={
+              <ProtectedRoute>
+                <SongWorkDetail />
               </ProtectedRoute>
             } />
             {/* Redirect old digital-dashboard route to new structure */}
@@ -503,6 +438,11 @@ const App = () => (
             <Route path="/settings" element={
               <ProtectedRoute>
                 <Settings />
+              </ProtectedRoute>
+            } />
+            <Route path="/settings/alerts" element={
+              <ProtectedRoute requireAdmin={true}>
+                <AlertSettingsPage />
               </ProtectedRoute>
             } />
             <Route path="/company-settings" element={

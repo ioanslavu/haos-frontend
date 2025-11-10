@@ -18,18 +18,29 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
-import { useCreateCredit } from '@/api/hooks/useRights';
+import { useCreateCredit, useUpdateCredit } from '@/api/hooks/useRights';
 import { useEntities } from '@/api/hooks/useEntities';
 import { toast as sonnerToast } from 'sonner';
+import { useEffect } from 'react';
+
+interface Credit {
+  id: number;
+  entity: number;
+  role: string;
+  credited_as?: string;
+  share_kind?: string;
+  share_value?: number;
+}
 
 interface AddCreditDialogProps {
   scope: 'work' | 'recording';
   objectId: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  credit?: Credit | null;
 }
 
-export function AddCreditDialog({ scope, objectId, open, onOpenChange }: AddCreditDialogProps) {
+export function AddCreditDialog({ scope, objectId, open, onOpenChange, credit }: AddCreditDialogProps) {
   const [entityId, setEntityId] = useState<string>('');
   const [role, setRole] = useState<string>('');
   const [creditedAs, setCreditedAs] = useState('');
@@ -37,7 +48,28 @@ export function AddCreditDialog({ scope, objectId, open, onOpenChange }: AddCred
   const [shareValue, setShareValue] = useState('');
 
   const createCredit = useCreateCredit();
+  const updateCredit = useUpdateCredit();
   const { data: entitiesData } = useEntities({ page_size: 100 });
+
+  const isEditing = !!credit;
+
+  // Populate form when editing
+  useEffect(() => {
+    if (credit && open) {
+      setEntityId(credit.entity.toString());
+      setRole(credit.role);
+      setCreditedAs(credit.credited_as || '');
+      setShareKind(credit.share_kind || '');
+      setShareValue(credit.share_value?.toString() || '');
+    } else if (!open) {
+      // Reset form when dialog closes
+      setEntityId('');
+      setRole('');
+      setCreditedAs('');
+      setShareKind('');
+      setShareValue('');
+    }
+  }, [credit, open]);
 
   // Auto-populate credited_as with stage_name when entity is selected
   const handleEntityChange = (newEntityId: string) => {
@@ -71,8 +103,13 @@ export function AddCreditDialog({ scope, objectId, open, onOpenChange }: AddCred
       if (shareKind) payload.share_kind = shareKind;
       if (shareValue.trim()) payload.share_value = parseFloat(shareValue);
 
-      await createCredit.mutateAsync(payload);
-      sonnerToast.success('Credit added successfully');
+      if (isEditing && credit) {
+        await updateCredit.mutateAsync({ id: credit.id, payload });
+        sonnerToast.success('Credit updated successfully');
+      } else {
+        await createCredit.mutateAsync(payload);
+        sonnerToast.success('Credit added successfully');
+      }
 
       // Reset form
       setEntityId('');
@@ -82,44 +119,49 @@ export function AddCreditDialog({ scope, objectId, open, onOpenChange }: AddCred
       setShareValue('');
       onOpenChange(false);
     } catch (error: any) {
-      console.error('Failed to add credit:', error);
-      sonnerToast.error(error.response?.data?.detail || 'Failed to add credit');
+      console.error(`Failed to ${isEditing ? 'update' : 'add'} credit:`, error);
+      sonnerToast.error(error.response?.data?.detail || `Failed to ${isEditing ? 'update' : 'add'} credit`);
     }
   };
 
-  const roles = [
-    { value: 'writer', label: 'Writer' },
+  // Roles based on scope
+  const workRoles = [
     { value: 'composer', label: 'Composer' },
     { value: 'lyricist', label: 'Lyricist' },
-    { value: 'producer', label: 'Producer' },
-    { value: 'artist', label: 'Artist' },
-    { value: 'featured_artist', label: 'Featured Artist' },
-    { value: 'performer', label: 'Performer' },
-    { value: 'engineer', label: 'Engineer' },
-    { value: 'mixer', label: 'Mixer' },
-    { value: 'mastering', label: 'Mastering' },
-    { value: 'arranger', label: 'Arranger' },
-    { value: 'conductor', label: 'Conductor' },
-    { value: 'director', label: 'Director' },
-    { value: 'publisher', label: 'Publisher' },
-    { value: 'label', label: 'Label' },
+    { value: 'arranger', label: 'Editor' },
   ];
 
-  const shareKinds = [
-    { value: 'percentage', label: 'Percentage' },
-    { value: 'points', label: 'Points' },
-    { value: 'fixed', label: 'Fixed Amount' },
-    { value: 'none', label: 'None' },
+  const recordingRoles = [
+    { value: 'artist', label: 'Artist' },
+    { value: 'producer', label: 'Producer' },
+    { value: 'audio_editor', label: 'Editor' },
   ];
+
+  const roles = scope === 'work' ? workRoles : recordingRoles;
+
+  // Share kinds based on scope
+  const workShareKinds = [
+    { value: 'none', label: 'No Share' },
+    { value: 'writer_share', label: 'Writer Share' },
+    { value: 'publisher_share', label: 'Publisher Share' },
+  ];
+
+  const recordingShareKinds = [
+    { value: 'none', label: 'No Share' },
+    { value: 'master_share', label: 'Master Share' },
+    { value: 'points', label: 'Producer Points' },
+  ];
+
+  const shareKinds = scope === 'work' ? workShareKinds : recordingShareKinds;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Add Credit</DialogTitle>
+            <DialogTitle>{isEditing ? 'Edit Credit' : 'Add Credit'}</DialogTitle>
             <DialogDescription>
-              Add a credit to this {scope}
+              {isEditing ? 'Update' : 'Add a'} credit {isEditing ? 'for' : 'to'} this {scope}
             </DialogDescription>
           </DialogHeader>
 
@@ -207,13 +249,13 @@ export function AddCreditDialog({ scope, objectId, open, onOpenChange }: AddCred
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              disabled={createCredit.isPending}
+              disabled={createCredit.isPending || updateCredit.isPending}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={createCredit.isPending}>
-              {createCredit.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Add Credit
+            <Button type="submit" disabled={createCredit.isPending || updateCredit.isPending}>
+              {(createCredit.isPending || updateCredit.isPending) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isEditing ? 'Update Credit' : 'Add Credit'}
             </Button>
           </DialogFooter>
         </form>

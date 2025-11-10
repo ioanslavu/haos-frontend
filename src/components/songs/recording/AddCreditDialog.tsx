@@ -29,7 +29,7 @@ interface AddCreditDialogProps {
 }
 
 interface CreditCreate {
-  entity_id: number;
+  entity: number;
   role: string;
 }
 
@@ -40,24 +40,9 @@ interface Entity {
 }
 
 const CREDIT_ROLES = [
-  'Primary Artist',
-  'Featured Artist',
-  'Producer',
-  'Co-Producer',
-  'Executive Producer',
-  'Mixing Engineer',
-  'Mastering Engineer',
-  'Recording Engineer',
-  'Vocalist',
-  'Background Vocalist',
-  'Musician',
-  'Composer',
-  'Lyricist',
-  'Arranger',
-  'Programmer',
-  'Session Musician',
-  'Studio',
-  'Label',
+  { value: 'artist', label: 'Artist' },
+  { value: 'producer', label: 'Producer' },
+  { value: 'audio_editor', label: 'Editor' },
 ];
 
 export function AddCreditDialog({
@@ -68,7 +53,7 @@ export function AddCreditDialog({
 }: AddCreditDialogProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState<CreditCreate>({
-    entity_id: 0,
+    entity: 0,
     role: '',
   });
 
@@ -93,19 +78,19 @@ export function AddCreditDialog({
       }),
     onSuccess: () => {
       onSuccess();
-      setFormData({ entity_id: 0, role: '' });
+      setFormData({ entity: 0, role: '' });
       setSearchTerm('');
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.entity_id && formData.role) {
+    if (formData.entity && formData.role) {
       createMutation.mutate(formData);
     }
   };
 
-  const selectedEntity = entities.find((e) => e.id === formData.entity_id);
+  const selectedEntity = entities.find((e) => e.id === formData.entity);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -145,10 +130,10 @@ export function AddCreditDialog({
                     key={entity.id}
                     type="button"
                     className={`w-full text-left px-3 py-2 hover:bg-accent transition-colors ${
-                      formData.entity_id === entity.id ? 'bg-accent' : ''
+                      formData.entity === entity.id ? 'bg-accent' : ''
                     }`}
                     onClick={() =>
-                      setFormData({ ...formData, entity_id: entity.id })
+                      setFormData({ ...formData, entity: entity.id })
                     }
                   >
                     <div className="font-medium">{entity.name}</div>
@@ -183,8 +168,8 @@ export function AddCreditDialog({
               </SelectTrigger>
               <SelectContent>
                 {CREDIT_ROLES.map((role) => (
-                  <SelectItem key={role} value={role}>
-                    {role}
+                  <SelectItem key={role.value} value={role.value}>
+                    {role.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -204,7 +189,7 @@ export function AddCreditDialog({
               type="submit"
               disabled={
                 createMutation.isPending ||
-                !formData.entity_id ||
+                !formData.entity ||
                 !formData.role
               }
             >

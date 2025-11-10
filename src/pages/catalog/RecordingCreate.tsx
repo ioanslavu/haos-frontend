@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { ArrowLeft, Loader2, Mic, Search } from 'lucide-react';
+import { ArrowLeft, Loader2, Mic, Search, Info, Music2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -38,10 +38,14 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useCreateRecording, useWork, useWorks } from '@/api/hooks/useCatalog';
+import { addRecordingToSong } from '@/api/songApi';
 import { toast as sonnerToast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import apiClient from '@/api/client';
 
 // Form schema
 const recordingFormSchema = z.object({
@@ -62,6 +66,7 @@ type RecordingFormValues = z.infer<typeof recordingFormSchema>;
 
 export default function RecordingCreate() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const createRecording = useCreateRecording();
   const [activeTab, setActiveTab] = useState('basic');
@@ -72,8 +77,24 @@ export default function RecordingCreate() {
   const workIdFromParams = searchParams.get('work');
   const workId = workIdFromParams ? parseInt(workIdFromParams) : undefined;
 
+  // Get songId from query params
+  const songIdParam = searchParams.get('songId');
+  const songId = songIdParam ? parseInt(songIdParam) : undefined;
+
   // Fetch work if provided in params
   const { data: workFromParams } = useWork(workId || 0, !!workId);
+
+  // Fetch song if songId provided
+  const { data: songData } = useQuery({
+    queryKey: ['song', songId],
+    queryFn: async () => {
+      const response = await apiClient.get(`/api/v1/songs/${songId}/`);
+      return response.data;
+    },
+    enabled: !!songId,
+  });
+
+  const song = songData?.data || songData;
 
   // Search works
   const { data: worksData } = useWorks({
@@ -109,6 +130,20 @@ export default function RecordingCreate() {
     }
   }, [workFromParams, workId, form]);
 
+  // Pre-fill form from song
+  useEffect(() => {
+    if (song) {
+      // If song has a work and form doesn't have one, use it
+      if (song.work && !form.getValues('work')) {
+        form.setValue('work', song.work.id);
+      }
+      // Pre-fill title from song if empty
+      if (song.title && !form.getValues('title')) {
+        form.setValue('title', song.title);
+      }
+    }
+  }, [song, form]);
+
   const onSubmit = async (values: RecordingFormValues) => {
     try {
       const payload: any = {
@@ -128,7 +163,23 @@ export default function RecordingCreate() {
 
       const createdRecording = await createRecording.mutateAsync(payload);
       sonnerToast.success('Recording created successfully');
-      navigate(`/catalog/recordings/${createdRecording.id}`);
+
+      // If songId exists, link recording to song
+      if (songId && createdRecording?.id) {
+        try {
+          await addRecordingToSong(songId, createdRecording.id);
+          sonnerToast.success('Recording linked to song');
+          queryClient.invalidateQueries({ queryKey: ['song', songId] });
+          queryClient.invalidateQueries({ queryKey: ['song-recordings', songId] });
+          navigate(`/songs/${songId}`);
+        } catch (linkError) {
+          console.error('Failed to link recording to song:', linkError);
+          sonnerToast.error('Recording created but failed to link to song');
+          navigate(`/catalog/recordings/${createdRecording.id}`);
+        }
+      } else {
+        navigate(`/catalog/recordings/${createdRecording.id}`);
+      }
     } catch (error: any) {
       console.error('Failed to create recording:', error);
       sonnerToast.error(error.response?.data?.detail || 'Failed to create recording');
@@ -142,6 +193,10 @@ export default function RecordingCreate() {
 
   const isSubmitting = createRecording.isPending;
 
+  const handleCancel = () => {
+    navigate(songId ? `/songs/${songId}` : '/catalog/recordings');
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -150,7 +205,7 @@ export default function RecordingCreate() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate('/catalog/recordings')}
+            onClick={handleCancel}
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -159,6 +214,18 @@ export default function RecordingCreate() {
             <h1 className="text-3xl font-bold tracking-tight">Create New Recording</h1>
           </div>
         </div>
+
+        {/* Context Banner */}
+        {song && (
+          <Alert className="border-primary/20 bg-primary/5">
+            <Music2 className="h-4 w-4 text-primary" />
+            <AlertDescription>
+              Creating recording for song: <strong>{song.title}</strong>
+              {song.artist?.display_name && ` by ${song.artist.display_name}`}
+              {song.work && ` (Work: ${song.work.iswc || `ID ${song.work.id}`})`}
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Form */}
         <Form {...form}>

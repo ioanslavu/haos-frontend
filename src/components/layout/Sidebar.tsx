@@ -113,8 +113,19 @@ const navigation: NavigationItem[] = [
     },
     tourId: 'songs-nav',
   },
+  {
+    name: 'Task Management',
+    href: '/task-management',
+    icon: CheckSquare,
+    show: (user) => {
+      // Hide for digital department users (they have their own tasks page)
+      const isDigital = user?.department?.name?.toLowerCase() === 'digital' ||
+                        user?.department?.toLowerCase() === 'digital';
+      return user?.role !== 'guest' && (user?.department || user?.role === 'administrator') && !isDigital;
+    },
+    tourId: 'task-management-nav',
+  },
   // { name: 'Studio', href: '/studio', icon: Calendar },
-  // { name: 'Tasks', href: '/tasks', icon: CheckSquare },
 ];
 
 // Digital navigation items - shown as regular nav items for digital users
@@ -225,11 +236,9 @@ const digitalSubmenu: NavigationItem[] = [
   { name: 'Raportare & Insights', href: '/digital/reporting', icon: BarChart3 },
 ];
 
+// Opportunities submenu (unified artist sales system)
 const artistSalesSubmenu: NavigationItem[] = [
-  { name: 'Briefs', href: '/artist-sales/briefs', icon: ClipboardList },
-  { name: 'Opportunities', href: '/artist-sales/opportunities', icon: Target },
-  { name: 'Proposals', href: '/artist-sales/proposals', icon: FileCheck },
-  { name: 'Deals', href: '/artist-sales/deals', icon: Handshake },
+  { name: 'Pipeline', href: '/opportunities', icon: Target },
   { name: 'Deliverable Packs', href: '/artist-sales/admin/deliverable-packs', icon: Package },
   { name: 'Usage Terms', href: '/artist-sales/admin/usage-terms', icon: FileText },
 ];

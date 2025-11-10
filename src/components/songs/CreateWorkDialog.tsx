@@ -22,8 +22,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import catalogService from '@/api/services/catalog.service';
-import { updateSong } from '@/api/songApi';
+import { createWorkInSongContext } from '@/api/songApi';
 import { useToast } from '@/hooks/use-toast';
 
 interface CreateWorkDialogProps {
@@ -60,17 +59,14 @@ export function CreateWorkDialog({
 
   const createWorkMutation = useMutation({
     mutationFn: async (data: WorkFormData) => {
-      // First, create the work
-      const work = await catalogService.createWork({
+      // Create work and automatically link to song in a single atomic operation
+      const response = await createWorkInSongContext(songId, {
         title: data.title,
         iswc: data.iswc || undefined,
         notes: data.notes || undefined,
       });
 
-      // Then, link it to the song
-      await updateSong(songId, { work: work.id });
-
-      return work;
+      return response.data;
     },
     onSuccess: () => {
       toast({
@@ -84,7 +80,7 @@ export function CreateWorkDialog({
     onError: (error: any) => {
       toast({
         title: 'Error',
-        description: error?.response?.data?.detail || 'Failed to create work. Please try again.',
+        description: error?.response?.data?.error || error?.response?.data?.detail || 'Failed to create work. Please try again.',
         variant: 'destructive',
       });
     },

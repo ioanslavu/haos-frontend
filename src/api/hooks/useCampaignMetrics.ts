@@ -33,10 +33,11 @@ export const useCampaignMetrics = (params?: {
   return useQuery({
     queryKey: ['campaign-metrics', params],
     queryFn: async () => {
-      const response = await apiClient.get<CampaignMetrics[]>(
+      const response = await apiClient.get<{ count: number; results: CampaignMetrics[] } | CampaignMetrics[]>(
         `${METRICS_BASE_URL}/${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
       );
-      return response.data;
+      // Handle both paginated and non-paginated responses
+      return Array.isArray(response.data) ? response.data : response.data.results;
     },
   });
 };

@@ -107,10 +107,12 @@ export function RecordingTab({ songId, songStage, songTitle, workId }: Recording
             <Music className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground mb-4">No recordings created yet.</p>
             {canCreateRecording && (
-              <Button onClick={() => setShowCreateRecordingDialog(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Recording
-              </Button>
+              <div className="flex items-center justify-center gap-3">
+                <Button onClick={() => setShowCreateRecordingDialog(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create New Recording
+                </Button>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -123,6 +125,8 @@ export function RecordingTab({ songId, songStage, songTitle, workId }: Recording
           songTitle={songTitle}
           workId={workId}
         />
+
+       
       </>
     );
   }
@@ -142,10 +146,13 @@ export function RecordingTab({ songId, songStage, songTitle, workId }: Recording
                     : `${recordings.length} ${recordings.length === 1 ? 'recording' : 'recordings'} linked to this song`}
                 </p>
               </div>
-              <Button onClick={() => setShowCreateRecordingDialog(true)} size="lg">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Recording
-              </Button>
+              <div className="flex items-center gap-2">
+               
+                <Button onClick={() => setShowCreateRecordingDialog(true)} size="lg">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create New Recording
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -569,6 +576,8 @@ export function RecordingTab({ songId, songStage, songTitle, workId }: Recording
         songTitle={songTitle}
         workId={workId}
       />
+
+     
     </div>
   );
 }

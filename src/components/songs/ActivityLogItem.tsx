@@ -14,10 +14,24 @@ interface ActivityLogItemProps {
 }
 
 export const ActivityLogItem = ({ activity, type }: ActivityLogItemProps) => {
-  const timeAgo = formatDistanceToNow(new Date(activity.created_at), { addSuffix: true });
+  // Safely parse date
+  const getTimeAgo = () => {
+    try {
+      const date = new Date(activity.created_at);
+      if (isNaN(date.getTime())) {
+        return 'recently';
+      }
+      return formatDistanceToNow(date, { addSuffix: true });
+    } catch {
+      return 'recently';
+    }
+  };
+
+  const timeAgo = getTimeAgo();
 
   // Get user initials for avatar
   const getUserInitials = (fullName: string) => {
+    if (!fullName) return '??';
     return fullName
       .split(' ')
       .map((n) => n[0])
@@ -66,16 +80,18 @@ export const ActivityLogItem = ({ activity, type }: ActivityLogItemProps) => {
             {transition.notes && (
               <p className="text-sm text-muted-foreground mb-2 whitespace-pre-wrap">{transition.notes}</p>
             )}
-            <div className="flex items-center gap-2">
-              <Avatar className="h-5 w-5">
-                <AvatarFallback className="text-[10px]">
-                  {getUserInitials(transition.created_by.full_name)}
-                </AvatarFallback>
-              </Avatar>
-              <p className="text-xs text-muted-foreground">
-                {transition.created_by.full_name} • {timeAgo}
-              </p>
-            </div>
+            {transition.created_by && (
+              <div className="flex items-center gap-2">
+                <Avatar className="h-5 w-5">
+                  <AvatarFallback className="text-[10px]">
+                    {getUserInitials(transition.created_by.full_name)}
+                  </AvatarFallback>
+                </Avatar>
+                <p className="text-xs text-muted-foreground">
+                  {transition.created_by.full_name} • {timeAgo}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </Card>
@@ -96,16 +112,18 @@ export const ActivityLogItem = ({ activity, type }: ActivityLogItemProps) => {
               <span className="text-sm font-medium">Checklist Item Completed</span>
             </div>
             <p className="text-sm text-muted-foreground mb-2">{item.description}</p>
-            <div className="flex items-center gap-2">
-              <Avatar className="h-5 w-5">
-                <AvatarFallback className="text-[10px]">
-                  {getUserInitials(item.completed_by.full_name)}
-                </AvatarFallback>
-              </Avatar>
-              <p className="text-xs text-muted-foreground">
-                {item.completed_by.full_name} • {timeAgo}
-              </p>
-            </div>
+            {item.completed_by && (
+              <div className="flex items-center gap-2">
+                <Avatar className="h-5 w-5">
+                  <AvatarFallback className="text-[10px]">
+                    {getUserInitials(item.completed_by.full_name)}
+                  </AvatarFallback>
+                </Avatar>
+                <p className="text-xs text-muted-foreground">
+                  {item.completed_by.full_name} • {timeAgo}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </Card>
@@ -131,16 +149,18 @@ export const ActivityLogItem = ({ activity, type }: ActivityLogItemProps) => {
             {asset.description && (
               <p className="text-sm text-muted-foreground mb-2">{asset.description}</p>
             )}
-            <div className="flex items-center gap-2">
-              <Avatar className="h-5 w-5">
-                <AvatarFallback className="text-[10px]">
-                  {getUserInitials(asset.created_by.full_name)}
-                </AvatarFallback>
-              </Avatar>
-              <p className="text-xs text-muted-foreground">
-                {asset.created_by.full_name} • {timeAgo}
-              </p>
-            </div>
+            {asset.created_by && (
+              <div className="flex items-center gap-2">
+                <Avatar className="h-5 w-5">
+                  <AvatarFallback className="text-[10px]">
+                    {getUserInitials(asset.created_by.full_name)}
+                  </AvatarFallback>
+                </Avatar>
+                <p className="text-xs text-muted-foreground">
+                  {asset.created_by.full_name} • {timeAgo}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </Card>
@@ -165,16 +185,18 @@ export const ActivityLogItem = ({ activity, type }: ActivityLogItemProps) => {
             )}
           </div>
           <p className="text-sm text-muted-foreground mb-2 whitespace-pre-wrap">{note.content}</p>
-          <div className="flex items-center gap-2">
-            <Avatar className="h-5 w-5">
-              <AvatarFallback className="text-[10px]">
-                {getUserInitials(note.created_by.full_name)}
-              </AvatarFallback>
-            </Avatar>
-            <p className="text-xs text-muted-foreground">
-              {note.created_by.full_name} • {timeAgo}
-            </p>
-          </div>
+          {note.created_by && (
+            <div className="flex items-center gap-2">
+              <Avatar className="h-5 w-5">
+                <AvatarFallback className="text-[10px]">
+                  {getUserInitials(note.created_by.full_name)}
+                </AvatarFallback>
+              </Avatar>
+              <p className="text-xs text-muted-foreground">
+                {note.created_by.full_name} • {timeAgo}
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </Card>
