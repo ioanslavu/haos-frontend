@@ -245,17 +245,6 @@ export function LinkReleaseDialog({ open, onOpenChange, songId, onSuccess }: Lin
                   </div>
                 )}
               </div>
-
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => window.open(`/catalog/releases/${selectedRelease.id}`, '_blank')}
-                className="w-full"
-              >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Preview Release Details
-              </Button>
             </div>
           )}
 

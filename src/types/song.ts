@@ -11,6 +11,23 @@ export type SongStage =
   | 'released'
   | 'archived';
 
+export type StageStatus = 'not_started' | 'in_progress' | 'completed' | 'blocked';
+
+export interface SongStageStatus {
+  id: number;
+  stage: SongStage;
+  stage_display: string;
+  status: StageStatus;
+  status_display: string;
+  started_at?: string;
+  completed_at?: string;
+  blocked_reason?: string;
+  notes?: string;
+  days_in_status?: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface SongArtist {
   id: number;
   artist_id: number;
@@ -68,6 +85,8 @@ export interface Song {
   featured_artists?: SongArtist[];
   all_artists?: ArtistInfo[];
   display_artists?: string;
+  // Stage statuses (for parallel workflows)
+  stage_statuses?: SongStageStatus[];
 }
 
 export interface SongChecklistItem {
@@ -383,4 +402,34 @@ export interface ReleaseDetails {
   formatted_total_duration?: string;
   created_at: string;
   updated_at: string;
+}
+
+// Work types (for song context)
+export interface Work {
+  id: number;
+  title: string;
+  alternate_titles?: string[];
+  iswc?: string;
+  identifiers?: Identifier[];
+  language?: string;
+  genre?: string;
+  sub_genre?: string;
+  year_composed?: number;
+  translation_of?: number;
+  translation_of_title?: string;
+  adaptation_of?: number;
+  adaptation_of_title?: string;
+  lyrics?: string;
+  notes?: string;
+  recordings_count?: number;
+  has_complete_publishing_splits?: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkWithSplits extends Work {
+  writer_splits?: Split[] | null;
+  publisher_splits?: Split[] | null;
+  can_view_splits: boolean;
+  can_edit: boolean;
 }

@@ -63,10 +63,10 @@ export function ExportDialog({
           exportToCSV();
           break;
         case 'excel':
-          console.log('Excel export not yet implemented');
+          // Excel export not yet implemented
           break;
         case 'pdf':
-          console.log('PDF export not yet implemented');
+          // PDF export not yet implemented
           break;
         case 'json':
           exportToJSON();

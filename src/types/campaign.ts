@@ -1,6 +1,14 @@
 import type { Entity } from '@/api/services/entities.service'
 import type { ContactPerson } from './contact'
-import type { Recording } from '@/api/services/catalog.service'
+
+// Minimal Recording type for campaign songs
+export interface Recording {
+  id: number
+  title: string
+  type: string
+  status: string
+  isrc?: string
+}
 
 export type CampaignStatus =
   | 'lead'

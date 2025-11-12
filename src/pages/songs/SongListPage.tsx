@@ -27,7 +27,7 @@ import { fetchSongs } from '@/api/songApi';
 import { SongStage, SongFilters } from '@/types/song';
 import { useAuthStore } from '@/stores/authStore';
 import { formatDistanceToNow } from 'date-fns';
-import { useDebounce } from '@/hooks/useDebounce';
+import { useDebounce } from '@/hooks/use-debounce';
 import { AppLayout } from '@/components/layout/AppLayout';
 
 const stageOptions: { value: SongStage | 'all'; label: string }[] = [

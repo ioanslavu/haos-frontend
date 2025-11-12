@@ -10,7 +10,6 @@ import rightsService, {
   SplitValidation,
   RightsValidationReport,
 } from '@/api/services/rights.service';
-import { catalogKeys } from './useCatalog';
 
 // Query keys factory
 export const rightsKeys = {
@@ -96,12 +95,6 @@ export const useCreateCredit = () => {
         queryClient.invalidateQueries({
           queryKey: rightsKeys.creditsByObject(data.scope, data.object_id)
         });
-        // Also invalidate work/recording details
-        if (data.scope === 'work') {
-          queryClient.invalidateQueries({ queryKey: catalogKeys.workDetails(data.object_id) });
-        } else if (data.scope === 'recording') {
-          queryClient.invalidateQueries({ queryKey: catalogKeys.recordingDetails(data.object_id) });
-        }
       }
       if (data.entity) {
         queryClient.invalidateQueries({
@@ -235,12 +228,6 @@ export const useCreateSplit = () => {
         queryClient.invalidateQueries({
           queryKey: rightsKeys.rightsReport(data.scope, data.object_id)
         });
-        // Also invalidate work/recording details
-        if (data.scope === 'work') {
-          queryClient.invalidateQueries({ queryKey: catalogKeys.workDetails(data.object_id) });
-        } else if (data.scope === 'recording') {
-          queryClient.invalidateQueries({ queryKey: catalogKeys.recordingDetails(data.object_id) });
-        }
       }
     },
   });

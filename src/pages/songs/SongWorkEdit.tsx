@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { useWork, useUpdateWork } from '@/api/hooks/useCatalog';
+import { useWork, useUpdateWork } from '@/api/hooks/useSongs';
 import { toast as sonnerToast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/api/client';

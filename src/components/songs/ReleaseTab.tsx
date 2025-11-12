@@ -15,7 +15,7 @@ import { AddPlatformDialog } from './AddPlatformDialog';
 import { EditPublicationDialog } from './EditPublicationDialog';
 import { DistributionChecklist } from './DistributionChecklist';
 import { LinkReleaseDialog } from './LinkReleaseDialog';
-import catalogService from '@/api/services/catalog.service';
+import apiClient from '@/api/client';
 import { fetchReleasePublications } from '@/api/songApi';
 import { useAuthStore } from '@/stores/authStore';
 import { useToast } from '@/hooks/use-toast';
@@ -40,7 +40,10 @@ export function ReleaseTab({ songId, releaseId, onCreateRelease }: ReleaseTabPro
   // Query release details
   const { data: releaseData, isLoading: releaseLoading } = useQuery({
     queryKey: ['release', releaseId],
-    queryFn: () => catalogService.getRelease(releaseId!),
+    queryFn: async () => {
+      const response = await apiClient.get(`/api/v1/releases/${releaseId}/`);
+      return response.data;
+    },
     enabled: !!releaseId,
   });
 

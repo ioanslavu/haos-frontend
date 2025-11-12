@@ -9,12 +9,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useEntityDetail } from '@/api/hooks/useEntities';
 import { useArtistAnalyticsDetail, useClientAnalyticsDetail, useBrandAnalyticsDetail } from '@/api/hooks/useCampaigns';
-import { useWorks, useRecordings, useReleases } from '@/api/hooks/useCatalog';
 import { format } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
-import { EntityFormDialog } from '@/pages/crm/components/EntityFormDialog';
-import { ContactPersonFormDialog } from '@/pages/crm/components/ContactPersonFormDialog';
-import { EntityRequestDialog } from '@/pages/crm/components/EntityRequestDialog';
+import { EntityFormDialog } from '@/components/entities/EntityFormDialog';
+import { ContactPersonFormDialog } from '@/components/entities/ContactPersonFormDialog';
+import { EntityRequestDialog } from '@/components/entities/EntityRequestDialog';
 import { ActivityTimeline } from '@/components/activities/ActivityTimeline';
 import { toast } from '@/components/ui/use-toast';
 import { toast as sonnerToast } from 'sonner';
@@ -167,11 +166,6 @@ export default function EntityDetail() {
   const { data: artistAnalytics } = useArtistAnalyticsDetail(Number(id), isArtist && !!id);
   const { data: clientAnalytics } = useClientAnalyticsDetail(Number(id), isClient && !!id);
   const { data: brandAnalytics } = useBrandAnalyticsDetail(Number(id), isBrand && !!id);
-
-  // Fetch catalog data for entities with creative roles
-  const { data: worksData } = useWorks({ entity_id: Number(id), page_size: 100 });
-  const { data: recordingsData } = useRecordings({ entity_id: Number(id), page_size: 100 });
-  const { data: releasesData } = useReleases({ entity_id: Number(id), page_size: 100 });
 
   useEffect(() => {
     if (showContractGeneration) {
@@ -788,15 +782,6 @@ export default function EntityDetail() {
                 Campaigns
               </TabsTrigger>
             )}
-            {isAdmin && hasCreativeRole && (
-              <TabsTrigger
-                value="catalog"
-                className="rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-background/50"
-              >
-                <Music className="h-3.5 w-3.5 mr-1.5" />
-                Catalog
-              </TabsTrigger>
-            )}
             {isAdmin && (
               <TabsTrigger
                 value="activity"
@@ -1316,205 +1301,6 @@ export default function EntityDetail() {
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
               )}
-            </TabsContent>
-          )}
-
-          {/* Catalog Tab */}
-          {hasCreativeRole && (
-            <TabsContent value="catalog" className="space-y-6">
-              {/* Works */}
-              <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Music className="h-5 w-5" />
-                      Works
-                    </CardTitle>
-                    <CardDescription>Musical works with credits for this entity</CardDescription>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigate('/catalog/works')}
-                  >
-                    View All Works
-                  </Button>
-                </CardHeader>
-                <CardContent>
-                  {worksData && worksData.results && worksData.results.length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Title</TableHead>
-                          <TableHead>ISWC</TableHead>
-                          <TableHead>Language</TableHead>
-                          <TableHead>Genre</TableHead>
-                          <TableHead>Recordings</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {worksData.results.map((work) => (
-                          <TableRow key={work.id}>
-                            <TableCell className="font-medium">{work.title}</TableCell>
-                            <TableCell className="font-mono text-sm">{work.iswc || '—'}</TableCell>
-                            <TableCell>{work.language?.toUpperCase() || '—'}</TableCell>
-                            <TableCell>{work.genre || '—'}</TableCell>
-                            <TableCell>
-                              <Badge variant="secondary">{work.recordings_count || 0}</Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => navigate(`/catalog/works/${work.id}`)}
-                              >
-                                View
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No works found with credits for this entity
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Recordings */}
-              <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Disc className="h-5 w-5" />
-                      Recordings
-                    </CardTitle>
-                    <CardDescription>Audio recordings with credits for this entity</CardDescription>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigate('/catalog/recordings')}
-                  >
-                    View All Recordings
-                  </Button>
-                </CardHeader>
-                <CardContent>
-                  {recordingsData && recordingsData.results && recordingsData.results.length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Title</TableHead>
-                          <TableHead>ISRC</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Duration</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {recordingsData.results.map((recording) => (
-                          <TableRow key={recording.id}>
-                            <TableCell className="font-medium">{recording.title}</TableCell>
-                            <TableCell className="font-mono text-sm">{recording.isrc || '—'}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{recording.type}</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge>{recording.status}</Badge>
-                            </TableCell>
-                            <TableCell>{recording.formatted_duration || '—'}</TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => navigate(`/catalog/recordings/${recording.id}`)}
-                              >
-                                View
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No recordings found with credits for this entity
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Releases */}
-              <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Album className="h-5 w-5" />
-                      Releases
-                    </CardTitle>
-                    <CardDescription>Album and single releases featuring this entity</CardDescription>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigate('/catalog/releases')}
-                  >
-                    View All Releases
-                  </Button>
-                </CardHeader>
-                <CardContent>
-                  {releasesData && releasesData.results && releasesData.results.length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Title</TableHead>
-                          <TableHead>UPC</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Release Date</TableHead>
-                          <TableHead>Label</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {releasesData.results.map((release) => (
-                          <TableRow key={release.id}>
-                            <TableCell className="font-medium">{release.title}</TableCell>
-                            <TableCell className="font-mono text-sm">{release.upc || '—'}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{release.type}</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge>{release.status}</Badge>
-                            </TableCell>
-                            <TableCell>
-                              {release.release_date ? format(new Date(release.release_date), 'MMM d, yyyy') : '—'}
-                            </TableCell>
-                            <TableCell>{release.label_name || '—'}</TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => navigate(`/catalog/releases/${release.id}`)}
-                              >
-                                View
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No releases found featuring this entity
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
             </TabsContent>
           )}
 
@@ -2137,11 +1923,6 @@ export default function EntityDetail() {
                                       const daysDiff = Math.floor((shareStartDate.getTime() - contractStartDate.getTime()) / (24 * 60 * 60 * 1000));
                                       const yearNumber = Math.floor(daysDiff / 365) + 1;
                                       periodKey = `year${yearNumber}`;
-
-                                      // Debug logging
-                                      if (share.share_type_name === 'Concert Commission') {
-                                        console.log(`${share.share_type_name}: valid_from=${share.valid_from}, daysDiff=${daysDiff}, yearNumber=${yearNumber}`);
-                                      }
                                     } else {
                                       // Fixed shares (same for all years)
                                       periodKey = 'fixed';

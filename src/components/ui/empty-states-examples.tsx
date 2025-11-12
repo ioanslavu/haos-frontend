@@ -30,11 +30,11 @@ export function ContractsPageExample() {
       <NoContractsEmptyState
         onPrimaryAction={() => {
           // Open create contract dialog
-          console.log("Create contract")
+          // Action placeholder
         }}
         onSecondaryAction={() => {
           // Navigate to templates
-          console.log("Navigate to templates")
+          // Action placeholder
         }}
         showSampleDataOption={true}
         onLoadSampleData={() => {
@@ -61,7 +61,7 @@ export function SearchResultsExample() {
         searchQuery={searchQuery}
         onClearSearch={() => {
           // Clear search
-          console.log("Clear search")
+          // Action placeholder
         }}
       />
     )
@@ -82,7 +82,7 @@ export function FilteredListExample() {
       <NoFilterResultsEmptyState
         onClearFilters={() => {
           // Clear all filters
-          console.log("Clear filters")
+          // Action placeholder
         }}
       />
     )
@@ -103,12 +103,12 @@ export function WorksListExample() {
         itemType="works"
         onPrimaryAction={() => {
           // Open add work dialog
-          console.log("Add work")
+          // Action placeholder
         }}
         showSampleDataOption={true}
         onLoadSampleData={() => {
           // Load sample works
-          console.log("Load sample works")
+          // Action placeholder
         }}
       />
     )
@@ -132,7 +132,7 @@ export function ErrorStateExample() {
         onRetry={() => {
           setError(null)
           // Retry loading
-          console.log("Retry")
+          // Action placeholder
         }}
       />
     )
@@ -152,7 +152,7 @@ export function RestrictedPageExample() {
       <AccessDeniedEmptyState
         onSecondaryAction={() => {
           // Contact admin
-          console.log("Contact admin")
+          // Action placeholder
         }}
       />
     )
@@ -172,7 +172,7 @@ export function CustomExample() {
       description="You can create fully custom empty states with your own content."
       primaryAction={{
         label: "Primary Action",
-        onClick: () => console.log("Primary"),
+        onClick: () => {/* Action placeholder */},
         icon: Plus,
       }}
       tips={[
@@ -191,7 +191,7 @@ export function CompactEmptyStateExample() {
   return (
     <NoClientsEmptyState
       compact
-      onPrimaryAction={() => console.log("Add client")}
+      onPrimaryAction={() => {/* Action placeholder */}}
     />
   )
 }
@@ -207,7 +207,7 @@ export function EmptyStateWithCustomContentExample() {
       description="Get started by creating your first contract or exploring templates."
       primaryAction={{
         label: "Create Contract",
-        onClick: () => console.log("Create"),
+        onClick: () => {/* Action placeholder */},
         icon: Plus,
       }}
     >

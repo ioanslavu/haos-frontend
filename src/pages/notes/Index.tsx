@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNotes, useNoteDetail, useCreateNote, useUpdateNote, useDeleteNote, useTogglePin, useToggleArchive, useTags } from '@/api/hooks/useNotes';
 import { NoteCard } from './components/NoteCard';
 import { NotesInsights } from './components/NotesInsights';
@@ -7,11 +7,11 @@ import { TagInput } from './components/TagInput';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Plus, Search, Archive, Grid, List, Loader2, Palette, Pin } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Note, Tag, NoteListItem } from '@/types/notes';
+import { Tag, NoteListItem } from '@/types/notes';
 import { toast } from 'sonner';
 
 const NOTE_COLORS = [
@@ -33,14 +33,17 @@ const NotesPage = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
-  const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const [noteTitle, setNoteTitle] = useState('');
   const [noteContent, setNoteContent] = useState<any>({ type: 'doc', content: [] });
   const [noteTags, setNoteTags] = useState<Tag[]>([]);
   const [noteColor, setNoteColor] = useState<string | null>(null);
   const [deleteNoteId, setDeleteNoteId] = useState<number | null>(null);
-  const [autoSaveTimer, setAutoSaveTimer] = useState<NodeJS.Timeout | null>(null);
+  const [saveState, setSaveState] = useState<'idle' | 'dirty' | 'saving'>('idle');
+  const [showSavedIndicator, setShowSavedIndicator] = useState(false);
+  const [editorKey, setEditorKey] = useState(0);
+  const justLoadedRef = useRef(false);
+  const loadedContentRef = useRef<any>(null); // Track original loaded content to detect real changes
 
   const { data: noteDetail, isLoading: isLoadingDetail } = useNoteDetail(editingNoteId || 0);
 
@@ -57,228 +60,415 @@ const NotesPage = () => {
   const togglePin = useTogglePin();
   const toggleArchive = useToggleArchive();
 
+  // Populate form when note detail is loaded
   useEffect(() => {
-    if (editingNote && (noteTitle !== editingNote.title || JSON.stringify(noteContent) !== JSON.stringify(editingNote.content) || noteColor !== editingNote.color)) {
-      if (autoSaveTimer) clearTimeout(autoSaveTimer);
-      const timer = setTimeout(() => {
-        if (editingNote && noteTitle.trim()) {
-          updateNote.mutate({
-            id: editingNote.id,
-            data: { title: noteTitle, content: noteContent, tag_ids: noteTags.map(t => t.id), color: noteColor },
-          });
-        }
-      }, 2000);
-      setAutoSaveTimer(timer);
-      return () => { if (timer) clearTimeout(timer); };
-    }
-  }, [noteTitle, noteContent, noteColor, editingNote]);
-
-  const handleOpenNoteDialog = (noteId?: number) => {
-    if (noteId) {
-      setEditingNoteId(noteId);
-      setIsNoteDialogOpen(true);
-    } else {
-      setEditingNoteId(null);
-      setEditingNote(null);
-      setNoteTitle('');
-      setNoteContent({ type: 'doc', content: [] });
-      setNoteTags([]);
-      setNoteColor(null);
-      setIsNoteDialogOpen(true);
-    }
-  };
-
-  useEffect(() => {
-    if (noteDetail && editingNoteId) {
-      setEditingNote(noteDetail);
-      setNoteTitle(noteDetail.title);
-      setNoteContent(noteDetail.content || { type: 'doc', content: [] });
-      setNoteTags(noteDetail.tags);
+    if (noteDetail && editingNoteId && noteDetail.id === editingNoteId) {
+      justLoadedRef.current = true;
+      const loadedContent = noteDetail.content || { type: 'doc', content: [] };
+      setNoteTitle(noteDetail.title || '');
+      setNoteContent(loadedContent);
+      setNoteTags(noteDetail.tags || []);
       setNoteColor(noteDetail.color || null);
+      setSaveState('idle');
+      setEditorKey(prev => prev + 1); // Fresh editor with loaded content
+      // Store the loaded content so we can detect real changes
+      loadedContentRef.current = JSON.stringify(loadedContent);
+      // NOW open the dialog with the loaded data
+      setIsNoteDialogOpen(true);
     }
   }, [noteDetail, editingNoteId]);
 
+  // Auto-save with debounce
+  useEffect(() => {
+    // Don't auto-save if no note is open or if loading
+    if (!isNoteDialogOpen || isLoadingDetail) return;
+
+    // Skip auto-save if we just loaded data from server
+    if (justLoadedRef.current) {
+      justLoadedRef.current = false;
+      return;
+    }
+
+    // Don't save if no title (prevents saving empty notes)
+    if (!noteTitle.trim()) return;
+
+    // CRITICAL: Only save if content actually changed from what was loaded
+    // This prevents overwriting real content with empty content
+    if (editingNoteId && loadedContentRef.current) {
+      const currentContent = JSON.stringify(noteContent);
+      if (currentContent === loadedContentRef.current) {
+        // Content hasn't changed, don't save
+        return;
+      }
+    }
+
+    // Mark as dirty when user makes changes
+    setSaveState('dirty');
+
+    // Debounce: wait 2 seconds after last change
+    const timer = setTimeout(() => {
+      // Double-check before saving (in case state changed during timeout)
+      if (!noteTitle.trim() || !isNoteDialogOpen) return;
+
+      setSaveState('saving');
+
+      if (editingNoteId) {
+        // Update existing note
+        updateNote.mutate(
+          { id: editingNoteId, data: { title: noteTitle, content: noteContent, tag_ids: noteTags.map(t => t.id), color: noteColor } },
+          {
+            onSuccess: () => {
+              setSaveState('idle');
+              setShowSavedIndicator(true);
+              setTimeout(() => setShowSavedIndicator(false), 2000);
+            },
+            onError: () => {
+              setSaveState('dirty');
+              toast.error('Failed to save note');
+            }
+          }
+        );
+      } else {
+        // Create new note
+        createNote.mutate(
+          { title: noteTitle, content: noteContent, tag_ids: noteTags.map(t => t.id), color: noteColor },
+          {
+            onSuccess: (newNote) => {
+              // Switch to editing mode with the new note ID
+              setEditingNoteId(newNote.id);
+              setSaveState('idle');
+              setShowSavedIndicator(true);
+              setTimeout(() => setShowSavedIndicator(false), 2000);
+            },
+            onError: () => {
+              setSaveState('dirty');
+              toast.error('Failed to create note');
+            }
+          }
+        );
+      }
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [noteTitle, noteContent, noteTags, noteColor]);
+
+  const handleOpenNoteDialog = (noteId?: number) => {
+    if (noteId) {
+      // For existing notes, set ID first, dialog opens after data loads
+      setEditingNoteId(noteId);
+      justLoadedRef.current = true;
+      loadedContentRef.current = null;
+    } else {
+      // For new notes, clear and open immediately
+      setNoteTitle('');
+      setNoteContent({ type: 'doc', content: [] });
+      setNoteTags([]);
+      setNoteColor(null);
+      setSaveState('idle');
+      setShowSavedIndicator(false);
+      setEditorKey(prev => prev + 1);
+      justLoadedRef.current = true;
+      loadedContentRef.current = null;
+      setEditingNoteId(null);
+      setIsNoteDialogOpen(true);
+    }
+  };
+
   const handleCloseNoteDialog = () => {
-    setIsNoteDialogOpen(false);
-    setTimeout(() => {
-      setEditingNote(null);
+    // Prevent closing if currently saving
+    if (saveState === 'saving') {
+      toast.info('Saving in progress, please wait...');
+      return;
+    }
+
+    // If creating a new note with no content, don't save it
+    if (!editingNoteId && !noteTitle.trim()) {
+      setIsNoteDialogOpen(false);
       setEditingNoteId(null);
       setNoteTitle('');
       setNoteContent({ type: 'doc', content: [] });
       setNoteTags([]);
       setNoteColor(null);
-    }, 200);
-  };
-
-  const handleSaveNote = () => {
-    if (!noteTitle.trim()) {
-      toast.error('Please enter a title');
+      setSaveState('idle');
+      loadedContentRef.current = null;
       return;
     }
 
-    if (editingNote) {
-      updateNote.mutate({ id: editingNote.id, data: { title: noteTitle, content: noteContent, tag_ids: noteTags.map(t => t.id), color: noteColor } }, { onSuccess: handleCloseNoteDialog });
+    // Save changes before closing if content changed
+    const hasChanges = editingNoteId && loadedContentRef.current &&
+      JSON.stringify(noteContent) !== loadedContentRef.current;
+
+    if (hasChanges || (!editingNoteId && noteTitle.trim())) {
+      // Save changes
+      if (editingNoteId) {
+        updateNote.mutate(
+          { id: editingNoteId, data: { title: noteTitle, content: noteContent, tag_ids: noteTags.map(t => t.id), color: noteColor } },
+          {
+            onSettled: () => {
+              // Close after save completes (success or error)
+              closeDialog();
+            }
+          }
+        );
+      } else {
+        createNote.mutate(
+          { title: noteTitle, content: noteContent, tag_ids: noteTags.map(t => t.id), color: noteColor },
+          {
+            onSettled: () => {
+              closeDialog();
+            }
+          }
+        );
+      }
     } else {
-      createNote.mutate({ title: noteTitle, content: noteContent, tag_ids: noteTags.map(t => t.id), color: noteColor }, { onSuccess: handleCloseNoteDialog });
+      // No changes, close immediately
+      closeDialog();
     }
   };
 
+  const closeDialog = () => {
+    setIsNoteDialogOpen(false);
+    setEditingNoteId(null);
+    setNoteTitle('');
+    setNoteContent({ type: 'doc', content: [] });
+    setNoteTags([]);
+    setNoteColor(null);
+    setSaveState('idle');
+    setShowSavedIndicator(false);
+    loadedContentRef.current = null;
+  };
+
   return (
-    <AppLayout
-      title="Notes"
-      actions={
-        <Button onClick={() => handleOpenNoteDialog()}>
-          <Plus className="h-4 w-4 mr-2" />
-          New Note
-        </Button>
-      }
-    >
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Sidebar Filters */}
-        <div className="lg:col-span-1 space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Filter by Tags</label>
-            <div className="flex flex-wrap gap-2">
-              {allTags.map((tag) => (
-                <button
-                  key={tag.id}
-                  onClick={() => setSelectedTags(prev => prev.includes(tag.id) ? prev.filter(id => id !== tag.id) : [...prev, tag.id])}
-                  className={`px-2 py-1 rounded text-xs transition-all ${selectedTags.includes(tag.id) ? 'font-semibold shadow-sm' : 'opacity-60 hover:opacity-100'}`}
-                  style={{ backgroundColor: tag.color + (selectedTags.includes(tag.id) ? '' : '40'), color: tag.color }}
+    <AppLayout>
+      <div className="space-y-4 pb-8">
+        {/* Compact Control Bar */}
+        <div className="relative overflow-hidden rounded-2xl bg-background/50 backdrop-blur-xl border border-white/10 shadow-lg">
+          {/* Subtle gradient background */}
+          <div className="absolute inset-0 bg-gradient-to-r from-violet-500/5 via-transparent to-fuchsia-500/5 pointer-events-none" />
+
+          <div className="relative z-10 p-6">
+            {/* Header: Title + Button */}
+            <div className="flex items-center justify-between gap-4 mb-5">
+              <h1 className="text-3xl font-bold tracking-tight">Notes</h1>
+              <Button
+                onClick={() => handleOpenNoteDialog()}
+                size="lg"
+                className="rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 shadow-lg"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                New Note
+              </Button>
+            </div>
+
+            {/* Search Row */}
+            <div className="flex gap-3 flex-wrap mb-5">
+              <div className="flex-1 min-w-[300px]">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search notes..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 h-11 rounded-xl bg-background/50 border-white/10"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant={viewMode === 'grid' ? 'default' : 'outline'}
+                  size="icon"
+                  onClick={() => setViewMode('grid')}
+                  className="h-11 w-11 rounded-xl"
                 >
-                  {tag.name}
-                </button>
-              ))}
-              {allTags.length === 0 && (
-                <p className="text-xs text-muted-foreground">No tags yet</p>
+                  <Grid className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === 'list' ? 'default' : 'outline'}
+                  size="icon"
+                  onClick={() => setViewMode('list')}
+                  className="h-11 w-11 rounded-xl"
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={showArchived ? 'default' : 'outline'}
+                  onClick={() => setShowArchived(!showArchived)}
+                  className="h-11 px-4 rounded-xl"
+                >
+                  <Archive className="h-4 w-4 mr-2" />
+                  {showArchived ? 'Hide Archived' : 'Show Archived'}
+                </Button>
+              </div>
+            </div>
+
+            {/* Stats + Tag Filters Row */}
+            <div className="flex items-center justify-between gap-6 flex-wrap pt-5 border-t border-white/10">
+              <NotesInsights />
+
+              {allTags.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-medium text-muted-foreground">Tags:</span>
+                  {allTags.map((tag) => (
+                    <button
+                      key={tag.id}
+                      onClick={() => setSelectedTags(prev => prev.includes(tag.id) ? prev.filter(id => id !== tag.id) : [...prev, tag.id])}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${selectedTags.includes(tag.id) ? 'shadow-md scale-105' : 'opacity-60 hover:opacity-100'}`}
+                      style={{ backgroundColor: tag.color + (selectedTags.includes(tag.id) ? '' : '40'), color: tag.color }}
+                    >
+                      {tag.name}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           </div>
-          <Button variant={showArchived ? 'default' : 'outline'} className="w-full justify-start" onClick={() => setShowArchived(!showArchived)}>
-            <Archive className="h-4 w-4 mr-2" />{showArchived ? 'Hide Archived' : 'Show Archived'}
-          </Button>
-          <NotesInsights />
         </div>
 
-        {/* Main Content */}
-        <div className="lg:col-span-3 space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search notes..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
-            </div>
-            <div className="flex gap-2">
-              <Button variant={viewMode === 'grid' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('grid')}><Grid className="h-4 w-4" /></Button>
-              <Button variant={viewMode === 'list' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('list')}><List className="h-4 w-4" /></Button>
-            </div>
-          </div>
+        {/* Notes Grid/List */}
+        <div>
 
-        {isLoading ? (
-          <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 gap-4' : 'space-y-4'}>
-            {[1, 2, 3, 4, 5, 6].map((i) => <Skeleton key={i} className="h-48" />)}
-          </div>
-        ) : notes.length === 0 ? (
-          <div className="text-center py-12"><p className="text-muted-foreground">{searchQuery || selectedTags.length > 0 ? 'No notes found' : 'No notes yet. Create your first note!'}</p></div>
-        ) : (
-          <div className="space-y-6">
-            {/* Pinned Notes Section */}
-            {notes.filter(note => note.is_pinned).length > 0 && (
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Pin className="h-4 w-4 text-primary fill-primary" />
-                  <h3 className="text-sm font-semibold text-primary uppercase tracking-wide">Pinned</h3>
+          {isLoading ? (
+            <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-4'}>
+              {[1, 2, 3, 4, 5, 6].map((i) => <Skeleton key={i} className="h-48 rounded-2xl" />)}
+            </div>
+          ) : notes.length === 0 ? (
+            <div className="text-center py-16 px-4 rounded-2xl bg-background/30 backdrop-blur-sm border border-white/10">
+              <p className="text-muted-foreground text-lg">{searchQuery || selectedTags.length > 0 ? 'No notes found' : 'No notes yet. Create your first note!'}</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Pinned Notes Section */}
+              {notes.filter(note => note.is_pinned).length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-4 px-2">
+                    <Pin className="h-4 w-4 text-violet-600 dark:text-violet-400 fill-violet-600 dark:fill-violet-400" />
+                    <h3 className="text-sm font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-wide">Pinned</h3>
+                  </div>
+                  <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-4'}>
+                    {notes.filter(note => note.is_pinned).map((note) => (
+                      <NoteCard key={note.id} note={note} onClick={() => handleOpenNoteDialog(note.id)} onPin={() => togglePin.mutate(note.id)} onArchive={() => toggleArchive.mutate(note.id)} onDelete={() => setDeleteNoteId(note.id)} />
+                    ))}
+                  </div>
                 </div>
-                <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 gap-4' : 'space-y-4'}>
-                  {notes.filter(note => note.is_pinned).map((note) => (
+              )}
+
+              {/* Separator */}
+              {notes.filter(note => note.is_pinned).length > 0 && notes.filter(note => !note.is_pinned).length > 0 && (
+                <div className="flex items-center gap-3 py-4">
+                  <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/20 dark:via-white/10 to-transparent"></div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1 h-1 rounded-full bg-muted-foreground/30"></div>
+                    <div className="w-1 h-1 rounded-full bg-muted-foreground/30"></div>
+                    <div className="w-1 h-1 rounded-full bg-muted-foreground/30"></div>
+                  </div>
+                  <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/20 dark:via-white/10 to-transparent"></div>
+                </div>
+              )}
+
+              {/* Unpinned Notes Section */}
+              {notes.filter(note => !note.is_pinned).length > 0 && (
+                <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-4'}>
+                  {notes.filter(note => !note.is_pinned).map((note) => (
                     <NoteCard key={note.id} note={note} onClick={() => handleOpenNoteDialog(note.id)} onPin={() => togglePin.mutate(note.id)} onArchive={() => toggleArchive.mutate(note.id)} onDelete={() => setDeleteNoteId(note.id)} />
                   ))}
                 </div>
-              </div>
-            )}
-
-            {/* Separator */}
-            {notes.filter(note => note.is_pinned).length > 0 && notes.filter(note => !note.is_pinned).length > 0 && (
-              <div className="flex items-center gap-3 py-2">
-                <div className="flex-1 h-[1px] bg-gradient-to-r from-transparent via-border to-transparent"></div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-1 h-1 rounded-full bg-muted-foreground/30"></div>
-                  <div className="w-1 h-1 rounded-full bg-muted-foreground/30"></div>
-                  <div className="w-1 h-1 rounded-full bg-muted-foreground/30"></div>
-                </div>
-                <div className="flex-1 h-[1px] bg-gradient-to-r from-transparent via-border to-transparent"></div>
-              </div>
-            )}
-
-            {/* Unpinned Notes Section */}
-            {notes.filter(note => !note.is_pinned).length > 0 && (
-              <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 gap-4' : 'space-y-4'}>
-                {notes.filter(note => !note.is_pinned).map((note) => (
-                  <NoteCard key={note.id} note={note} onClick={() => handleOpenNoteDialog(note.id)} onPin={() => togglePin.mutate(note.id)} onArchive={() => toggleArchive.mutate(note.id)} onDelete={() => setDeleteNoteId(note.id)} />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      <Dialog open={isNoteDialogOpen} onOpenChange={setIsNoteDialogOpen}>
-        <DialogContent className="max-w-6xl sm:max-w-6xl max-h-[90vh] flex flex-col p-0">
-          <DialogHeader className="sticky top-0 z-10 bg-background border-b px-6 py-4 shrink-0">
-            <DialogTitle className="truncate">
-              {editingNote ? (
-                <span>
-                  <span className="text-muted-foreground text-sm font-normal">Editing:</span>{' '}
-                  <span className="font-semibold">{noteTitle || 'Untitled'}</span>
-                </span>
-              ) : (
-                'New Note'
-              )}
-            </DialogTitle>
+      <Dialog open={isNoteDialogOpen} onOpenChange={(open) => !open && handleCloseNoteDialog()}>
+        <DialogContent className="max-w-6xl sm:max-w-6xl max-h-[90vh] flex flex-col p-0 gap-0 [&>button]:top-6 [&>button]:right-6 [&>button]:h-8 [&>button]:w-8 [&>button]:rounded-full [&>button]:hover:bg-accent [&>button]:opacity-60 [&>button]:hover:opacity-100">
+          <DialogHeader className="sticky top-0 z-10 px-6 pt-3 pb-0 shrink-0 border-0">
+            <div className="flex items-center justify-between gap-4 mb-2">
+              <div className="flex items-center gap-3 flex-1">
+                {saveState === 'saving' && (
+                  <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Saving...
+                  </span>
+                )}
+                {showSavedIndicator && saveState === 'idle' && (
+                  <span className="text-xs text-green-600 dark:text-green-500 flex items-center gap-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-green-600 dark:bg-green-500"></span>
+                    Saved
+                  </span>
+                )}
+              </div>
+            </div>
+            <DialogTitle className="sr-only">{editingNoteId ? 'Edit Note' : 'New Note'}</DialogTitle>
           </DialogHeader>
-          <div className="overflow-y-auto flex-1 px-6 py-4">
-          {isLoadingDetail && editingNoteId ? (
+          <div className="overflow-y-auto flex-1 px-6 pb-4">
+          {(isLoadingDetail && editingNoteId) || (editingNoteId && !noteDetail) ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : (
-            <div className="space-y-4">
-              <Input placeholder="Note title..." value={noteTitle} onChange={(e) => setNoteTitle(e.target.value)} className="text-lg font-semibold" />
+            <div className="space-y-6">
+              {/* Title Section */}
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider pl-1">Title</label>
+                <input
+                  type="text"
+                  placeholder="Untitled"
+                  value={noteTitle}
+                  onChange={(e) => setNoteTitle(e.target.value)}
+                  className="w-full text-3xl font-bold bg-transparent px-1 py-2 placeholder:text-muted-foreground/30"
+                  style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
+                  onFocus={(e) => e.target.style.outline = 'none'}
+                />
+              </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-2">
-                  <Palette className="h-4 w-4" />
-                  Note Color
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {NOTE_COLORS.map((color) => (
-                    <button
-                      key={color.value || 'none'}
-                      type="button"
-                      onClick={() => setNoteColor(color.value)}
-                      className={`w-10 h-10 rounded-lg border-2 transition-all hover:scale-110 ${
-                        noteColor === color.value ? 'border-primary ring-2 ring-primary ring-offset-2' : 'border-gray-300'
-                      }`}
-                      style={{ backgroundColor: color.value || '#ffffff' }}
-                      title={color.name}
-                    >
-                      {color.value === null && <span className="text-xs text-gray-400">None</span>}
-                    </button>
-                  ))}
+              {/* Meta Section - Tags and Color */}
+              <div className="space-y-4 pb-4 border-b">
+                {/* Tags */}
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 block">Tags</label>
+                  <TagInput selectedTags={noteTags} onTagsChange={setNoteTags} />
+                </div>
+
+                {/* Color Picker */}
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
+                    <Palette className="h-3 w-3" />
+                    Color
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {NOTE_COLORS.map((color) => (
+                      <button
+                        key={color.value || 'none'}
+                        type="button"
+                        onClick={() => setNoteColor(color.value)}
+                        className={`w-8 h-8 rounded-md transition-all hover:scale-110 ${
+                          noteColor === color.value ? 'ring-2 ring-primary ring-offset-1' : 'opacity-60 hover:opacity-100'
+                        }`}
+                        style={{
+                          backgroundColor: color.value || 'transparent',
+                          border: color.value ? 'none' : '1px dashed rgba(128, 128, 128, 0.3)'
+                        }}
+                        title={color.name}
+                      >
+                        {color.value === null && <span className="text-[10px] text-muted-foreground">✕</span>}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              <TagInput selectedTags={noteTags} onTagsChange={setNoteTags} />
-              <TiptapEditor content={noteContent} onChange={setNoteContent} placeholder="Start writing..." />
+              {/* Content Section */}
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Content</label>
+                <TiptapEditor
+                  key={editorKey}
+                  content={noteContent}
+                  onChange={setNoteContent}
+                  placeholder="Start writing..."
+                />
+              </div>
             </div>
           )}
           </div>
-          <DialogFooter className="sticky bottom-0 z-10 bg-background border-t px-6 py-4 shrink-0">
-            <Button variant="outline" onClick={handleCloseNoteDialog}>Cancel</Button>
-            <Button onClick={handleSaveNote} disabled={createNote.isPending || updateNote.isPending || isLoadingDetail}>
-              {editingNote ? 'Save' : 'Create'}
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 

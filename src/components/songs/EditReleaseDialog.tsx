@@ -35,7 +35,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import catalogService from '@/api/services/catalog.service';
+import apiClient from '@/api/client';
 import { useToast } from '@/hooks/use-toast';
 import { ReleaseDetails } from '@/types/song';
 
@@ -113,7 +113,8 @@ export function EditReleaseDialog({
         notes: data.notes || undefined,
       };
 
-      return await catalogService.updateRelease(release.id, payload);
+      const response = await apiClient.patch(`/api/v1/releases/${release.id}/`, payload);
+      return response.data;
     },
     onSuccess: () => {
       toast({

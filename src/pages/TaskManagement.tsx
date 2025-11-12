@@ -32,10 +32,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { TaskFormDialog } from '@/components/tasks/TaskFormDialog'
-import { useTasks, useTaskStats, useMyTasks, useOverdueTasks, useDeleteTask, useUpdateTask } from '@/api/hooks/useTasks'
+import { TaskDetailPanel } from '@/components/tasks/TaskDetailPanel'
+import { EmployeeTaskFilter } from '@/components/tasks/EmployeeTaskFilter'
+import { useTasks, useTaskStats, useMyTasks, useOverdueTasks, useDeleteTask, useUpdateTask, useUpdateTaskStatus } from '@/api/hooks/useTasks'
 import { useAuthStore } from '@/stores/authStore'
 import {
   Task,
+  TaskStatus,
   TASK_STATUS_LABELS,
   TASK_PRIORITY_LABELS,
   TASK_TYPE_LABELS,
@@ -64,6 +67,60 @@ import {
 import { format, formatDistanceToNow, isToday, isTomorrow, isPast } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  pointerWithin,
+} from '@dnd-kit/core'
+import { useDroppable } from '@dnd-kit/core'
+import { useDraggable } from '@dnd-kit/core'
+import { snapCenterToCursor } from '@dnd-kit/modifiers'
+
+// Droppable Column Component
+function DroppableColumn({ id, children }: { id: string; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        'transition-colors',
+        isOver && 'bg-primary/5 ring-2 ring-primary/50 rounded-lg'
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+// Draggable Task Card Component
+function DraggableTaskCard({ task, children, onClick }: { task: Task; children: React.ReactNode; onClick: () => void }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: task.id,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      className={cn(isDragging && 'opacity-30')}
+      onClick={(e) => {
+        // Only trigger onClick if not dragging
+        if (!isDragging) {
+          onClick();
+        }
+      }}
+    >
+      {children}
+    </div>
+  );
+}
 
 export default function TaskManagement() {
   const currentUser = useAuthStore((state) => state.user)
@@ -75,12 +132,26 @@ export default function TaskManagement() {
   const [showCompleted, setShowCompleted] = useState(false)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [taskDialogOpen, setTaskDialogOpen] = useState(false)
+  const [taskViewOpen, setTaskViewOpen] = useState(false)
+  const [viewTask, setViewTask] = useState<Task | null>(null)
+  const [selectedEmployees, setSelectedEmployees] = useState<number[]>([])
+  const [activeTask, setActiveTask] = useState<Task | null>(null)
+
+  // Setup drag sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px movement required to start dragging
+      },
+    })
+  )
 
   // Fetch tasks data
   const { data: allTasks, isLoading: tasksLoading } = useTasks({
     priority: filterPriority !== 'all' ? parseInt(filterPriority) : undefined,
     task_type: filterType !== 'all' ? filterType : undefined,
     assigned_to: filterAssignee !== 'all' ? parseInt(filterAssignee) : undefined,
+    assigned_to__in: selectedEmployees.length > 0 ? selectedEmployees.join(',') : undefined,
   })
   const { data: myTasks } = useMyTasks()
   const { data: overdueTasks } = useOverdueTasks()
@@ -88,6 +159,7 @@ export default function TaskManagement() {
 
   const deleteTask = useDeleteTask()
   const updateTask = useUpdateTask()
+  const updateTaskStatus = useUpdateTaskStatus()
 
   // Filter tasks
   const filteredTasks = allTasks?.filter(task => {
@@ -113,8 +185,14 @@ export default function TaskManagement() {
     { id: 'done', label: 'Done', icon: CheckCircle, color: 'bg-green-500' },
   ]
 
-  const handleTaskEdit = (task: Task) => {
-    setSelectedTask(task)
+  const handleTaskClick = (task: Task) => {
+    setViewTask(task)
+    setTaskViewOpen(true)
+  }
+
+  const handleTaskEdit = () => {
+    setSelectedTask(viewTask)
+    setTaskViewOpen(false)
     setTaskDialogOpen(true)
   }
 
@@ -139,6 +217,47 @@ export default function TaskManagement() {
     } catch {
       toast.error('Failed to update task status')
     }
+  }
+
+  // Drag handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    const taskId = event.active.id as number
+    const task = filteredTasks?.find((t) => t.id === taskId)
+    if (task) {
+      setActiveTask(task)
+    }
+  }
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+
+    if (!over) {
+      setActiveTask(null)
+      return
+    }
+
+    const taskId = active.id as number
+    const newStatus = over.id as TaskStatus
+
+    // Find the task
+    const task = filteredTasks?.find((t) => t.id === taskId)
+
+    if (task && task.status !== newStatus) {
+      // Update task status
+      try {
+        await updateTaskStatus.mutateAsync({ id: taskId, status: newStatus })
+        toast.success('Task status updated')
+      } catch (error) {
+        console.error('Failed to update task status:', error)
+        toast.error('Failed to update task status')
+      }
+    }
+
+    setActiveTask(null)
+  }
+
+  const handleDragCancel = () => {
+    setActiveTask(null)
   }
 
   const getPriorityColor = (priority: number) => {
@@ -238,7 +357,7 @@ export default function TaskManagement() {
           </div>
 
           {/* Filters */}
-          <div className="flex items-center gap-4 mt-4">
+          <div className="flex items-center gap-4 mt-4 flex-wrap">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -273,6 +392,11 @@ export default function TaskManagement() {
                 ))}
               </SelectContent>
             </Select>
+
+            <EmployeeTaskFilter
+              selectedEmployees={selectedEmployees}
+              onSelectionChange={setSelectedEmployees}
+            />
 
             <div className="flex items-center gap-2">
               <Checkbox
@@ -312,63 +436,44 @@ export default function TaskManagement() {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 overflow-auto p-4">
-          {viewMode === 'kanban' ? (
-            // Kanban View
-            <div className="flex gap-4 h-full">
-              {statusColumns.map((column) => {
-                const Icon = column.icon
-                const tasks = tasksByStatus[column.id as keyof typeof tasksByStatus]
+        <DndContext
+          sensors={sensors}
+          collisionDetection={pointerWithin}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+        >
+          <div className="flex-1 overflow-auto p-4">
+            {viewMode === 'kanban' ? (
+              // Kanban View
+              <div className="flex gap-4 h-full">
+                {statusColumns.map((column) => {
+                  const Icon = column.icon
+                  const tasks = tasksByStatus[column.id as keyof typeof tasksByStatus]
 
-                return (
-                  <div key={column.id} className="flex-1 min-w-[300px]">
-                    <Card className="h-full flex flex-col">
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Icon className="h-4 w-4 text-muted-foreground" />
-                            <CardTitle className="text-sm">{column.label}</CardTitle>
-                          </div>
-                          <Badge variant="secondary">{tasks.length}</Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="flex-1 overflow-auto">
-                        <div className="space-y-2">
-                          {tasks.map((task) => (
-                            <Card
-                              key={task.id}
-                              className="p-3 cursor-pointer hover:shadow-md transition-shadow"
-                              onClick={() => handleTaskEdit(task)}
-                            >
+                  return (
+                    <DroppableColumn key={column.id} id={column.id}>
+                      <div className="flex-1 min-w-[300px]">
+                        <Card className="h-full flex flex-col">
+                          <CardHeader className="pb-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Icon className="h-4 w-4 text-muted-foreground" />
+                                <CardTitle className="text-sm">{column.label}</CardTitle>
+                              </div>
+                              <Badge variant="secondary">{tasks.length}</Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="flex-1 overflow-auto">
+                            <div className="space-y-2">
+                              {tasks.map((task) => (
+                                <DraggableTaskCard key={task.id} task={task} onClick={() => handleTaskClick(task)}>
+                                  <Card className="p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
+                                >
                               <div className="space-y-2">
                                 <div className="flex items-start justify-between">
                                   <h4 className="text-sm font-medium line-clamp-2">{task.title}</h4>
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                      <Button variant="ghost" size="icon" className="h-6 w-6">
-                                        <MoreHorizontal className="h-3 w-3" />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                      <DropdownMenuSeparator />
-                                      <DropdownMenuItem onClick={(e) => {
-                                        e.stopPropagation()
-                                        handleTaskEdit(task)
-                                      }}>
-                                        Edit
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          handleTaskDelete(task)
-                                        }}
-                                        className="text-red-600"
-                                      >
-                                        Delete
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
+                                  <Flag className={cn("h-3 w-3 flex-shrink-0", getPriorityColor(task.priority))} />
                                 </div>
 
                                 {task.description && (
@@ -398,16 +503,22 @@ export default function TaskManagement() {
                                 )}
 
                                 <div className="flex items-center justify-between pt-2 border-t">
-                                  {task.assigned_to_detail ? (
+                                  {task.assigned_to_users_detail && task.assigned_to_users_detail.length > 0 ? (
                                     <div className="flex items-center gap-1">
-                                      <Avatar className="h-5 w-5">
-                                        <AvatarFallback className="text-xs">
-                                          {task.assigned_to_detail.full_name.substring(0, 2).toUpperCase()}
-                                        </AvatarFallback>
-                                      </Avatar>
-                                      <span className="text-xs text-muted-foreground">
-                                        {task.assigned_to_detail.full_name.split(' ')[0]}
-                                      </span>
+                                      <div className="flex -space-x-2">
+                                        {task.assigned_to_users_detail.slice(0, 3).map((user) => (
+                                          <Avatar key={user.id} className="h-5 w-5 border-2 border-background">
+                                            <AvatarFallback className="text-xs">
+                                              {user.full_name.substring(0, 2).toUpperCase()}
+                                            </AvatarFallback>
+                                          </Avatar>
+                                        ))}
+                                      </div>
+                                      {task.assigned_to_users_detail.length > 3 && (
+                                        <span className="text-xs text-muted-foreground">
+                                          +{task.assigned_to_users_detail.length - 3}
+                                        </span>
+                                      )}
                                     </div>
                                   ) : (
                                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -437,15 +548,17 @@ export default function TaskManagement() {
                                   </div>
                                 )}
                               </div>
-                            </Card>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                )
-              })}
-            </div>
+                                </Card>
+                                </DraggableTaskCard>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </DroppableColumn>
+                  )
+                })}
+              </div>
           ) : viewMode === 'list' ? (
             // List View
             <Card>
@@ -461,12 +574,11 @@ export default function TaskManagement() {
                       <TableHead>Due Date</TableHead>
                       <TableHead>Progress</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredTasks.map((task) => (
-                      <TableRow key={task.id} className="cursor-pointer" onClick={() => handleTaskEdit(task)}>
+                      <TableRow key={task.id} className="cursor-pointer" onClick={() => handleTaskClick(task)}>
                         <TableCell>
                           <Checkbox onClick={(e) => e.stopPropagation()} />
                         </TableCell>
@@ -492,14 +604,22 @@ export default function TaskManagement() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {task.assigned_to_detail ? (
+                          {task.assigned_to_users_detail && task.assigned_to_users_detail.length > 0 ? (
                             <div className="flex items-center gap-2">
-                              <Avatar className="h-6 w-6">
-                                <AvatarFallback className="text-xs">
-                                  {task.assigned_to_detail.full_name.substring(0, 2).toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="text-sm">{task.assigned_to_detail.full_name}</span>
+                              <div className="flex -space-x-2">
+                                {task.assigned_to_users_detail.slice(0, 2).map((user) => (
+                                  <Avatar key={user.id} className="h-6 w-6 border-2 border-background">
+                                    <AvatarFallback className="text-xs">
+                                      {user.full_name.substring(0, 2).toUpperCase()}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                ))}
+                              </div>
+                              {task.assigned_to_users_detail.length > 2 && (
+                                <span className="text-xs text-muted-foreground">
+                                  +{task.assigned_to_users_detail.length - 2} more
+                                </span>
+                              )}
                             </div>
                           ) : (
                             <span className="text-sm text-muted-foreground">Unassigned</span>
@@ -530,34 +650,6 @@ export default function TaskManagement() {
                             {TASK_STATUS_LABELS[task.status]}
                           </Badge>
                         </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={(e) => {
-                                e.stopPropagation()
-                                handleTaskEdit(task)
-                              }}>
-                                Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleTaskDelete(task)
-                                }}
-                                className="text-red-600"
-                              >
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -572,7 +664,35 @@ export default function TaskManagement() {
               </CardContent>
             </Card>
           )}
+
+          {/* Drag Overlay - shows the task being dragged */}
+          <DragOverlay modifiers={[snapCenterToCursor]}>
+            {activeTask ? (
+              <Card className="p-3 cursor-grabbing shadow-2xl rotate-2 w-[280px]">
+                <div className="space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <h4 className="text-sm font-medium line-clamp-2 flex-1">{activeTask.title}</h4>
+                    <Flag className={cn("h-3 w-3 flex-shrink-0", getPriorityColor(activeTask.priority))} />
+                  </div>
+                  {activeTask.description && (
+                    <p className="text-xs text-muted-foreground line-clamp-2">
+                      {activeTask.description}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-1 flex-wrap">
+                    <Badge variant="outline" className="text-xs">
+                      {TASK_TYPE_LABELS[activeTask.task_type]}
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      {TASK_PRIORITY_LABELS[activeTask.priority]}
+                    </Badge>
+                  </div>
+                </div>
+              </Card>
+            ) : null}
+          </DragOverlay>
         </div>
+        </DndContext>
       </div>
 
       {/* Task Form Dialog */}
@@ -580,6 +700,13 @@ export default function TaskManagement() {
         open={taskDialogOpen}
         onOpenChange={setTaskDialogOpen}
         task={selectedTask}
+      />
+
+      {/* Task Detail Panel */}
+      <TaskDetailPanel
+        task={viewTask}
+        open={taskViewOpen}
+        onOpenChange={setTaskViewOpen}
       />
     </AppLayout>
   )

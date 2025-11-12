@@ -76,7 +76,6 @@ export const GoogleDrivePickerButton: React.FC<GoogleDrivePickerButtonProps> = (
         // Use implicit flow to avoid page redirect
         ux_mode: 'popup',
         callback: (response: any) => {
-          console.log('OAuth response:', response);
 
           if (response.error) {
             console.error('OAuth error:', response);
@@ -86,7 +85,6 @@ export const GoogleDrivePickerButton: React.FC<GoogleDrivePickerButtonProps> = (
           }
 
           if (response.access_token) {
-            console.log('Got access token, creating picker...');
             // Don't set loading to false yet - picker will handle it
             createPicker(response.access_token);
           } else {
@@ -97,7 +95,6 @@ export const GoogleDrivePickerButton: React.FC<GoogleDrivePickerButtonProps> = (
         },
       });
 
-      console.log('Requesting access token...');
       // Request access token with no prompt for already authorized users
       tokenClient.requestAccessToken({
         prompt: 'consent',  // Always show consent to avoid issues
@@ -110,7 +107,6 @@ export const GoogleDrivePickerButton: React.FC<GoogleDrivePickerButtonProps> = (
   };
 
   const createPicker = (accessToken: string) => {
-    console.log('Creating picker with access token...');
     const google = window.google;
 
     let view;
@@ -132,11 +128,9 @@ export const GoogleDrivePickerButton: React.FC<GoogleDrivePickerButtonProps> = (
         .setDeveloperKey(GOOGLE_API_KEY)
         .setAppId(GOOGLE_APP_ID || 'default')
         .setCallback((data: any) => {
-          console.log('Picker callback:', data.action);
 
           if (data.action === google.picker.Action.PICKED) {
             const file = data.docs[0];
-            console.log('File picked:', file);
             setIsLoading(false);
             onPickerClose?.();
             onSelect({
@@ -144,18 +138,15 @@ export const GoogleDrivePickerButton: React.FC<GoogleDrivePickerButtonProps> = (
               name: file.name,
             });
           } else if (data.action === google.picker.Action.CANCEL) {
-            console.log('Picker cancelled');
             setIsLoading(false);
             onPickerClose?.();
           } else if (data.action === google.picker.Action.LOADED) {
-            console.log('Picker loaded');
             setIsLoading(false);
             onPickerOpen?.();
           }
         })
         .build();
 
-      console.log('Picker built, showing...');
       picker.setVisible(true);
     } catch (error) {
       console.error('Error building/showing picker:', error);

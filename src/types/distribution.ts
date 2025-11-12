@@ -1,5 +1,23 @@
 import { Entity } from './entity'
-import { Recording, Release } from './catalog'
+
+// Minimal types for distribution catalog items
+export interface Recording {
+  id: number
+  title: string
+  type: string
+  status: string
+  isrc?: string
+  work_title?: string
+}
+
+export interface Release {
+  id: number
+  title: string
+  type: string
+  status: string
+  upc?: string
+  release_date?: string
+}
 
 export type DealType = 'artist' | 'label' | 'aggregator'
 export type DealStatus = 'active' | 'in_negotiation' | 'expired'

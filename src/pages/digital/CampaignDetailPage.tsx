@@ -32,11 +32,11 @@ import { useTasks } from '@/api/hooks/useTasks';
 import { useClientProfileByEntity } from '@/api/hooks/useClientProfiles';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { ClientHealthScore } from '@/components/crm/ClientHealthScore';
+import { ClientHealthScore } from '@/components/entities/ClientHealthScore';
 import { ServiceMetricsUpdateDialog } from '@/components/digital/ServiceMetricsUpdateDialog';
 import { KPIProgressUpdateDialog } from '@/components/digital/KPIProgressUpdateDialog';
 import { ActivityTimeline } from '@/components/activities/ActivityTimeline';
-import { TaskViewSheet } from './components/TaskViewSheet';
+import { TaskDetailPanel } from '@/components/tasks/TaskDetailPanel';
 import { useAuthStore } from '@/stores/authStore';
 
 export default function CampaignDetailPage() {
@@ -125,25 +125,48 @@ export default function CampaignDetailPage() {
   return (
     <AppLayout>
       <div className="space-y-6 pb-8">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate('/digital/campaigns')}
+          className="gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Campaigns
+        </Button>
+
         {/* Modern Glassmorphic Header */}
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-pink-500/10 backdrop-blur-xl border border-white/20 dark:border-white/10 p-6 lg:p-8 shadow-2xl">
           {/* Animated gradient orbs */}
           <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-400/30 to-purple-500/30 rounded-full blur-3xl animate-pulse" />
           <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-pink-400/30 to-orange-500/30 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
 
-          <div className="relative z-10 space-y-4">
-            {/* Back button and actions */}
-            <div className="flex items-center justify-between">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/digital/campaigns')}
-                className="gap-2"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Back to Campaigns
-              </Button>
-              <div className="flex gap-2">
+          <div className="relative z-10">
+            <div className="flex items-start justify-between gap-4">
+              {/* Campaign title and status */}
+              <div className="space-y-2 flex-1">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <h1 className="text-3xl lg:text-4xl font-bold tracking-tight">
+                    {campaign.campaign_name}
+                  </h1>
+                  <Badge className={cn("text-white", getStatusColor(campaign.status))}>
+                    {campaign.status_display || campaign.status}
+                  </Badge>
+                  {campaign.service_types && campaign.service_types.length > 0 && (
+                    campaign.service_types.map((st: string, idx: number) => (
+                      <Badge key={idx} variant="outline" className="capitalize">
+                        {campaign.service_types_display?.[idx] || st.replace('_', ' ')}
+                      </Badge>
+                    ))
+                  )}
+                </div>
+                <p className="text-muted-foreground text-lg">
+                  {campaign.brand.display_name} • {campaign.client.display_name}
+                </p>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex gap-2 flex-wrap justify-end">
                 <Button
                   size="sm"
                   className="rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
@@ -163,28 +186,6 @@ export default function CampaignDetailPage() {
                   <MoreVertical className="h-4 w-4" />
                 </Button>
               </div>
-            </div>
-
-            {/* Campaign title and status */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-3xl lg:text-4xl font-bold tracking-tight">
-                  {campaign.campaign_name}
-                </h1>
-                <Badge className={cn("text-white", getStatusColor(campaign.status))}>
-                  {campaign.status_display || campaign.status}
-                </Badge>
-                {campaign.service_types && campaign.service_types.length > 0 && (
-                  campaign.service_types.map((st: string, idx: number) => (
-                    <Badge key={idx} variant="outline" className="capitalize">
-                      {campaign.service_types_display?.[idx] || st.replace('_', ' ')}
-                    </Badge>
-                  ))
-                )}
-              </div>
-              <p className="text-muted-foreground text-lg">
-                {campaign.brand.display_name} • {campaign.client.display_name}
-              </p>
             </div>
           </div>
         </div>
@@ -868,14 +869,11 @@ export default function CampaignDetailPage() {
         </div>
       </div>
 
-      {/* Task View Sheet */}
-      <TaskViewSheet
+      {/* Task Detail Panel */}
+      <TaskDetailPanel
         task={selectedTask}
         open={taskViewOpen}
         onOpenChange={setTaskViewOpen}
-        onEdit={() => {
-          // Optional: Add edit functionality later if needed
-        }}
       />
     </AppLayout>
   );

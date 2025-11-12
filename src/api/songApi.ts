@@ -18,8 +18,10 @@ import {
   PaginatedResponse,
   Recording,
   Publication,
+  WorkWithSplits,
+  SongStage,
+  StageStatus,
 } from '@/types/song';
-import { WorkWithSplits } from '@/types/catalog';
 
 const SONGS_BASE = '/api/v1/songs';
 
@@ -292,4 +294,17 @@ export const removeFeaturedArtist = (songId: number, creditId: number) => {
 
 export const reorderFeaturedArtists = (songId: number, artistCredits: Array<{ id: number; order: number }>) => {
   return apiClient.patch(`${SONGS_BASE}/${songId}/reorder-artists/`, { artist_credits: artistCredits });
+};
+
+// Stage Status Management
+export const updateStageStatus = (
+  songId: number,
+  stage: SongStage,
+  data: {
+    status: StageStatus;
+    notes?: string;
+    blocked_reason?: string;
+  }
+) => {
+  return apiClient.patch<Song>(`${SONGS_BASE}/${songId}/stages/${stage}/`, data);
 };

@@ -8,77 +8,56 @@ export const NotesInsights = () => {
   const { data: stats, isLoading } = useNoteStatistics();
 
   if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-24 w-full" />
-        <Skeleton className="h-48 w-full" />
-      </div>
-    );
+    return <Skeleton className="h-20 rounded-2xl" />;
   }
 
   if (!stats) return null;
 
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Statistics</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm">Total Notes</span>
-            </div>
-            <span className="font-semibold">{stats.total_notes}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Pin className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm">Pinned</span>
-            </div>
-            <span className="font-semibold">{stats.total_pinned}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Archive className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm">Archived</span>
-            </div>
-            <span className="font-semibold">{stats.total_archived}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm">This Week</span>
-            </div>
-            <span className="font-semibold">{stats.notes_this_week}</span>
-          </div>
-        </CardContent>
-      </Card>
+  const statItems = [
+    {
+      icon: FileText,
+      label: 'Total',
+      value: stats.total_notes,
+      iconColor: 'text-blue-500',
+      bgColor: 'bg-blue-500/10',
+    },
+    {
+      icon: Pin,
+      label: 'Pinned',
+      value: stats.total_pinned,
+      iconColor: 'text-violet-500',
+      bgColor: 'bg-violet-500/10',
+    },
+    {
+      icon: Archive,
+      label: 'Archived',
+      value: stats.total_archived,
+      iconColor: 'text-gray-500',
+      bgColor: 'bg-gray-500/10',
+    },
+    {
+      icon: TrendingUp,
+      label: 'This Week',
+      value: stats.notes_this_week,
+      iconColor: 'text-green-500',
+      bgColor: 'bg-green-500/10',
+    },
+  ];
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Top Tags</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {stats.by_tag.slice(0, 10).map((tagStat) => (
-              <div key={tagStat.tag_id} className="flex items-center justify-between">
-                <Badge
-                  variant="secondary"
-                  style={{ backgroundColor: tagStat.tag_color + '20', color: tagStat.tag_color }}
-                >
-                  {tagStat.tag_name}
-                </Badge>
-                <span className="text-sm text-muted-foreground">{tagStat.count}</span>
-              </div>
-            ))}
-            {stats.by_tag.length === 0 && (
-              <p className="text-sm text-muted-foreground">No tags yet</p>
-            )}
+  return (
+    <div className="flex items-center gap-5">
+      {statItems.map((stat, index) => (
+        <div key={stat.label} className="flex items-center gap-2.5">
+          {index > 0 && <div className="h-5 w-px bg-border/50" />}
+          <div className={`p-2 rounded-lg ${stat.bgColor}`}>
+            <stat.icon className={`h-4 w-4 ${stat.iconColor}`} />
           </div>
-        </CardContent>
-      </Card>
+          <div>
+            <p className="text-xs text-muted-foreground">{stat.label}</p>
+            <p className="text-lg font-semibold">{stat.value}</p>
+          </div>
+        </div>
+      ))}
     </div>
   );
 };

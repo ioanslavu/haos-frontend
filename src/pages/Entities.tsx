@@ -25,7 +25,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useEntities, useEntityStats } from '@/api/hooks/useEntities';
-import { EntityFormDialog } from './crm/components/EntityFormDialog';
+import { EntityFormDialog } from '@/components/entities/EntityFormDialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
@@ -658,18 +658,6 @@ function GridView({
   onEntityClick: (id: string) => void;
   getInitials: (name: string) => string;
 }) {
-  // Debug: Log first entity to see what data we're getting
-  React.useEffect(() => {
-    if (entities.length > 0) {
-      const firstEntity = entities[0];
-      console.log('DEBUG - First entity:', {
-        name: firstEntity.display_name,
-        profile_photo: firstEntity.profile_photo,
-        profile_photo_url: getMediaUrl(firstEntity.profile_photo),
-      });
-    }
-  }, [entities]);
-
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {entities.map((entity) => (

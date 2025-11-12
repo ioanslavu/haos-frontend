@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { distributionsService } from '@/api/services/distributions.service'
-import catalogService from '@/api/services/catalog.service'
 import { DistributionCatalogItemFormData, Platform } from '@/types/distribution'
 import {
   Dialog,
@@ -53,19 +52,22 @@ export function AddCatalogItemDialog({ open, onOpenChange, distributionId }: Add
     },
   })
 
+  // TODO: Replace with song-based selection
   // Fetch recordings
-  const { data: recordingsData } = useQuery({
-    queryKey: ['recordings'],
-    queryFn: () => catalogService.getRecordings({ page_size: 1000 }),
-    enabled: catalogType === 'recording',
-  })
+  // const { data: recordingsData } = useQuery({
+  //   queryKey: ['recordings'],
+  //   queryFn: () => catalogService.getRecordings({ page_size: 1000 }),
+  //   enabled: catalogType === 'recording',
+  // })
+  const recordingsData = { results: [] }
 
   // Fetch releases
-  const { data: releasesData } = useQuery({
-    queryKey: ['releases'],
-    queryFn: () => catalogService.getReleases({ page_size: 1000 }),
-    enabled: catalogType === 'release',
-  })
+  // const { data: releasesData } = useQuery({
+  //   queryKey: ['releases'],
+  //   queryFn: () => catalogService.getReleases({ page_size: 1000 }),
+  //   enabled: catalogType === 'release',
+  // })
+  const releasesData = { results: [] }
 
   const addItemMutation = useMutation({
     mutationFn: (data: DistributionCatalogItemFormData) =>

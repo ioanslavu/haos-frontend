@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import apiClient from '@/api/client';
 import { useToast } from '@/hooks/use-toast';
-import { Split } from '@/types/catalog';
+import { Split } from '@/types/song';
 
 interface EditSplitDialogProps {
   split: Split;

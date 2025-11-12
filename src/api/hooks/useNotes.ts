@@ -47,6 +47,7 @@ export const useNoteDetail = (id: number) => {
       return response.data;
     },
     enabled: !!id,
+    refetchOnMount: 'always', // Always fetch fresh data when opening a note
   });
 };
 
@@ -124,6 +125,7 @@ export const useToggleArchive = () => {
     onSuccess: (response, id) => {
       queryClient.invalidateQueries({ queryKey: notesKeys.lists() });
       queryClient.invalidateQueries({ queryKey: notesKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: notesKeys.statistics() });
       const isArchived = response.data.is_archived;
       toast.success(isArchived ? 'Note archived' : 'Note restored');
     },

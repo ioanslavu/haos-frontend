@@ -35,7 +35,6 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import catalogService from '@/api/services/catalog.service';
 import apiClient from '@/api/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -96,12 +95,13 @@ export function CreateReleaseDialog({
         status: 'draft',
       };
 
-      const release = await catalogService.createRelease(releasePayload);
+      const releaseResponse = await apiClient.post('/api/v1/releases/', releasePayload);
+      const release = releaseResponse.data;
 
       // Step 2: Link the release to the song
       // The Song model has a M2M relationship with Release
       // We need to use a custom endpoint or add the release directly
-      await apiClient.post(`/api/v1/catalog/songs/${songId}/link-release/`, {
+      await apiClient.post(`/api/v1/songs/${songId}/add-release/`, {
         release_id: release.id,
       });
 

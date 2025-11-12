@@ -135,6 +135,11 @@ export default function OpportunityDetail() {
   return (
     <AppLayout>
       <div className="container max-w-7xl py-6 space-y-6">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/opportunities')} className="hover:bg-white/10">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Pipeline
+        </Button>
+
         {/* Header with Gradient Background */}
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-background to-background border border-white/10 p-8 shadow-xl">
           {/* Gradient Orbs */}
@@ -142,11 +147,6 @@ export default function OpportunityDetail() {
           <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-pink-400/20 to-orange-500/20 rounded-full blur-3xl" />
 
           <div className="relative z-10">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/opportunities')} className="mb-4 hover:bg-white/10">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Pipeline
-            </Button>
-
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-3">

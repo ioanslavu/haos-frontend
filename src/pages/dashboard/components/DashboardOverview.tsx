@@ -4,7 +4,6 @@ import { KPICard } from './KPICard';
 import { ChartCard } from './ChartCard';
 import { AlertsList } from './AlertsList';
 import { TasksList } from './TasksList';
-import { SetupProgressCard } from '@/components/onboarding/SetupProgressCard';
 import { DollarSign, FileText, PenTool, Music } from 'lucide-react';
 
 export const DashboardOverview: React.FC = () => {
@@ -19,10 +18,6 @@ export const DashboardOverview: React.FC = () => {
           Welcome back! Here's what's happening in your studio.
         </p>
       </div>
-
-      {/* Setup Progress Card - Only shows for digital/sales departments */}
-      {/* TEMPORARILY DISABLED - Uncomment to re-enable onboarding progress */}
-      {/* <SetupProgressCard /> */}
 
       {/* Bento Grid Layout - 2025 Modern Dashboard */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-auto">

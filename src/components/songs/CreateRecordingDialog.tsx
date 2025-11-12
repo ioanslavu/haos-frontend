@@ -89,7 +89,6 @@ export function CreateRecordingDialog({
         status: 'draft',
       });
 
-      console.log('Created and linked recording:', response.data);
 
       return response.data;
     },

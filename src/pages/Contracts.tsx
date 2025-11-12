@@ -127,7 +127,6 @@ export default function ContractsModern() {
 
   const handleBulkDelete = () => {
     // Bulk delete implementation
-    console.log('Bulk delete:', selectedRows);
   };
 
   // Filter contracts

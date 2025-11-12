@@ -7,7 +7,6 @@ import {
   Layout,
   BarChart3,
   Users,
-  Music,
   Music2,
   Calendar,
   CheckSquare,
@@ -17,7 +16,6 @@ import {
   UserCircle,
   Shield,
   LogOut,
-  Briefcase,
   Bell,
   UserCog,
   Sparkles,
@@ -28,11 +26,10 @@ import {
   Activity,
   TrendingUp,
   Target,
-  FileCheck,
-  Handshake,
   Palette,
   Package,
   StickyNote,
+  Music
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -59,7 +56,6 @@ interface NavigationItem {
   href: string;
   icon: any;
   show?: (user: any) => boolean;
-  tourId?: string; // data-tour attribute for onboarding tours
 }
 
 const navigation: NavigationItem[] = [
@@ -73,34 +69,32 @@ const navigation: NavigationItem[] = [
                         user?.department?.toLowerCase() === 'digital';
       return user?.role !== 'guest' && !isDigital;
     },
-    tourId: 'dashboard-nav',
   },
   {
     name: 'Contracts',
     href: '/contracts',
     icon: FileText,
     show: (user) => user?.role === 'administrator', // Only admins
-    tourId: 'contracts-nav',
   },
   {
     name: 'Templates',
     href: '/templates',
     icon: Layout,
     show: (user) => user?.role === 'administrator', // Only admins
-    tourId: 'templates-nav',
   },
-  // { name: 'BI & Analytics', href: '/analytics', icon: BarChart3, tourId: 'analytics-nav' },
+  // { name: 'BI & Analytics', href: '/analytics', icon: BarChart3 },
   {
-    name: 'CRM',
-    href: '/crm',
-    icon: Briefcase,
+    name: 'Camps',
+    href: '/camps',
+    icon: Calendar,
     show: (user) => {
-      // Hide CRM for digital department users - they get Digital Dashboard instead
+      // Hide Camps for digital department users
       const isDigital = user?.department?.name?.toLowerCase() === 'digital' ||
                         user?.department?.toLowerCase() === 'digital';
-      return user?.role !== 'guest' && (user?.department || user?.role === 'administrator') && !isDigital;
+      // Only show for managers and admins (level >= 300)
+      const canManageCamps = (user?.role_detail?.level ?? 0) >= 300;
+      return canManageCamps && (user?.department || user?.role === 'administrator') && !isDigital;
     },
-    tourId: 'crm-nav',
   },
   {
     name: 'Songs',
@@ -112,7 +106,6 @@ const navigation: NavigationItem[] = [
                         user?.department?.toLowerCase() === 'digital';
       return user?.role !== 'guest' && (user?.department || user?.role === 'administrator') && !isDigital;
     },
-    tourId: 'songs-nav',
   },
   {
     name: 'Task Management',
@@ -124,14 +117,12 @@ const navigation: NavigationItem[] = [
                         user?.department?.toLowerCase() === 'digital';
       return user?.role !== 'guest' && (user?.department || user?.role === 'administrator') && !isDigital;
     },
-    tourId: 'task-management-nav',
   },
   {
     name: 'Notes',
     href: '/notes',
     icon: StickyNote,
     show: (user) => user?.role !== 'guest',
-    tourId: 'notes-nav',
   },
   // { name: 'Studio', href: '/studio', icon: Calendar },
 ];
@@ -207,30 +198,16 @@ const digitalNavigation: NavigationItem[] = [
 // Bottom navigation items - shown at the bottom for everyone
 const bottomNavigation: NavigationItem[] = [
   {
-    name: 'Catalog',
-    href: '/catalog',
-    icon: Music,
-    show: (user) => {
-      const isDigital = user?.department?.name?.toLowerCase() === 'digital' ||
-                        user?.department?.toLowerCase() === 'digital';
-      // Hide for digital users, but show for admins even if they're in digital department
-      return user?.role !== 'guest' && (!isDigital || user?.role === 'administrator');
-    },
-    tourId: 'catalog-nav',
-  },
-  {
     name: 'Entities',
     href: '/entities',
     icon: Users,
     show: (user) => user?.role !== 'guest', // All non-guests
-    tourId: 'entities-nav',
   },
   {
     name: 'Activities',
     href: '/activities',
     icon: Activity,
     show: (user) => user?.role !== 'guest', // All non-guests
-    tourId: 'activities-nav',
   },
 ];
 
@@ -252,15 +229,15 @@ const artistSalesSubmenu: NavigationItem[] = [
 ];
 
 const adminNavigation: NavigationItem[] = [
-  { name: 'User Management', href: '/users/management', icon: UserCog, tourId: 'users-nav' },
-  { name: 'Entity Requests', href: '/admin/entity-requests', icon: ClipboardList, tourId: 'entity-requests-nav' },
-  { name: 'Roles & Permissions', href: '/roles', icon: Shield, tourId: 'roles-nav' },
-  { name: 'Company Settings', href: '/company-settings', icon: Settings, tourId: 'company-settings-nav' },
+  { name: 'User Management', href: '/users/management', icon: UserCog },
+  { name: 'Entity Requests', href: '/admin/entity-requests', icon: ClipboardList },
+  { name: 'Roles & Permissions', href: '/roles', icon: Shield },
+  { name: 'Company Settings', href: '/company-settings', icon: Settings },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
   const navigate = useNavigate();
-  const { user, logout, isGuest, isAdminOrManager } = useAuthStore();
+  const { user, logout, isAdminOrManager } = useAuthStore();
   const [digitalOpen, setDigitalOpen] = React.useState(false);
   const [artistSalesOpen, setArtistSalesOpen] = React.useState(false);
 
@@ -321,7 +298,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                 <NavLink
                   to={item.href}
                   end={item.href === '/'}
-                  data-tour={item.tourId}
                   aria-label={`Navigate to ${item.name}`}
                   className={({ isActive }) =>
                     cn(
@@ -494,7 +470,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
               <li key={item.name}>
                 <NavLink
                   to={item.href}
-                  data-tour={item.tourId}
                   aria-label={`Navigate to ${item.name}`}
                   className={({ isActive }) =>
                     cn(
@@ -574,7 +549,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                 <li key={item.name}>
                   <NavLink
                     to={item.href}
-                    data-tour={item.tourId}
                     aria-label={`Navigate to ${item.name}${item.name === 'Entity Requests' && pendingEntityRequestsCount > 0 ? ` - ${pendingEntityRequestsCount} pending` : ''}`}
                     className={({ isActive }) =>
                       cn(
@@ -615,7 +589,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              data-tour="profile-menu"
               aria-label="User profile menu"
               className={cn(
                 "flex items-center gap-3 w-full hover:bg-white/20 dark:hover:bg-white/10 rounded-2xl p-2 transition-all duration-300",

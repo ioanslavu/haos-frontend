@@ -47,7 +47,7 @@ import {
 import { formatDistanceToNow, format, isToday, isTomorrow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { TaskFormDialog } from '@/pages/digital/components/TaskFormDialog';
-import { TaskViewSheet } from '@/pages/digital/components/TaskViewSheet';
+import { TaskDetailPanel } from '@/components/tasks/TaskDetailPanel';
 import { EmployeeTaskFilter } from '@/pages/digital/components/EmployeeTaskFilter';
 import { useAuthStore } from '@/stores/authStore';
 import {
@@ -609,12 +609,11 @@ export function TasksTab({ searchQuery, filterStatus, filterPriority, startDate,
         task={editingTask}
       />
 
-      {/* Task View Sheet */}
-      <TaskViewSheet
+      {/* Task Detail Panel */}
+      <TaskDetailPanel
         task={selectedTask}
         open={taskViewOpen}
         onOpenChange={setTaskViewOpen}
-        onEdit={handleEditTask}
       />
     </div>
     </DndContext>

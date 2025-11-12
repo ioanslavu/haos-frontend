@@ -13,8 +13,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2 } from 'lucide-react';
-import catalogService from '@/api/services/catalog.service';
-import { WorkWithSplits } from '@/types/catalog';
+import apiClient from '@/api/client';
+import { WorkWithSplits } from '@/types/song';
 import { useToast } from '@/hooks/use-toast';
 
 interface EditWorkDialogProps {
@@ -66,7 +66,7 @@ export function EditWorkDialog({ work, open, onClose, onSuccess }: EditWorkDialo
         payload.iswc = data.iswc;
       }
 
-      return catalogService.updateWork(work.id, payload);
+      return apiClient.patch(`/api/v1/works/${work.id}/`, payload).then(res => res.data);
     },
     onSuccess: () => {
       onSuccess();

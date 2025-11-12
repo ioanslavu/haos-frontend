@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Loader2 } from 'lucide-react';
-import { useWorkDetails } from '@/api/hooks/useCatalog';
+import { useWorkDetails } from '@/api/hooks/useSongs';
 import { useSplitsByObject } from '@/api/hooks/useRights';
 import {
   Breadcrumb,
@@ -27,9 +27,9 @@ import {
 } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { AddISWCDialog } from '../catalog/components/AddISWCDialog';
-import { AddCreditDialog } from '../catalog/components/AddCreditDialog';
-import { AddSplitDialog } from '../catalog/components/AddSplitDialog';
+import { AddISWCDialog } from '@/components/songs/AddISWCDialog';
+import { AddCreditDialog } from '@/components/songs/AddCreditDialog';
+import { AddSplitDialog } from '@/components/songs/AddSplitDialog';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/api/client';
 

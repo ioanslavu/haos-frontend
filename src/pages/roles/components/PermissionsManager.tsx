@@ -57,12 +57,6 @@ export function PermissionsManager({ roleId }: PermissionsManagerProps) {
   const loadingRole = !roleDetail;
   const managePermissions = useManageRolePermissions();
   const clearPermissions = useClearRolePermissions();
-  
-  // Debug logging
-  React.useEffect(() => {
-    console.log('Available permissions:', availablePermissions);
-  }, [availablePermissions]);
-
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPermissions, setSelectedPermissions] = useState<Set<number>>(new Set());
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
@@ -71,8 +65,6 @@ export function PermissionsManager({ roleId }: PermissionsManagerProps) {
   // Initialize selected permissions when role permissions load
   React.useEffect(() => {
     if (rolePermissions) {
-      console.log('Role permissions loaded:', rolePermissions);
-      console.log('Permission IDs:', rolePermissions.map(p => p.id));
       setSelectedPermissions(new Set(rolePermissions.map(p => p.id)));
     }
   }, [rolePermissions]);

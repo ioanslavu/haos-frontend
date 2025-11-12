@@ -26,6 +26,7 @@ import { QuickActionButtons } from '@/components/songs/QuickActionButtons';
 import { TransitionTimeline } from '@/components/songs/TransitionTimeline';
 import { ArtistManagementSection } from '@/components/songs/ArtistManagementSection';
 import { WorkTab } from '@/components/songs/WorkTab';
+import { StageChecklistView } from '@/components/songs/StageChecklistView';
 import { RelatedTasks } from '@/components/tasks/RelatedTasks';
 import { SongTriggerButton } from '@/components/tasks/ManualTriggerButton';
 import {
@@ -47,7 +48,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { SongStageTransition, SongNote, SongChecklistItem, SongAsset } from '@/types/song';
+import { SongStageTransition, SongNote, SongChecklistItem, SongAsset, SongStage } from '@/types/song';
 import apiClient from '@/api/client';
 
 export default function SongDetailPage() {
@@ -62,6 +63,7 @@ export default function SongDetailPage() {
   const [activityFilter, setActivityFilter] = useState<'all' | ActivityType>('all');
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [selectedChecklistItem, setSelectedChecklistItem] = useState<SongChecklistItem | null>(null);
+  const [selectedStage, setSelectedStage] = useState<SongStage | undefined>(undefined);
 
   const songId = parseInt(id || '0');
 
@@ -276,6 +278,11 @@ export default function SongDetailPage() {
   return (
     <AppLayout>
       <div className="container mx-auto py-6 space-y-6">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/songs')} className="hover:bg-white/10">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Songs
+        </Button>
+
         {/* Modern Header with Gradient Background */}
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-background to-background border border-white/10 p-8 shadow-xl">
           {/* Gradient Orbs */}
@@ -283,11 +290,6 @@ export default function SongDetailPage() {
           <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-pink-400/20 to-orange-500/20 rounded-full blur-3xl" />
 
           <div className="relative z-10">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/songs')} className="mb-4 hover:bg-white/10">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Songs
-            </Button>
-
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text mb-2">
@@ -404,9 +406,40 @@ export default function SongDetailPage() {
               <CardDescription>Complete journey from draft to release</CardDescription>
             </CardHeader>
             <CardContent>
-              <WorkflowProgressBar currentStage={currentStage} />
+              <WorkflowProgressBar
+                songId={song.id}
+                currentStage={currentStage}
+                stageStatuses={song.stage_statuses}
+                interactive={true}
+                selectedStage={selectedStage}
+                onStageClick={setSelectedStage}
+              />
             </CardContent>
           </Card>
+
+          {/* Stage Checklist View - Shows when a stage is selected */}
+          {selectedStage && checklist && (
+            <StageChecklistView
+              stage={selectedStage}
+              stageLabel={
+                [
+                  { key: 'draft', label: 'Draft' },
+                  { key: 'publishing', label: 'Publishing' },
+                  { key: 'label_recording', label: 'Label - Recording' },
+                  { key: 'marketing_assets', label: 'Marketing - Assets' },
+                  { key: 'label_review', label: 'Label - Review' },
+                  { key: 'ready_for_digital', label: 'Ready for Digital' },
+                  { key: 'digital_distribution', label: 'Digital Distribution' },
+                  { key: 'released', label: 'Released' },
+                ].find(s => s.key === selectedStage)?.label || ''
+              }
+              checklistItems={checklist}
+              onToggleItem={(itemId) => {
+                toggleChecklistMutation.mutate(itemId);
+              }}
+              isLoading={toggleChecklistMutation.isPending}
+            />
+          )}
 
           {/* Stage Transition and Quick Actions */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -571,7 +604,6 @@ export default function SongDetailPage() {
           <ReleaseTab
             songId={songId}
             releaseId={song.release?.id}
-            onCreateRelease={() => navigate(`/catalog/releases/create?songId=${songId}`)}
           />
         </TabsContent>
 

@@ -195,6 +195,16 @@ export default {
 						opacity: '0.5',
 						transform: 'scale(1.05)'
 					}
+				},
+				'pulse-ring': {
+					'0%, 100%': {
+						boxShadow: '0 0 0 0 currentColor',
+						opacity: '1'
+					},
+					'50%': {
+						boxShadow: '0 0 0 4px currentColor',
+						opacity: '1'
+					}
 				}
 			},
 			animation: {
@@ -209,7 +219,8 @@ export default {
 				'gradient-shift': 'gradient-shift 10s ease infinite',
 				'vinyl-wobble': 'vinyl-wobble 4s ease-in-out infinite',
 				'slide-up-fade': 'slide-up-fade 0.8s ease-out',
-				'pulse-slow': 'pulse-slow 6s ease-in-out infinite'
+				'pulse-slow': 'pulse-slow 6s ease-in-out infinite',
+				'pulse-ring': 'pulse-ring 2s ease-in-out infinite'
 			}
 		}
 	},

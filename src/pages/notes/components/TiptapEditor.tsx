@@ -40,7 +40,7 @@ export const TiptapEditor = ({ content, onChange, placeholder = 'Start writing..
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm max-w-none focus:outline-none min-h-[200px] px-4 py-3',
+        class: 'prose prose-sm max-w-none focus:outline-none min-h-[300px]',
       },
     },
   });
@@ -57,9 +57,9 @@ export const TiptapEditor = ({ content, onChange, placeholder = 'Start writing..
   }
 
   return (
-    <div className="border rounded-lg bg-background">
+    <div>
       {editable && (
-        <div className="border-b p-2 flex gap-1 flex-wrap bg-muted/50">
+        <div className="pb-2 mb-2 flex gap-1 flex-wrap">
           <Button
             type="button"
             variant="ghost"
@@ -164,7 +164,14 @@ export const TiptapEditor = ({ content, onChange, placeholder = 'Start writing..
       <div className="tiptap-content">
         <style>{`
           .tiptap-content .ProseMirror {
-            outline: none;
+            outline: none !important;
+            border: none !important;
+            box-shadow: none !important;
+          }
+          .tiptap-content .ProseMirror:focus {
+            outline: none !important;
+            border: none !important;
+            box-shadow: none !important;
           }
           .tiptap-content .ProseMirror ul {
             list-style-type: disc;

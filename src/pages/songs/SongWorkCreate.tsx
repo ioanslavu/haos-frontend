@@ -114,7 +114,6 @@ export default function SongWorkCreate() {
       const response = await createWorkInSongContext(songId, payload);
       const createdWork = response.data;
 
-      console.log('Created and linked work:', createdWork);
       sonnerToast.success('Work created and linked to song');
 
       // Invalidate queries to refresh data

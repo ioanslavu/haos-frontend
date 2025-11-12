@@ -100,14 +100,11 @@ export const userColumns: ColumnDef<User>[] = [
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => console.log("Edit", user)}>
               Edit user
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => console.log("View", user)}>
               View details
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => console.log("Delete", user)}
               className="text-destructive"
             >
               Delete user
@@ -138,12 +135,12 @@ export function UserTableExample() {
   ]
 
   const handleBulkDelete = () => {
-    console.log("Bulk delete:", selectedRows)
+    // Bulk delete implementation
     // Implement bulk delete logic
   }
 
   const handleBulkEmail = () => {
-    console.log("Bulk email:", selectedRows)
+    // Bulk email implementation
     // Implement bulk email logic
   }
 

@@ -100,7 +100,6 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
       try {
         setRecentPages(JSON.parse(savedRecent))
       } catch (e) {
-        console.error("Failed to parse recent pages", e)
       }
     }
 
@@ -108,7 +107,6 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
       try {
         setSearchHistory(JSON.parse(savedHistory))
       } catch (e) {
-        console.error("Failed to parse search history", e)
       }
     }
   }, [])
@@ -208,42 +206,6 @@ export function CommandPalette() {
         priority: 8,
       },
       {
-        id: "nav-crm",
-        label: "CRM",
-        icon: Users,
-        route: "/crm",
-        keywords: ["clients", "customers", "relationships"],
-        group: "navigation",
-        priority: 9,
-      },
-      {
-        id: "nav-clients",
-        label: "Clients",
-        icon: UserCircle,
-        route: "/crm?tab=clients",
-        keywords: ["customers", "contacts"],
-        group: "navigation",
-        priority: 7,
-      },
-      {
-        id: "nav-campaigns",
-        label: "Campaigns",
-        icon: TrendingUp,
-        route: "/crm?tab=campaigns",
-        keywords: ["deals", "pipeline"],
-        group: "navigation",
-        priority: 7,
-      },
-      {
-        id: "nav-catalog",
-        label: "Catalog",
-        icon: Music,
-        route: "/catalog/works",
-        keywords: ["music", "works", "recordings"],
-        group: "navigation",
-        priority: 8,
-      },
-      {
         id: "nav-users",
         label: "Users",
         icon: Users,
@@ -277,29 +239,6 @@ export function CommandPalette() {
         },
       },
       {
-        id: "action-new-client",
-        label: "Add New Client",
-        icon: Plus,
-        keywords: ["add client", "create contact"],
-        group: "actions",
-        priority: 8,
-        action: () => {
-          navigate("/crm?tab=clients")
-          // Trigger new client dialog
-        },
-      },
-      {
-        id: "action-new-campaign",
-        label: "Create Campaign",
-        icon: Plus,
-        keywords: ["add campaign", "new deal"],
-        group: "actions",
-        priority: 7,
-        action: () => {
-          navigate("/crm?tab=campaigns")
-        },
-      },
-      {
         id: "action-export",
         label: "Export Data",
         icon: FileSpreadsheet,
@@ -308,7 +247,6 @@ export function CommandPalette() {
         priority: 5,
         action: () => {
           // Would trigger export dialog
-          console.log("Export action")
         },
       },
     ],

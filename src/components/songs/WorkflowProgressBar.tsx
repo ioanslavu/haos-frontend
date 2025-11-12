@@ -1,10 +1,21 @@
-import { SongStage } from '@/types/song';
-import { Check, Circle } from 'lucide-react';
+import { useState } from 'react';
+import { SongStage, SongStageStatus, StageStatus } from '@/types/song';
+import { Check, Circle, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { StageActionMenu } from './StageActionMenu';
+import { BlockStageDialog } from './BlockStageDialog';
+import { updateStageStatus } from '@/api/songApi';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
 
 interface WorkflowProgressBarProps {
-  currentStage: SongStage;
+  songId: number;
+  currentStage?: SongStage;
+  stageStatuses?: SongStageStatus[];
   className?: string;
+  interactive?: boolean;
+  selectedStage?: SongStage;
+  onStageClick?: (stage: SongStage) => void;
 }
 
 const workflowStages: { key: SongStage; label: string; description: string }[] = [
@@ -30,8 +41,139 @@ const stageColors: Record<SongStage, string> = {
   archived: 'from-slate-400 to-slate-600',
 };
 
-export const WorkflowProgressBar = ({ currentStage, className }: WorkflowProgressBarProps) => {
-  const currentIndex = workflowStages.findIndex((s) => s.key === currentStage);
+const stageRingColors: Record<SongStage, string> = {
+  draft: 'text-gray-400',
+  publishing: 'text-blue-500',
+  label_recording: 'text-purple-500',
+  marketing_assets: 'text-pink-500',
+  label_review: 'text-orange-500',
+  ready_for_digital: 'text-green-500',
+  digital_distribution: 'text-teal-500',
+  released: 'text-emerald-500',
+  archived: 'text-slate-500',
+};
+
+export const WorkflowProgressBar = ({
+  songId,
+  currentStage,
+  stageStatuses,
+  className,
+  interactive = true,
+  selectedStage,
+  onStageClick,
+}: WorkflowProgressBarProps) => {
+  const [blockDialogOpen, setBlockDialogOpen] = useState(false);
+  const [blockingStage, setBlockingStage] = useState<SongStage | null>(null);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  // Mutation for updating stage status
+  const updateStageMutation = useMutation({
+    mutationFn: ({ stage, status, notes, blocked_reason }: {
+      stage: SongStage;
+      status: StageStatus;
+      notes?: string;
+      blocked_reason?: string;
+    }) => updateStageStatus(songId, stage, { status, notes, blocked_reason }),
+    onSuccess: () => {
+      // Invalidate song query to refresh data
+      queryClient.invalidateQueries({ queryKey: ['song', songId] });
+      toast({
+        title: 'Stage updated',
+        description: 'The stage status has been updated successfully.',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error updating stage',
+        description: error.response?.data?.error || 'Failed to update stage status',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Handler for stage actions
+  const handleStageAction = (stage: SongStage, action: 'start' | 'complete' | 'block' | 'resume' | 'reopen') => {
+    switch (action) {
+      case 'start':
+      case 'resume':
+      case 'reopen':
+        updateStageMutation.mutate({
+          stage,
+          status: 'in_progress',
+        });
+        break;
+
+      case 'complete':
+        updateStageMutation.mutate({
+          stage,
+          status: 'completed',
+        });
+        break;
+
+      case 'block':
+        setBlockingStage(stage);
+        setBlockDialogOpen(true);
+        break;
+    }
+  };
+
+  // Handler for block confirmation
+  const handleBlockConfirm = (reason: string) => {
+    if (blockingStage) {
+      updateStageMutation.mutate({
+        stage: blockingStage,
+        status: 'blocked',
+        blocked_reason: reason,
+      });
+    }
+    setBlockDialogOpen(false);
+    setBlockingStage(null);
+  };
+
+  // Handler for stage click
+  const handleStageClick = (stage: SongStage) => {
+    if (onStageClick) {
+      onStageClick(stage);
+    }
+  };
+
+  // Helper: Get stage status object
+  const getStageStatusObj = (stageKey: SongStage): SongStageStatus | undefined => {
+    return stageStatuses?.find(s => s.stage === stageKey);
+  };
+
+  // Helper: Get status for a stage
+  const getStageStatus = (stageKey: SongStage): StageStatus => {
+    if (stageStatuses) {
+      // Use full stage statuses if available
+      const status = stageStatuses.find(s => s.stage === stageKey);
+      return status?.status || 'not_started';
+    } else if (currentStage) {
+      // Fallback to old behavior for backward compatibility
+      const currentIndex = workflowStages.findIndex(s => s.key === currentStage);
+      const stageIndex = workflowStages.findIndex(s => s.key === stageKey);
+
+      if (stageIndex < currentIndex) return 'completed';
+      if (stageIndex === currentIndex) return 'in_progress';
+      return 'not_started';
+    }
+    return 'not_started';
+  };
+
+  // Calculate progress line width (show progress to furthest active/completed stage)
+  const calculateProgressWidth = (): number => {
+    let furthestIndex = 0;
+
+    workflowStages.forEach((stage, index) => {
+      const status = getStageStatus(stage.key);
+      if (status === 'completed' || status === 'in_progress') {
+        furthestIndex = Math.max(furthestIndex, index);
+      }
+    });
+
+    return (furthestIndex / (workflowStages.length - 1)) * 100;
+  };
 
   return (
     <div className={cn('w-full py-6', className)}>
@@ -44,30 +186,53 @@ export const WorkflowProgressBar = ({ currentStage, className }: WorkflowProgres
           {/* Active progress line */}
           <div
             className="absolute top-5 left-0 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-500"
-            style={{ width: `${(currentIndex / (workflowStages.length - 1)) * 100}%` }}
+            style={{ width: `${calculateProgressWidth()}%` }}
           />
 
           {/* Stage nodes */}
           <div className="relative flex justify-between">
-            {workflowStages.map((stage, index) => {
-              const isCompleted = index < currentIndex;
-              const isCurrent = index === currentIndex;
-              const isPending = index > currentIndex;
+            {workflowStages.map((stage) => {
+              const status = getStageStatus(stage.key);
+              const isCompleted = status === 'completed';
+              const isActive = status === 'in_progress';
+              const isBlocked = status === 'blocked';
+              const isPending = status === 'not_started';
+              const isSelected = selectedStage === stage.key;
 
               return (
-                <div key={stage.key} className="flex flex-col items-center" style={{ flex: 1 }}>
-                  {/* Node circle */}
-                  <div
-                    className={cn(
-                      'relative z-10 flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-300',
-                      isCompleted && 'bg-gradient-to-br from-blue-500 to-purple-600 border-blue-600 shadow-lg',
-                      isCurrent && `bg-gradient-to-br ${stageColors[currentStage]} border-white shadow-xl ring-4 ring-opacity-30`,
-                      isPending && 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600'
+                <div key={stage.key} className="group flex flex-col items-center relative" style={{ flex: 1 }}>
+                  {/* Node circle with action menu */}
+                  <div className="relative">
+                    <button
+                      onClick={() => handleStageClick(stage.key)}
+                      className={cn(
+                        'relative z-10 flex items-center justify-center w-10 h-10 rounded-full border-2 transition-[transform,background,border] duration-1010 cursor-pointer',
+                        'hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary',
+                        isCompleted && 'bg-gradient-to-br from-blue-500 to-purple-600 border-blue-600 shadow-lg',
+                        isActive && `bg-gradient-to-br ${stageColors[stage.key]} ${stageRingColors[stage.key]} border-white animate-pulse-ring`,
+                        isBlocked && 'bg-gradient-to-br from-red-500 to-red-600 border-red-700 shadow-xl',
+                        isPending && 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600',
+                        isSelected && 'ring-4 ring-primary ring-offset-2'
+                      )}
+                      title={`Click to view ${stage.label} checklist`}
+                    >
+                      {isCompleted && <Check className="h-5 w-5 text-white" />}
+                      {isActive && <Circle className="h-5 w-5 text-white fill-white" />}
+                      {isBlocked && <AlertCircle className="h-5 w-5 text-white" />}
+                      {isPending && <Circle className="h-4 w-4 text-gray-400 dark:text-gray-500" />}
+                    </button>
+
+                    {/* Action Menu */}
+                    {interactive && (
+                      <div className="absolute -top-1 -right-1 z-20">
+                        <StageActionMenu
+                          stage={stage.key}
+                          stageStatus={getStageStatusObj(stage.key)}
+                          onAction={(action) => handleStageAction(stage.key, action)}
+                          disabled={updateStageMutation.isPending}
+                        />
+                      </div>
                     )}
-                  >
-                    {isCompleted && <Check className="h-5 w-5 text-white" />}
-                    {isCurrent && <Circle className="h-5 w-5 text-white fill-white" />}
-                    {isPending && <Circle className="h-4 w-4 text-gray-400 dark:text-gray-500" />}
                   </div>
 
                   {/* Stage label */}
@@ -75,7 +240,8 @@ export const WorkflowProgressBar = ({ currentStage, className }: WorkflowProgres
                     <p
                       className={cn(
                         'text-xs font-medium transition-colors',
-                        isCurrent && 'text-foreground font-semibold',
+                        isActive && 'text-foreground font-semibold',
+                        isBlocked && 'text-red-600 dark:text-red-400 font-semibold',
                         (isCompleted || isPending) && 'text-muted-foreground'
                       )}
                     >
@@ -94,25 +260,39 @@ export const WorkflowProgressBar = ({ currentStage, className }: WorkflowProgres
 
       {/* Mobile/Tablet view - vertical */}
       <div className="lg:hidden space-y-3">
-        {workflowStages.map((stage, index) => {
-          const isCompleted = index < currentIndex;
-          const isCurrent = index === currentIndex;
-          const isPending = index > currentIndex;
+        {workflowStages.map((stage) => {
+          const status = getStageStatus(stage.key);
+          const isCompleted = status === 'completed';
+          const isActive = status === 'in_progress';
+          const isBlocked = status === 'blocked';
+          const isPending = status === 'not_started';
+          const isSelected = selectedStage === stage.key;
 
           return (
-            <div key={stage.key} className="flex items-center gap-3">
+            <div
+              key={stage.key}
+              className={cn(
+                'group flex items-center gap-3 p-2 rounded-lg transition-all cursor-pointer hover:bg-accent',
+                isSelected && 'bg-accent ring-2 ring-primary'
+              )}
+              onClick={() => handleStageClick(stage.key)}
+            >
               {/* Node circle */}
-              <div
-                className={cn(
-                  'flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full border-2 transition-all duration-300',
-                  isCompleted && 'bg-gradient-to-br from-blue-500 to-purple-600 border-blue-600',
-                  isCurrent && `bg-gradient-to-br ${stageColors[currentStage]} border-white ring-4 ring-opacity-30`,
-                  isPending && 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600'
-                )}
-              >
-                {isCompleted && <Check className="h-4 w-4 text-white" />}
-                {isCurrent && <Circle className="h-4 w-4 text-white fill-white" />}
-                {isPending && <Circle className="h-3 w-3 text-gray-400 dark:text-gray-500" />}
+              <div className="relative">
+                <div
+                  className={cn(
+                    'flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full border-2 transition-[transform,background,border] ',
+                    isCompleted && 'bg-gradient-to-br from-blue-500 to-purple-600 border-blue-600',
+                    isActive && `bg-gradient-to-br ${stageColors[stage.key]} ${stageRingColors[stage.key]} border-white animate-pulse-ring`,
+                    isBlocked && 'bg-gradient-to-br from-red-500 to-red-600 border-red-700',
+                    isPending && 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600'
+                  )}
+                >
+                  {isCompleted && <Check className="h-4 w-4 text-white" />}
+                  {isActive && <Circle className="h-4 w-4 text-white fill-white" />}
+                  {isBlocked && <AlertCircle className="h-4 w-4 text-white" />}
+                  {isPending && <Circle className="h-3 w-3 text-gray-400 dark:text-gray-500" />}
+                </div>
               </div>
 
               {/* Stage info */}
@@ -120,24 +300,25 @@ export const WorkflowProgressBar = ({ currentStage, className }: WorkflowProgres
                 <p
                   className={cn(
                     'text-sm font-medium',
-                    isCurrent && 'text-foreground font-semibold',
+                    isActive && 'text-foreground font-semibold',
+                    isBlocked && 'text-red-600 dark:text-red-400 font-semibold',
                     (isCompleted || isPending) && 'text-muted-foreground'
                   )}
                 >
                   {stage.label}
+                  {isBlocked && ' (Blocked)'}
                 </p>
                 <p className="text-xs text-muted-foreground">{stage.description}</p>
               </div>
 
-              {/* Connector line */}
-              {index < workflowStages.length - 1 && (
-                <div className="absolute left-[15px] mt-12 w-0.5 h-8 -ml-px">
-                  <div
-                    className={cn(
-                      'w-full h-full',
-                      index < currentIndex && 'bg-gradient-to-b from-blue-500 to-purple-600',
-                      index >= currentIndex && 'bg-gray-200 dark:bg-gray-700'
-                    )}
+              {/* Action Menu for mobile */}
+              {interactive && (
+                <div onClick={(e) => e.stopPropagation()}>
+                  <StageActionMenu
+                    stage={stage.key}
+                    stageStatus={getStageStatusObj(stage.key)}
+                    onAction={(action) => handleStageAction(stage.key, action)}
+                    disabled={updateStageMutation.isPending}
                   />
                 </div>
               )}
@@ -145,6 +326,15 @@ export const WorkflowProgressBar = ({ currentStage, className }: WorkflowProgres
           );
         })}
       </div>
+
+      {/* Block Stage Dialog */}
+      <BlockStageDialog
+        open={blockDialogOpen}
+        onOpenChange={setBlockDialogOpen}
+        stageName={blockingStage ? workflowStages.find(s => s.key === blockingStage)?.label || '' : ''}
+        onConfirm={handleBlockConfirm}
+        isLoading={updateStageMutation.isPending}
+      />
     </div>
   );
 };

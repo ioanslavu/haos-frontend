@@ -39,7 +39,6 @@ export const ChartCard: React.FC<ChartCardProps> = ({ title, subtitle, type }) =
   const [isHovered, setIsHovered] = useState(false);
 
   const handleExport = () => {
-    console.log('Export chart data:', type);
     // Could export to CSV/PNG
   };
 

@@ -3,7 +3,6 @@ import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { InsightsPanel } from './InsightsPanel';
 import { ImpersonationBanner } from './ImpersonationBanner';
-import { ProductTour } from '@/components/onboarding/ProductTour';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/uiStore';
 
@@ -83,11 +82,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, title, actions }
               onClose={() => setInsightsPanelOpen(false)}
             />
           </div>
-        </div>
-
-        {/* Onboarding Product Tour */}
-        <div className="print:hidden">
-          <ProductTour />
         </div>
       </div>
     </div>

@@ -112,16 +112,6 @@ export const useCampaignStats = (filters?: CampaignFilters) => {
 }
 
 /**
- * Hook to get brand analytics (all brands)
- */
-export const useBrandAnalytics = () => {
-  return useQuery<BrandAnalytics[]>({
-    queryKey: campaignKeys.brandAnalytics(),
-    queryFn: () => campaignsService.getBrandAnalytics(),
-  })
-}
-
-/**
  * Hook to get brand analytics detail
  */
 export const useBrandAnalyticsDetail = (brandId: number, enabled = true) => {
@@ -133,16 +123,6 @@ export const useBrandAnalyticsDetail = (brandId: number, enabled = true) => {
 }
 
 /**
- * Hook to get artist analytics (all artists)
- */
-export const useArtistAnalytics = () => {
-  return useQuery<ArtistAnalytics[]>({
-    queryKey: campaignKeys.artistAnalytics(),
-    queryFn: () => campaignsService.getArtistAnalytics(),
-  })
-}
-
-/**
  * Hook to get artist analytics detail
  */
 export const useArtistAnalyticsDetail = (artistId: number, enabled = true) => {
@@ -150,16 +130,6 @@ export const useArtistAnalyticsDetail = (artistId: number, enabled = true) => {
     queryKey: campaignKeys.artistAnalyticsDetail(artistId),
     queryFn: () => campaignsService.getArtistAnalyticsDetail(artistId),
     enabled: enabled && !!artistId,
-  })
-}
-
-/**
- * Hook to get client analytics (all clients)
- */
-export const useClientAnalytics = () => {
-  return useQuery<ClientAnalytics[]>({
-    queryKey: campaignKeys.clientAnalytics(),
-    queryFn: () => campaignsService.getClientAnalytics(),
   })
 }
 

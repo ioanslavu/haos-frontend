@@ -65,7 +65,6 @@ export const useRolesList = () => {
     queryFn: async () => {
       try {
         const response = await apiClient.get<{ count: number; results: Role[] } | Role[]>(API_ENDPOINTS.ROLES.LIST);
-        console.log('Roles API response:', response.data);
         
         // Handle paginated response (with results property) or direct array
         if (response.data && typeof response.data === 'object' && 'results' in response.data) {
@@ -92,7 +91,6 @@ export const useRole = (roleId: number) => {
       const response = await apiClient.get<any>(API_ENDPOINTS.ROLES.DETAIL(roleId));
       const data = response.data;
       
-      console.log('Role detail API response:', data);
       
       // Normalize the response to ensure arrays are properly formatted
       const roleDetail: RoleDetail = {
@@ -106,7 +104,6 @@ export const useRole = (roleId: number) => {
                (data.users?.results ? data.users.results : [])
       };
       
-      console.log('Normalized role detail:', roleDetail);
       
       return roleDetail;
     },

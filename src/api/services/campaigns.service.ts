@@ -61,14 +61,6 @@ export const campaignsService = {
   },
 
   /**
-   * Get brand analytics (all brands)
-   */
-  getBrandAnalytics: async () => {
-    const response = await apiClient.get<BrandAnalytics[]>(`${BASE_PATH}/brand_analytics/`)
-    return response.data
-  },
-
-  /**
    * Get brand analytics for a specific brand
    */
   getBrandAnalyticsDetail: async (brandId: number) => {
@@ -77,26 +69,10 @@ export const campaignsService = {
   },
 
   /**
-   * Get artist analytics (all artists)
-   */
-  getArtistAnalytics: async () => {
-    const response = await apiClient.get<ArtistAnalytics[]>(`${BASE_PATH}/artist_analytics/`)
-    return response.data
-  },
-
-  /**
    * Get artist analytics for a specific artist
    */
   getArtistAnalyticsDetail: async (artistId: number) => {
     const response = await apiClient.get<ArtistAnalytics>(`${BASE_PATH}/artist_analytics/${artistId}/`)
-    return response.data
-  },
-
-  /**
-   * Get client analytics (all clients)
-   */
-  getClientAnalytics: async () => {
-    const response = await apiClient.get<ClientAnalytics[]>(`${BASE_PATH}/client_analytics/`)
     return response.data
   },
 

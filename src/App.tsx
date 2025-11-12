@@ -38,11 +38,6 @@ const ContractGeneration = lazy(() => import("./pages/ContractGeneration"));
 const Templates = lazy(() => import("./pages/Templates"));
 const TemplateDetail = lazy(() => import("./pages/TemplateDetail"));
 const ImportTemplate = lazy(() => import("./pages/ImportTemplate"));
-const Analytics = lazy(() => import("./pages/Analytics"));
-const CRM = lazy(() => import("./pages/CRM"));
-const Catalog = lazy(() => import("./pages/Catalog"));
-const Studio = lazy(() => import("./pages/Studio"));
-const Tasks = lazy(() => import("./pages/Tasks"));
 const TaskManagement = lazy(() => import("./pages/TaskManagement"));
 
 // Digital pages (lazy loaded)
@@ -53,7 +48,6 @@ const DigitalCampaignFormPage = lazy(() => import("./pages/digital/DigitalCampai
 const DigitalDistributions = lazy(() => import("./pages/digital/DistributionsPage"));
 const DigitalDistributionDetail = lazy(() => import("./pages/digital/DistributionDetailPage"));
 const DigitalDistributionForm = lazy(() => import("./pages/digital/DistributionFormPage"));
-const DigitalServices = lazy(() => import("./pages/digital/ServicesPage"));
 const DigitalFinancial = lazy(() => import("./pages/digital/FinancialPage"));
 const DigitalTasks = lazy(() => import("./pages/digital/TasksPage"));
 const DigitalReporting = lazy(() => import("./pages/digital/ReportingPage"));
@@ -69,20 +63,6 @@ const Roles = lazy(() => import("./pages/roles/Index"));
 const RoleDetail = lazy(() => import("./pages/roles/RoleDetail"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
-// Catalog pages (lazy loaded)
-const Works = lazy(() => import("./pages/catalog/Works"));
-const WorkCreate = lazy(() => import("./pages/catalog/WorkCreate"));
-const WorkEdit = lazy(() => import("./pages/catalog/WorkEdit"));
-const WorkDetail = lazy(() => import("./pages/catalog/WorkDetail"));
-const WorkContractGeneration = lazy(() => import("./pages/catalog/WorkContractGeneration"));
-const Recordings = lazy(() => import("./pages/catalog/Recordings"));
-const RecordingCreate = lazy(() => import("./pages/catalog/RecordingCreate"));
-const RecordingDetail = lazy(() => import("./pages/catalog/RecordingDetail"));
-const RecordingContractGeneration = lazy(() => import("./pages/catalog/RecordingContractGeneration"));
-const CoProdContractGeneration = lazy(() => import("./pages/catalog/CoProdContractGeneration"));
-const Releases = lazy(() => import("./pages/catalog/Releases"));
-const ReleaseCreate = lazy(() => import("./pages/catalog/ReleaseCreate"));
-
 // Entity pages
 const Entities = lazy(() => import("./pages/Entities"));
 const EntityDetail = lazy(() => import("./pages/EntityDetail"));
@@ -90,8 +70,9 @@ const EntityDetail = lazy(() => import("./pages/EntityDetail"));
 // Activity pages
 const ActivitiesPage = lazy(() => import("./pages/activities/ActivitiesPage"));
 
-// CRM pages
-const CampaignFormPage = lazy(() => import("./pages/crm/CampaignFormPage"));
+// Camps pages
+const CampsList = lazy(() => import("./pages/camps/CampsList"));
+const CampDetail = lazy(() => import("./pages/camps/CampDetail"));
 
 // Opportunities pages (unified artist sales system)
 const OpportunitiesKanban = lazy(() => import("./pages/opportunities/OpportunitiesKanban"));
@@ -176,24 +157,15 @@ const App = () => (
                 <ImportTemplate />
               </ProtectedRoute>
             } />
-            <Route path="/analytics" element={
+            {/* Camps routes */}
+            <Route path="/camps" element={
               <ProtectedRoute>
-                <Analytics />
+                <CampsList />
               </ProtectedRoute>
             } />
-            <Route path="/crm" element={
+            <Route path="/camps/:id" element={
               <ProtectedRoute>
-                <CRM />
-              </ProtectedRoute>
-            } />
-            <Route path="/crm/campaigns/create" element={
-              <ProtectedRoute>
-                <CampaignFormPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/crm/campaigns/:id/edit" element={
-              <ProtectedRoute>
-                <CampaignFormPage />
+                <CampDetail />
               </ProtectedRoute>
             } />
 
@@ -249,81 +221,6 @@ const App = () => (
                 <ActivitiesPage />
               </ProtectedRoute>
             } />
-            <Route path="/catalog" element={
-              <ProtectedRoute>
-                <Catalog />
-              </ProtectedRoute>
-            } />
-            <Route path="/catalog/works" element={
-              <ProtectedRoute>
-                <Works />
-              </ProtectedRoute>
-            } />
-            <Route path="/catalog/works/create" element={
-              <ProtectedRoute>
-                <WorkCreate />
-              </ProtectedRoute>
-            } />
-            <Route path="/catalog/works/:id/edit" element={
-              <ProtectedRoute>
-                <WorkEdit />
-              </ProtectedRoute>
-            } />
-            <Route path="/catalog/works/:id" element={
-              <ProtectedRoute>
-                <WorkDetail />
-              </ProtectedRoute>
-            } />
-            <Route path="/catalog/works/:id/generate-contract" element={
-              <ProtectedRoute>
-                <WorkContractGeneration />
-              </ProtectedRoute>
-            } />
-            <Route path="/catalog/recordings" element={
-              <ProtectedRoute>
-                <Recordings />
-              </ProtectedRoute>
-            } />
-            <Route path="/catalog/recordings/create" element={
-              <ProtectedRoute>
-                <RecordingCreate />
-              </ProtectedRoute>
-            } />
-            <Route path="/catalog/recordings/:id" element={
-              <ProtectedRoute>
-                <RecordingDetail />
-              </ProtectedRoute>
-            } />
-            <Route path="/catalog/recordings/:id/generate-contract" element={
-              <ProtectedRoute>
-                <RecordingContractGeneration />
-              </ProtectedRoute>
-            } />
-            <Route path="/catalog/recordings/:id/generate-coprod-contract" element={
-              <ProtectedRoute>
-                <CoProdContractGeneration />
-              </ProtectedRoute>
-            } />
-            <Route path="/catalog/releases" element={
-              <ProtectedRoute>
-                <Releases />
-              </ProtectedRoute>
-            } />
-            <Route path="/catalog/releases/create" element={
-              <ProtectedRoute>
-                <ReleaseCreate />
-              </ProtectedRoute>
-            } />
-            <Route path="/studio" element={
-              <ProtectedRoute>
-                <Studio />
-              </ProtectedRoute>
-            } />
-            <Route path="/tasks" element={
-              <ProtectedRoute>
-                <Tasks />
-              </ProtectedRoute>
-            } />
             <Route path="/task-management" element={
               <ProtectedRoute>
                 <TaskManagement />
@@ -377,7 +274,7 @@ const App = () => (
               </ProtectedRoute>
             } />
             {/* Redirect old clients page to entities */}
-            <Route path="/digital/clients" element={<Navigate to="/crm/entities" replace />} />
+            <Route path="/digital/clients" element={<Navigate to="/entities" replace />} />
             <Route path="/digital/campaigns" element={
               <ProtectedRoute>
                 <DigitalCampaigns />
@@ -416,11 +313,6 @@ const App = () => (
             <Route path="/digital/distributions/:id" element={
               <ProtectedRoute>
                 <DigitalDistributionDetail />
-              </ProtectedRoute>
-            } />
-            <Route path="/digital/services" element={
-              <ProtectedRoute>
-                <DigitalServices />
               </ProtectedRoute>
             } />
             <Route path="/digital/financial" element={

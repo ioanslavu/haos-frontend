@@ -44,14 +44,14 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useQuery } from '@tanstack/react-query';
-import { useWorkDetails, useCreateWork, useUpdateWork } from '@/api/hooks/useCatalog';
 import { useSplitsByObject, useDeleteCredit, useCreditsByObject } from '@/api/hooks/useRights';
 import { fetchSongWork, createWorkInSongContext } from '@/api/songApi';
+import apiClient from '@/api/client';
 import { toast as sonnerToast } from 'sonner';
 import { Song } from '@/types/song';
-import { AddISWCDialog } from '../../pages/catalog/components/AddISWCDialog';
-import { AddCreditDialog } from '../../pages/catalog/components/AddCreditDialog';
-import { AddSplitDialog } from '../../pages/catalog/components/AddSplitDialog';
+import { AddISWCDialog } from './AddISWCDialog';
+import { AddCreditDialog } from './AddCreditDialog';
+import { AddSplitDialog } from './AddSplitDialog';
 
 interface WorkTabProps {
   song: Song;
@@ -82,6 +82,7 @@ export function WorkTab({ song }: WorkTabProps) {
 
   const [viewMode, setViewMode] = useState<ViewMode>('details');
   const [activeFormTab, setActiveFormTab] = useState('basic');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Dialog states for details view
   const [iswcDialogOpen, setIswcDialogOpen] = useState(false);
@@ -111,10 +112,6 @@ export function WorkTab({ song }: WorkTabProps) {
 
   // Mutations
   const deleteCredit = useDeleteCredit();
-
-  // Mutations
-  const createWork = useCreateWork();
-  const updateWork = useUpdateWork();
 
   // Form
   const form = useForm<WorkFormValues>({
@@ -190,6 +187,7 @@ export function WorkTab({ song }: WorkTabProps) {
   };
 
   const onSubmit = async (values: WorkFormValues) => {
+    setIsSubmitting(true);
     try {
       // Clean up empty values
       const payload: any = {
@@ -218,7 +216,7 @@ export function WorkTab({ song }: WorkTabProps) {
         queryClient.invalidateQueries({ queryKey: ['song-work', songId] });
         setViewMode('details');
       } else if (viewMode === 'edit' && workId) {
-        await updateWork.mutateAsync({ id: workId, payload });
+        await apiClient.patch(`/api/v1/works/${workId}/`, payload);
         sonnerToast.success('Work updated successfully');
         queryClient.invalidateQueries({ queryKey: ['song', song.id] });
         queryClient.invalidateQueries({ queryKey: ['song-work', songId] });
@@ -227,6 +225,8 @@ export function WorkTab({ song }: WorkTabProps) {
     } catch (error: any) {
       console.error('Failed to save work:', error);
       sonnerToast.error(error.response?.data?.detail || 'Failed to save work');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -253,8 +253,6 @@ export function WorkTab({ song }: WorkTabProps) {
       </div>
     );
   }
-
-  const isSubmitting = createWork.isPending || updateWork.isPending;
 
   // NO WORK - Create or Link
   if (!hasWork && viewMode === 'details') {
