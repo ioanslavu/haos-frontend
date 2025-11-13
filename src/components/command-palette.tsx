@@ -78,18 +78,26 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
   const [recentPages, setRecentPages] = React.useState<string[]>([])
   const [searchHistory, setSearchHistory] = React.useState<string[]>([])
 
-  // Keyboard shortcut handler
-  React.useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault()
-        setOpen((open) => !open)
-      }
-    }
+  // ===== SEARCH BAR KEYBOARD SHORTCUT DISABLED (2025-01-13) =====
+  // To re-enable:
+  // 1. Uncomment the useEffect block below
+  // 2. Uncomment search bar UI in TopBar.tsx (lines ~40-54)
+  // 3. Uncomment onClick handler in TopBar.tsx (line ~42)
+  // Reason: Temporarily disabled per user request
+  // ================================================================
 
-    document.addEventListener("keydown", down)
-    return () => document.removeEventListener("keydown", down)
-  }, [])
+  // Keyboard shortcut handler
+  // React.useEffect(() => {
+  //   const down = (e: KeyboardEvent) => {
+  //     if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+  //       e.preventDefault()
+  //       setOpen((open) => !open)
+  //     }
+  //   }
+
+  //   document.addEventListener("keydown", down)
+  //   return () => document.removeEventListener("keydown", down)
+  // }, [])
 
   // Load from localStorage
   React.useEffect(() => {

@@ -158,7 +158,7 @@ const digitalNavigation: NavigationItem[] = [
       const isDigital = user?.department?.name?.toLowerCase() === 'digital' ||
                         user?.department?.toLowerCase() === 'digital';
       // Hide for digital_employee, show only for digital_manager
-      return isDigital && user?.role !== 'administrator';
+      return isDigital && user?.role !== 'administrator' && user?.role !== 'digital_employee';
     },
   },
   {
@@ -215,8 +215,18 @@ const digitalSubmenu: NavigationItem[] = [
   { name: 'Overview', href: '/digital/overview', icon: LayoutDashboard },
   { name: 'Campanii', href: '/digital/campaigns', icon: Megaphone },
   // { name: 'Servicii', href: '/digital/services', icon: Settings2 },
-  { name: 'Distributions', href: '/digital/distributions', icon: TrendingUp },
-  { name: 'Financiar', href: '/digital/financial', icon: DollarSign },
+  {
+    name: 'Distributions',
+    href: '/digital/distributions',
+    icon: TrendingUp,
+    show: (user) => user?.role !== 'digital_employee' // Hide for digital_employee
+  },
+  {
+    name: 'Financiar',
+    href: '/digital/financial',
+    icon: DollarSign,
+    show: (user) => user?.role !== 'digital_employee' // Hide for digital_employee
+  },
   { name: 'Task-uri', href: '/digital/tasks', icon: CheckSquare },
   { name: 'Raportare & Insights', href: '/digital/reporting', icon: BarChart3 },
 ];
@@ -255,21 +265,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
   
   return (
     <aside className={cn(
-      "backdrop-blur-xl bg-white/40 dark:bg-slate-900/40 border-r border-white/20 dark:border-white/10 transition-all duration-300 flex flex-col shadow-2xl overflow-hidden z-30",
-      "m-4 rounded-3xl",
+      "backdrop-blur-xl bg-white/40 dark:bg-slate-900/40 border-r border-white/20 dark:border-white/10 transition-all duration-300 shadow-2xl z-30",
+      "m-2 rounded-2xl flex flex-col h-full max-h-screen overflow-hidden",
       "lg:relative fixed inset-y-0 left-0",
-      collapsed ? "w-20 -translate-x-full lg:translate-x-0" : "w-72 translate-x-0"
+      collapsed ? "w-20 -translate-x-full lg:translate-x-0" : "w-60 translate-x-0"
     )}>
       {/* Glassmorphic Header with Gradient */}
-      <div className="p-6 border-b border-white/10 bg-gradient-to-r from-blue-500/10 to-purple-500/10 backdrop-blur-md">
+      <div className="p-4 border-b border-white/10 bg-gradient-to-r from-blue-500/10 to-purple-500/10 backdrop-blur-md flex-shrink-0">
         <div className="flex items-center justify-between">
           {!collapsed && (
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg flex items-center justify-center">
-                <Music className="h-5 w-5 text-white" />
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg flex items-center justify-center">
+                <Music className="h-4 w-4 text-white" />
               </div>
               <div>
-                <div className="font-bold text-foreground text-lg">HaOS</div>
+                <div className="font-bold text-foreground text-base">HaOS</div>
                 <div className="text-[10px] text-muted-foreground font-medium">Studio Platform</div>
               </div>
             </div>
@@ -278,7 +288,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             variant="ghost"
             size="sm"
             onClick={() => onCollapse(!collapsed)}
-            className="h-12 w-12 md:h-9 md:w-9 rounded-xl hover:bg-white/20 dark:hover:bg-white/10 transition-all duration-300 hidden lg:flex"
+            className="h-9 w-9 rounded-xl hover:bg-white/20 dark:hover:bg-white/10 transition-all duration-300 hidden lg:flex"
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             <ChevronLeft className={cn("h-4 w-4 transition-transform duration-300", collapsed && "rotate-180")} />
@@ -286,8 +296,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
         </div>
       </div>
 
-      <nav className="flex-1 p-4 overflow-y-auto">
-        <ul className="space-y-2">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 min-h-0">
+        <ul className="space-y-1.5">
           {navigation.map((item) => {
             // Check if item should be shown based on user role
             const shouldShow = !item.show || item.show(user);
@@ -301,7 +311,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                   aria-label={`Navigate to ${item.name}`}
                   className={({ isActive }) =>
                     cn(
-                      "flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-300",
+                      "flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-semibold transition-all duration-300",
                       "hover:scale-105",
                       isActive
                         ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/30"
@@ -329,7 +339,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                   aria-label={`Navigate to ${item.name}`}
                   className={({ isActive }) =>
                     cn(
-                      "flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-300",
+                      "flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-semibold transition-all duration-300",
                       "hover:scale-105",
                       isActive
                         ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/30"
@@ -356,7 +366,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                   aria-label={digitalOpen ? "Collapse digital menu" : "Expand digital menu"}
                   aria-expanded={digitalOpen}
                   className={cn(
-                    "flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-300 w-full",
+                    "flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-semibold transition-all duration-300 w-full",
                     "hover:bg-white/20 dark:hover:bg-white/10 backdrop-blur-sm text-foreground hover:scale-105",
                     collapsed && "justify-center px-3"
                   )}
@@ -376,26 +386,32 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                 </button>
                 {!collapsed && digitalOpen && (
                   <ul className="ml-4 mt-2 space-y-1.5">
-                    {digitalSubmenu.map((item) => (
-                      <li key={item.name}>
-                        <NavLink
-                          to={item.href}
-                          aria-label={`Navigate to ${item.name}`}
-                          className={({ isActive }) =>
-                            cn(
-                              "flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-300",
-                              "hover:bg-white/10 dark:hover:bg-white/5 backdrop-blur-sm",
-                              isActive
-                                ? "bg-gradient-to-r from-blue-500/20 to-purple-600/20 text-foreground font-semibold"
-                                : "text-muted-foreground"
-                            )
-                          }
-                        >
-                          <item.icon className="h-4 w-4 flex-shrink-0" />
-                          <span>{item.name}</span>
-                        </NavLink>
-                      </li>
-                    ))}
+                    {digitalSubmenu.map((item) => {
+                      // Check if item should be shown based on user role
+                      const shouldShow = !item.show || item.show(user);
+                      if (!shouldShow) return null;
+
+                      return (
+                        <li key={item.name}>
+                          <NavLink
+                            to={item.href}
+                            aria-label={`Navigate to ${item.name}`}
+                            className={({ isActive }) =>
+                              cn(
+                                "flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-300",
+                                "hover:bg-white/10 dark:hover:bg-white/5 backdrop-blur-sm",
+                                isActive
+                                  ? "bg-gradient-to-r from-blue-500/20 to-purple-600/20 text-foreground font-semibold"
+                                  : "text-muted-foreground"
+                              )
+                            }
+                          >
+                            <item.icon className="h-4 w-4 flex-shrink-0" />
+                            <span>{item.name}</span>
+                          </NavLink>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </li>
@@ -415,7 +431,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                   aria-label={artistSalesOpen ? "Collapse artist sales menu" : "Expand artist sales menu"}
                   aria-expanded={artistSalesOpen}
                   className={cn(
-                    "flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-300 w-full",
+                    "flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-semibold transition-all duration-300 w-full",
                     "hover:bg-white/20 dark:hover:bg-white/10 backdrop-blur-sm text-foreground hover:scale-105",
                     collapsed && "justify-center px-3"
                   )}
@@ -442,7 +458,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                           aria-label={`Navigate to ${item.name}`}
                           className={({ isActive }) =>
                             cn(
-                              "flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-300",
+                              "flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-300",
                               "hover:bg-white/10 dark:hover:bg-white/5 backdrop-blur-sm",
                               isActive
                                 ? "bg-gradient-to-r from-blue-500/20 to-purple-600/20 text-foreground font-semibold"
@@ -473,7 +489,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                   aria-label={`Navigate to ${item.name}`}
                   className={({ isActive }) =>
                     cn(
-                      "flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-300",
+                      "flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-semibold transition-all duration-300",
                       "hover:scale-105",
                       isActive
                         ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/30"
@@ -506,7 +522,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                 aria-label={`Department Requests${pendingCount && pendingCount > 0 ? ` - ${pendingCount} pending` : ''}`}
                 className={({ isActive }) =>
                   cn(
-                    "flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-300 relative",
+                    "flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-semibold transition-all duration-300 relative",
                     "hover:scale-105",
                     isActive
                       ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/30"
@@ -539,8 +555,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
           {isAdmin && (
             <>
               {!collapsed && (
-                <li className="mt-4 mb-2">
-                  <div className="px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                <li className="mt-3 mb-1.5">
+                  <div className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     Administration
                   </div>
                 </li>
@@ -583,9 +599,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             </>
           )}
         </ul>
-      </nav>
+      </div>
 
-      <div className="p-4 border-t border-white/10">
+      <div className="flex-shrink-0 p-3 border-t border-white/10 bg-gradient-to-r from-blue-500/10 to-purple-500/10 backdrop-blur-xl min-h-[72px]">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button

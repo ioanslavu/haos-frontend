@@ -66,9 +66,14 @@ export const AssignChecklistDialog = ({
       });
     },
     onSuccess: () => {
+      // Invalidate all task-related queries
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks-for-departments'] });
+      // Invalidate song-related queries
       queryClient.invalidateQueries({ queryKey: ['song-checklist', songId] });
       queryClient.invalidateQueries({ queryKey: ['song', songId] });
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      // Invalidate department users in case assignment counts changed
+      queryClient.invalidateQueries({ queryKey: ['department-users'] });
       toast.success('Task created and assigned successfully');
       onOpenChange(false);
       // Reset form

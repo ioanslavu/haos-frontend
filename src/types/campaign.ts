@@ -22,14 +22,14 @@ export type CampaignAssignmentRole = 'lead' | 'support' | 'observer'
 
 export interface CampaignAssignment {
   id?: number
-  user: number
-  user_email?: string
-  user_name?: string
+  user: number  // User ID
+  user_email?: string  // Derived from user.email (read-only)
+  user_name?: string  // Derived from user.get_full_name() (read-only)
   role: CampaignAssignmentRole
-  role_display?: string
-  assigned_at?: string
-  assigned_by?: number
-  assigned_by_email?: string
+  role_display?: string  // Human-readable role label (read-only)
+  assigned_at?: string  // ISO datetime (read-only)
+  assigned_by?: number  // User ID who created the assignment (read-only)
+  assigned_by_email?: string  // Derived from assigned_by.email (read-only)
 }
 
 export type PricingModel = 'service_fee' | 'revenue_share'

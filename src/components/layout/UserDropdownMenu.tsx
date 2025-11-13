@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { User, UserCog, Check, Loader2, Settings, LogOut, ChevronRight } from 'lucide-react';
+import { User, UserCog, Check, Loader2, Settings, LogOut, ChevronRight, Sun, Moon, Monitor } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -15,6 +15,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useAuthStore } from '@/stores/authStore';
+import { useUIStore } from '@/stores/uiStore';
 import apiClient from '@/api/client';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
@@ -42,6 +43,7 @@ const roleColors: Record<string, string> = {
 
 export function UserDropdownMenu() {
   const { user, isAdmin, checkAuth, logout } = useAuthStore();
+  const { theme, setTheme } = useUIStore();
   const [testUsers, setTestUsers] = useState<TestUser[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [impersonating, setImpersonating] = useState(false);
@@ -224,6 +226,42 @@ export function UserDropdownMenu() {
           <User className="mr-2 h-4 w-4" />
           My Profile
         </DropdownMenuItem>
+
+        {/* Theme Switcher */}
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger className="cursor-pointer">
+            {theme === 'light' && <Sun className="mr-2 h-4 w-4" />}
+            {theme === 'dark' && <Moon className="mr-2 h-4 w-4" />}
+            {theme === 'system' && <Monitor className="mr-2 h-4 w-4" />}
+            <span>Theme</span>
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            <DropdownMenuItem
+              onClick={() => setTheme('light')}
+              className="cursor-pointer"
+            >
+              <Sun className="mr-2 h-4 w-4" />
+              <span>Light</span>
+              {theme === 'light' && <Check className="ml-auto h-4 w-4" />}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => setTheme('dark')}
+              className="cursor-pointer"
+            >
+              <Moon className="mr-2 h-4 w-4" />
+              <span>Dark</span>
+              {theme === 'dark' && <Check className="ml-auto h-4 w-4" />}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => setTheme('system')}
+              className="cursor-pointer"
+            >
+              <Monitor className="mr-2 h-4 w-4" />
+              <span>System</span>
+              {theme === 'system' && <Check className="ml-auto h-4 w-4" />}
+            </DropdownMenuItem>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
 
         {/* Admin-Only Test as Role Submenu */}
         {isAdmin() && !isCurrentlyImpersonating && (

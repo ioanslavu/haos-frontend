@@ -48,7 +48,7 @@ import { Plus, X, Users, UserPlus, ArrowLeft, Loader2, Target, TrendingUp } from
 import { toast } from 'sonner'
 import { ServiceMetricsUpdateDialog } from '@/components/digital/ServiceMetricsUpdateDialog'
 
-const handlerSchema = z.object({
+const assignmentSchema = z.object({
   user: z.number().optional(),
   role: z.enum(['lead', 'support', 'observer']),
 })
@@ -68,7 +68,7 @@ const digitalCampaignFormSchema = z.object({
   status: z.enum(['lead', 'negotiation', 'confirmed', 'active', 'completed', 'lost']),
   confirmed_at: z.string().optional(),
   notes: z.string().optional(),
-  handlers: z.array(handlerSchema).optional(),
+  assignments: z.array(assignmentSchema).optional(),
   // Digital-specific fields
   service_types: z.array(z.enum(SERVICE_TYPE_CHOICES as [string, ...string[]])).optional(),
   platforms: z.array(z.enum(PLATFORM_CHOICES as [string, ...string[]])).optional(),
@@ -116,7 +116,7 @@ export function DigitalCampaignFormPage() {
       status: 'lead',
       confirmed_at: '',
       notes: '',
-      handlers: [],
+      assignments: [],
       service_types: [],
       platforms: [],
       currency: 'EUR',
@@ -152,12 +152,12 @@ export function DigitalCampaignFormPage() {
   const contactPersons = useMemo(() => contactPersonsData || [], [contactPersonsData])
 
   const {
-    fields: handlerFields,
-    append: appendHandler,
-    remove: removeHandler,
+    fields: assignmentFields,
+    append: appendAssignment,
+    remove: removeAssignment,
   } = useFieldArray({
     control: form.control,
-    name: 'handlers',
+    name: 'assignments',
   })
 
   const {
@@ -246,7 +246,7 @@ export function DigitalCampaignFormPage() {
         status: campaign.status,
         confirmed_at: campaign.confirmed_at || '',
         notes: campaign.notes || '',
-        handlers: campaign.handlers?.map((h) => ({ user: h.user, role: h.role })) || [],
+        assignments: campaign.assignments?.map((a) => ({ user: a.user, role: a.role })) || [],
         service_types: campaign.service_types || [],
         platforms: campaign.platforms || [],
         currency: campaign.currency || 'EUR',
@@ -291,7 +291,7 @@ export function DigitalCampaignFormPage() {
         return acc
       }, {} as Record<string, { target: number; unit: string }>) || {}
 
-      const validHandlers = data.handlers?.filter((h) => h.user !== undefined && h.user !== null) || []
+      const validAssignments = data.assignments?.filter((a) => a.user !== undefined && a.user !== null) || []
 
       const payload = {
         campaign_name: data.campaign_name,
@@ -302,7 +302,7 @@ export function DigitalCampaignFormPage() {
         status: data.status,
         confirmed_at: data.confirmed_at || undefined,
         notes: data.notes || undefined,
-        handlers: validHandlers.length > 0 ? validHandlers : undefined,
+        assignments: validAssignments.length > 0 ? validAssignments : undefined,
         service_types: data.service_types || undefined,
         platforms: data.platforms || undefined,
         currency: data.currency,
@@ -1299,7 +1299,7 @@ export function DigitalCampaignFormPage() {
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => appendHandler({ user: Number(currentUser.id), role: 'support' })}
+                        onClick={() => appendAssignment({ user: Number(currentUser.id), role: 'support' })}
                       >
                         <UserPlus className="h-4 w-4 mr-1" />
                         Add Me
@@ -1309,7 +1309,7 @@ export function DigitalCampaignFormPage() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => appendHandler({ user: undefined as any, role: 'support' })}
+                      onClick={() => appendAssignment({ user: undefined as any, role: 'support' })}
                     >
                       <Plus className="h-4 w-4 mr-1" />
                       Add Other
@@ -1318,9 +1318,9 @@ export function DigitalCampaignFormPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                {handlerFields.length > 0 ? (
+                {assignmentFields.length > 0 ? (
                   <div className="space-y-2">
-                    {handlerFields.map((field, index) => (
+                    {assignmentFields.map((field, index) => (
                       <div
                         key={field.id}
                         className="flex gap-2 items-start border rounded-md p-3 bg-muted/30"
@@ -1328,7 +1328,7 @@ export function DigitalCampaignFormPage() {
                         <div className="flex-1 grid grid-cols-2 gap-2">
                           <FormField
                             control={form.control}
-                            name={`handlers.${index}.user`}
+                            name={`assignments.${index}.user`}
                             render={({ field }) => (
                               <FormItem>
                                 <Select
@@ -1361,7 +1361,7 @@ export function DigitalCampaignFormPage() {
 
                           <FormField
                             control={form.control}
-                            name={`handlers.${index}.role`}
+                            name={`assignments.${index}.role`}
                             render={({ field }) => (
                               <FormItem>
                                 <Select onValueChange={field.onChange} value={field.value}>
@@ -1388,7 +1388,7 @@ export function DigitalCampaignFormPage() {
                           type="button"
                           variant="ghost"
                           size="icon"
-                          onClick={() => removeHandler(index)}
+                          onClick={() => removeAssignment(index)}
                           className="text-destructive hover:text-destructive"
                         >
                           <X className="h-4 w-4" />
@@ -1398,7 +1398,7 @@ export function DigitalCampaignFormPage() {
                   </div>
                 ) : (
                   <div className="text-sm text-muted-foreground text-center py-8 border rounded-lg bg-muted/20">
-                    No additional handlers assigned. Campaign creator will be auto-assigned as lead.
+                    No additional team members assigned. Campaign creator will be auto-assigned as lead.
                   </div>
                 )}
               </CardContent>

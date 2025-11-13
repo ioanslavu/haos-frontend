@@ -109,6 +109,17 @@ export const useUIStore = create<UIState>()(
           sidebarCollapsed: state.sidebarCollapsed,
           theme: state.theme,
         }),
+        onRehydrateStorage: () => (state) => {
+          // Apply theme to DOM after rehydration from localStorage
+          if (state) {
+            const theme = state.theme;
+            if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+              document.documentElement.classList.add('dark');
+            } else {
+              document.documentElement.classList.remove('dark');
+            }
+          }
+        },
       }
     )
   )

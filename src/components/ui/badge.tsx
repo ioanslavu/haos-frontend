@@ -77,32 +77,26 @@ export interface BadgeProps
   pulse?: boolean
 }
 
-function Badge({
-  className,
-  variant,
-  size,
-  animated,
-  icon: Icon,
-  iconPosition = "left",
-  pulse = false,
-  children,
-  ...props
-}: BadgeProps) {
-  return (
-    <div
-      className={cn(badgeVariants({ variant, size, animated: pulse ? true : animated }), className)}
-      role="status"
-      {...props}
-    >
-      {Icon && iconPosition === "left" && (
-        <Icon className={cn("h-3 w-3", size === "sm" && "h-2.5 w-2.5", size === "lg" && "h-3.5 w-3.5")} aria-hidden="true" />
-      )}
-      {children}
-      {Icon && iconPosition === "right" && (
-        <Icon className={cn("h-3 w-3", size === "sm" && "h-2.5 w-2.5", size === "lg" && "h-3.5 w-3.5")} aria-hidden="true" />
-      )}
-    </div>
-  )
-}
+const Badge = React.forwardRef<HTMLDivElement, BadgeProps>(
+  ({ className, variant, size, animated, icon: Icon, iconPosition = "left", pulse = false, children, ...props }, ref) => {
+    return (
+      <div
+        ref={ref}
+        className={cn(badgeVariants({ variant, size, animated: pulse ? true : animated }), className)}
+        role="status"
+        {...props}
+      >
+        {Icon && iconPosition === "left" && (
+          <Icon className={cn("h-3 w-3", size === "sm" && "h-2.5 w-2.5", size === "lg" && "h-3.5 w-3.5")} aria-hidden="true" />
+        )}
+        {children}
+        {Icon && iconPosition === "right" && (
+          <Icon className={cn("h-3 w-3", size === "sm" && "h-2.5 w-2.5", size === "lg" && "h-3.5 w-3.5")} aria-hidden="true" />
+        )}
+      </div>
+    )
+  }
+)
+Badge.displayName = "Badge"
 
 export { Badge, badgeVariants }

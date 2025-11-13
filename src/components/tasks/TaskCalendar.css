@@ -1,0 +1,291 @@
+/* Modern FullCalendar Customization - 2025 Style */
+
+.modern-calendar {
+  width: 100%;
+  height: 100%;
+  padding: 0 1rem 1rem 1rem;
+}
+
+/* Calendar Container */
+.modern-calendar .fc {
+  font-family: inherit;
+  width: 100% !important;
+}
+
+/* Toolbar (hidden, we use custom) */
+.modern-calendar .fc .fc-toolbar {
+  display: none;
+}
+
+/* Table Styling */
+.modern-calendar .fc-theme-standard td,
+.modern-calendar .fc-theme-standard th {
+  border-color: hsl(var(--border) / 0.5);
+}
+
+/* Header (Days of week) */
+.modern-calendar .fc .fc-col-header {
+  @apply bg-muted/50;
+}
+
+.modern-calendar .fc .fc-col-header-cell {
+  @apply py-2 font-semibold text-xs uppercase tracking-wide;
+  border-color: hsl(var(--border) / 0.5);
+}
+
+.modern-calendar .fc .fc-col-header-cell-cushion {
+  @apply text-muted-foreground;
+  padding: 0.25rem;
+}
+
+/* Day Cells */
+.modern-calendar .fc .fc-daygrid-day {
+  @apply transition-colors duration-200;
+}
+
+.modern-calendar .fc .fc-daygrid-day:hover {
+  @apply bg-accent/50;
+  cursor: pointer;
+}
+
+.modern-calendar .fc .fc-daygrid-day-frame {
+  padding: 0.25rem;
+}
+
+.modern-calendar .fc .fc-daygrid-day-top {
+  @apply flex justify-center items-center mb-1;
+}
+
+.modern-calendar .fc .fc-daygrid-day-number {
+  @apply font-semibold text-xs w-6 h-6 flex items-center justify-center rounded-full transition-all duration-200;
+  color: hsl(var(--foreground));
+}
+
+/* Today */
+.modern-calendar .fc .fc-day-today {
+  @apply bg-primary/5;
+}
+
+.modern-calendar .fc .fc-day-today .fc-daygrid-day-number {
+  @apply bg-primary text-primary-foreground;
+}
+
+/* Other month days */
+.modern-calendar .fc .fc-day-other .fc-daygrid-day-number {
+  @apply text-muted-foreground/50;
+}
+
+/* Events */
+.modern-calendar .fc .fc-event {
+  @apply rounded-lg border-l-4 shadow-sm cursor-grab;
+  margin: 1px 0;
+  padding: 2px 6px;
+  transition: box-shadow 0.2s ease, opacity 0.2s ease;
+  position: relative;
+}
+
+.modern-calendar .fc .fc-event:hover:not(.fc-event-dragging) {
+  @apply shadow-md;
+  z-index: 10;
+}
+
+.modern-calendar .fc .fc-event:active {
+  @apply cursor-grabbing;
+}
+
+/* Drop target highlight */
+.modern-calendar .fc .fc-daygrid-day.fc-day-hover {
+  @apply bg-primary/10;
+}
+
+/* Mirror element while dragging - HIDE ALL of them, we use custom mirror */
+.fc-event-mirror,
+body > .fc-event-mirror,
+.fc .fc-event-mirror,
+[class*="fc-event-mirror"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+/* Dragging state - HIDE the original event completely since we use custom mirror */
+.fc-event-dragging {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  cursor: grabbing !important;
+}
+
+/* Our custom mirror should be visible */
+#custom-drag-mirror {
+  display: block !important;
+  visibility: visible !important;
+}
+
+/* Tasks without department - visual indicator */
+.modern-calendar .fc-event.task-no-department {
+  border-style: dashed !important;
+  border-width: 2px !important;
+  opacity: 0.85;
+}
+
+.modern-calendar .fc-event.task-no-department:hover {
+  opacity: 1;
+}
+
+.modern-calendar .fc .fc-event-title {
+  @apply font-medium text-xs truncate;
+  color: white;
+}
+
+.modern-calendar .fc .fc-event-time {
+  @apply text-xs opacity-90;
+}
+
+.fc-event-content-custom {
+  @apply flex items-center gap-1;
+}
+
+.fc-event-title-wrapper {
+  @apply flex items-center gap-1 flex-1 min-w-0;
+}
+
+.fc-event-badge {
+  @apply text-[10px] px-1 py-0 h-4 flex-shrink-0;
+}
+
+/* More link */
+.modern-calendar .fc .fc-daygrid-more-link {
+  @apply text-xs font-semibold text-primary hover:bg-primary/10 px-2 py-1 rounded transition-colors;
+}
+
+/* Week View */
+.modern-calendar .fc-timegrid-slot {
+  @apply h-12;
+}
+
+.modern-calendar .fc-timegrid-slot-label {
+  @apply text-xs text-muted-foreground;
+}
+
+.modern-calendar .fc-timegrid-event {
+  @apply rounded-lg border-l-4;
+}
+
+/* List View */
+.modern-calendar .fc-list {
+  border: none;
+}
+
+.modern-calendar .fc-list-table {
+  border: none;
+}
+
+.modern-calendar .fc-list-day-cushion {
+  @apply bg-muted/30 font-semibold text-sm py-3 px-4;
+}
+
+.modern-calendar .fc-list-event {
+  @apply hover:bg-accent/50 transition-colors cursor-pointer;
+}
+
+.modern-calendar .fc-list-event:hover td {
+  background-color: transparent;
+}
+
+.modern-calendar .fc-list-event-dot {
+  @apply w-2 h-2 rounded-full;
+}
+
+.modern-calendar .fc-list-event-title {
+  @apply font-medium;
+}
+
+.modern-calendar .fc-list-event-time {
+  @apply text-muted-foreground text-sm;
+}
+
+/* Scrollbar */
+.modern-calendar .fc-scroller {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted)) transparent;
+}
+
+.modern-calendar .fc-scroller::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.modern-calendar .fc-scroller::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modern-calendar .fc-scroller::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted));
+  border-radius: 3px;
+}
+
+.modern-calendar .fc-scroller::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.3);
+}
+
+/* Popover (for event details) */
+.modern-calendar .fc-popover {
+  @apply bg-popover border border-border rounded-lg shadow-lg;
+}
+
+.modern-calendar .fc-popover-header {
+  @apply bg-muted/50 font-semibold text-sm py-2 px-3;
+}
+
+.modern-calendar .fc-popover-body {
+  @apply p-2;
+}
+
+/* Tooltips */
+.modern-calendar [data-tooltip="true"] {
+  position: relative;
+}
+
+.task-calendar-tooltip {
+  @apply bg-popover text-popover-foreground p-3 rounded-lg shadow-lg border;
+  max-width: 300px;
+}
+
+/* Dark mode adjustments */
+.dark .modern-calendar .fc .fc-event-title,
+.dark .modern-calendar .fc .fc-event-time {
+  color: white;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .modern-calendar .fc .fc-daygrid-day-frame {
+    min-height: 80px;
+  }
+
+  .modern-calendar .fc .fc-event-title {
+    font-size: 0.65rem;
+  }
+
+  .modern-calendar .fc .fc-daygrid-day-number {
+    width: 1.75rem;
+    height: 1.75rem;
+    font-size: 0.75rem;
+  }
+}
+
+/* Animation for event appearance */
+@keyframes eventFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.modern-calendar .fc-event {
+  animation: eventFadeIn 0.2s ease-out;
+}

@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Calendar, Clock, Loader2, Plus } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, Loader2, Plus, CheckCircle, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -16,23 +16,21 @@ import { AssignChecklistDialog } from '@/components/songs/AssignChecklistDialog'
 import { ActivityLogItem, ActivityType } from '@/components/songs/ActivityLogItem';
 import { AssetCard } from '@/components/songs/AssetCard';
 import { AssetUploader } from '@/components/songs/AssetUploader';
-import { SongInfoCard } from '@/components/songs/SongInfoCard';
+import { CompactSongCard } from '@/components/songs/CompactSongCard';
 import { AddNoteForm } from '@/components/songs/AddNoteForm';
 import { RecordingTab } from '@/components/songs/RecordingTab';
 import { ReleaseTab } from '@/components/songs/ReleaseTab';
 import { WorkflowProgressBar } from '@/components/songs/WorkflowProgressBar';
-import { StageInfoCard } from '@/components/songs/StageInfoCard';
-import { QuickActionButtons } from '@/components/songs/QuickActionButtons';
 import { TransitionTimeline } from '@/components/songs/TransitionTimeline';
 import { ArtistManagementSection } from '@/components/songs/ArtistManagementSection';
 import { WorkTab } from '@/components/songs/WorkTab';
-import { StageChecklistView } from '@/components/songs/StageChecklistView';
 import { RelatedTasks } from '@/components/tasks/RelatedTasks';
 import { SongTriggerButton } from '@/components/tasks/ManualTriggerButton';
 import {
   fetchSongDetail,
   fetchChecklist,
   toggleChecklistItem,
+  updateChecklistAssetUrl,
   validateAllChecklist,
   transitionSong,
   sendToMarketing,
@@ -43,6 +41,7 @@ import {
   reviewAsset,
   createNote,
   fetchSongWork,
+  updateStageStatus,
 } from '@/api/songApi';
 import { useAuthStore } from '@/stores/authStore';
 import { useToast } from '@/hooks/use-toast';
@@ -66,6 +65,30 @@ export default function SongDetailPage() {
   const [selectedStage, setSelectedStage] = useState<SongStage | undefined>(undefined);
 
   const songId = parseInt(id || '0');
+
+  // Define stage flow for navigation
+  const stageFlow: SongStage[] = [
+    'draft',
+    'publishing',
+    'label_recording',
+    'marketing_assets',
+    'label_review',
+    'ready_for_digital',
+    'digital_distribution',
+    'released',
+  ];
+
+  const stageLabels: Record<SongStage, string> = {
+    draft: 'Draft',
+    publishing: 'Publishing',
+    label_recording: 'Label - Recording',
+    marketing_assets: 'Marketing - Assets',
+    label_review: 'Label - Review',
+    ready_for_digital: 'Ready for Digital',
+    digital_distribution: 'Digital Distribution',
+    released: 'Released',
+    archived: 'Archived',
+  };
 
   // Queries
   const { data: songData, isLoading: songLoading } = useQuery({
@@ -100,6 +123,13 @@ export default function SongDetailPage() {
 
   const song = songData?.data;
 
+  // Auto-select current stage when song loads
+  useEffect(() => {
+    if (song?.current_stage && !selectedStage) {
+      setSelectedStage(song.current_stage);
+    }
+  }, [song?.current_stage, selectedStage]);
+
   // Fetch work from song context (consistent with recordings)
   // Backend returns 404 if no work exists - this is expected, not an error
   const { data: workData, isLoading: workLoading, error: workError } = useQuery({
@@ -124,6 +154,19 @@ export default function SongDetailPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['song-checklist', songId] });
       queryClient.invalidateQueries({ queryKey: ['song', songId] });
+    },
+  });
+
+  const updateAssetUrlMutation = useMutation({
+    mutationFn: ({ itemId, assetUrl }: { itemId: number; assetUrl: string }) =>
+      updateChecklistAssetUrl(songId, itemId, assetUrl),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['song-checklist', songId] });
+      queryClient.invalidateQueries({ queryKey: ['song', songId] });
+      toast({
+        title: 'Asset URL saved',
+        description: 'Checklist item auto-completed!',
+      });
     },
   });
 
@@ -181,6 +224,51 @@ export default function SongDetailPage() {
       toast({
         title: 'Note Added',
         description: 'Your note has been added to the activity log.',
+      });
+    },
+  });
+
+  // Stage action mutation - handles start, finish, resume based on status
+  const stageActionMutation = useMutation({
+    mutationFn: async ({ stage, action }: { stage: SongStage; action: 'start' | 'finish' | 'resume' }) => {
+      if (action === 'start') {
+        // Start the stage
+        await updateStageStatus(songId, stage, { status: 'in_progress' });
+      } else if (action === 'finish') {
+        // Complete the current stage
+        await updateStageStatus(songId, stage, { status: 'completed' });
+
+        // Then, start the next stage if it exists
+        const currentIndex = stageFlow.indexOf(stage);
+        const nextStage = currentIndex >= 0 && currentIndex < stageFlow.length - 1
+          ? stageFlow[currentIndex + 1]
+          : null;
+
+        if (nextStage) {
+          await updateStageStatus(songId, nextStage, { status: 'in_progress' });
+        }
+      } else if (action === 'resume') {
+        // Resume a blocked stage
+        await updateStageStatus(songId, stage, { status: 'in_progress' });
+      }
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['song', songId] });
+      const messages = {
+        start: 'Stage has been started.',
+        finish: 'Stage has been completed and next stage has been started.',
+        resume: 'Stage has been resumed.',
+      };
+      toast({
+        title: 'Success',
+        description: messages[variables.action],
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.error || 'Failed to update stage',
+        variant: 'destructive',
       });
     },
   });
@@ -275,137 +363,37 @@ export default function SongDetailPage() {
   const isComplete = song.checklist_progress === 100;
   const currentStage = song.current_stage || 'draft';
 
+  // Helper to get selected stage status
+  const getSelectedStageStatus = () => {
+    if (!selectedStage || !song.stage_statuses) return null;
+    return song.stage_statuses.find(s => s.stage === selectedStage);
+  };
+
+  const selectedStageStatus = getSelectedStageStatus();
+  const selectedStageStatusValue = selectedStageStatus?.status || 'not_started';
+
   return (
     <AppLayout>
-      <div className="container mx-auto py-6 space-y-6">
+      <div className="container mx-auto py-8 space-y-8">
         <Button variant="ghost" size="sm" onClick={() => navigate('/songs')} className="hover:bg-white/10">
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Songs
         </Button>
 
-        {/* Modern Header with Gradient Background */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-background to-background border border-white/10 p-8 shadow-xl">
-          {/* Gradient Orbs */}
-          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-blue-400/20 to-purple-500/20 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-pink-400/20 to-orange-500/20 rounded-full blur-3xl" />
-
-          <div className="relative z-10">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text mb-2">
-                  {song.title}
-                </h1>
-                <p className="text-muted-foreground text-lg">{song.artist?.display_name || 'No artist'}</p>
-              </div>
-              {song.current_stage && <StageBadge stage={song.current_stage} />}
-            </div>
-          </div>
-        </div>
-
-      {/* Glassmorphic Info Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="relative overflow-hidden rounded-xl border-white/20 dark:border-white/10 bg-gradient-to-br from-blue-500/10 to-purple-500/10 backdrop-blur-xl shadow-lg p-5">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 to-transparent" />
-          <div className="relative">
-            <p className="text-sm font-medium text-muted-foreground mb-2">Progress</p>
-            <ProgressBar progress={song.checklist_progress} showLabel={true} />
-          </div>
-        </Card>
-
-        <Card className="relative overflow-hidden rounded-xl border-white/20 dark:border-white/10 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 backdrop-blur-xl shadow-lg p-5">
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-400/20 to-transparent" />
-          <div className="relative">
-            <p className="text-sm font-medium text-muted-foreground mb-2">Time in Stage</p>
-            <p className="text-2xl font-bold">
-              {song.days_in_current_stage} {song.days_in_current_stage === 1 ? 'day' : 'days'}
-            </p>
-          </div>
-        </Card>
-
-        <Card className="relative overflow-hidden rounded-xl border-white/20 dark:border-white/10 bg-gradient-to-br from-orange-500/10 to-red-500/10 backdrop-blur-xl shadow-lg p-5">
-          <div className="absolute inset-0 bg-gradient-to-br from-orange-400/20 to-transparent" />
-          <div className="relative">
-            <p className="text-sm font-medium text-muted-foreground mb-2">Target Release</p>
-            <p className="text-lg font-bold">
-              {song.target_release_date
-                ? new Date(song.target_release_date).toLocaleDateString()
-                : 'Not set'}
-            </p>
-          </div>
-        </Card>
-
-        <Card className="relative overflow-hidden rounded-xl border-white/20 dark:border-white/10 bg-gradient-to-br from-pink-500/10 to-purple-500/10 backdrop-blur-xl shadow-lg p-5">
-          <div className="absolute inset-0 bg-gradient-to-br from-pink-400/20 to-transparent" />
-          <div className="relative">
-            <p className="text-sm font-medium text-muted-foreground mb-2">Created</p>
-            <p className="text-lg font-bold">
-              {formatDistanceToNow(new Date(song.created_at), { addSuffix: true })}
-            </p>
-          </div>
-        </Card>
-      </div>
-
-      {/* Modern iOS-style Tabs */}
+      {/* Tabs with Compact Card and Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-8 p-2 bg-muted/50 backdrop-blur-xl rounded-2xl border border-white/10 h-14 shadow-lg">
-          <TabsTrigger
-            value="overview"
-            className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
-          >
-            Overview
-          </TabsTrigger>
-          <TabsTrigger
-            value="artists"
-            className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
-          >
-            Artists
-          </TabsTrigger>
-          <TabsTrigger
-            value="work"
-            className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
-          >
-            Work
-          </TabsTrigger>
-          <TabsTrigger
-            value="recording"
-            className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
-          >
-            Recording
-          </TabsTrigger>
-          <TabsTrigger
-            value="assets"
-            className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
-          >
-            Assets
-          </TabsTrigger>
-          <TabsTrigger
-            value="release"
-            className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
-          >
-            Release
-          </TabsTrigger>
-          <TabsTrigger
-            value="tasks"
-            className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
-          >
-            Tasks
-          </TabsTrigger>
-          <TabsTrigger
-            value="activity"
-            className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
-          >
-            Activity Log
-          </TabsTrigger>
-        </TabsList>
+        <CompactSongCard
+          song={song}
+          recentNotes={notes.slice(0, 3)}
+        />
 
-        <TabsContent value="overview" className="space-y-6 mt-6">
+        <TabsContent value="overview" className="space-y-8 mt-8">
           {/* Workflow Progress Bar */}
-          <Card className="rounded-2xl border-white/10 bg-background/50 backdrop-blur-xl shadow-xl">
-            <CardHeader>
-              <CardTitle className="text-xl">Workflow Progress</CardTitle>
-              <CardDescription>Complete journey from draft to release</CardDescription>
+          <Card className="rounded-xl border-white/10 bg-background/50 backdrop-blur-xl shadow-lg">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Workflow Progress</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pb-4">
               <WorkflowProgressBar
                 songId={song.id}
                 currentStage={currentStage}
@@ -417,109 +405,131 @@ export default function SongDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Stage Checklist View - Shows when a stage is selected */}
-          {selectedStage && checklist && (
-            <StageChecklistView
-              stage={selectedStage}
-              stageLabel={
-                [
-                  { key: 'draft', label: 'Draft' },
-                  { key: 'publishing', label: 'Publishing' },
-                  { key: 'label_recording', label: 'Label - Recording' },
-                  { key: 'marketing_assets', label: 'Marketing - Assets' },
-                  { key: 'label_review', label: 'Label - Review' },
-                  { key: 'ready_for_digital', label: 'Ready for Digital' },
-                  { key: 'digital_distribution', label: 'Digital Distribution' },
-                  { key: 'released', label: 'Released' },
-                ].find(s => s.key === selectedStage)?.label || ''
-              }
-              checklistItems={checklist}
-              onToggleItem={(itemId) => {
-                toggleChecklistMutation.mutate(itemId);
-              }}
-              isLoading={toggleChecklistMutation.isPending}
-            />
-          )}
+          {/* Stage Detail - Shows when a stage is selected */}
+          {selectedStage && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold">{stageLabels[selectedStage]} Checklist</h2>
+                  <p className="text-sm text-muted-foreground">Complete tasks to progress this stage</p>
+                </div>
 
-          {/* Stage Transition and Quick Actions */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <StageInfoCard song={song} checklist={checklist} />
-            <QuickActionButtons song={song} checklist={checklist} />
-          </div>
+                {/* Context-aware Stage Action Button */}
+                <div>
+                  {selectedStageStatusValue === 'not_started' && (
+                    <Button
+                      onClick={() => stageActionMutation.mutate({ stage: selectedStage, action: 'start' })}
+                      disabled={stageActionMutation.isPending}
+                      className="rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg"
+                    >
+                      {stageActionMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Starting...
+                        </>
+                      ) : (
+                        <>
+                          <Play className="mr-2 h-4 w-4" />
+                          Start Stage
+                        </>
+                      )}
+                    </Button>
+                  )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Checklist Section - Takes up 2 columns */}
-            <div className="lg:col-span-2">
-              <ChecklistSection
-                songId={songId}
-                items={checklist}
-                currentStage={currentStage}
-                onToggle={(itemId) => toggleChecklistMutation.mutate(itemId)}
-                onAssign={(itemId) => {
-                  const item = checklist.find(i => i.id === itemId);
-                  if (item) {
-                    setSelectedChecklistItem(item);
-                    setAssignDialogOpen(true);
-                  }
-                }}
-                onValidateAll={() => validateAllMutation.mutate()}
-                onSendToMarketing={
-                  currentStage === 'label_recording'
-                    ? () => sendToMarketingMutation.mutate()
-                    : undefined
-                }
-                onSendToDigital={
-                  currentStage === 'ready_for_digital'
-                    ? () => sendToDigitalMutation.mutate()
-                    : undefined
-                }
-                isValidating={validateAllMutation.isPending}
-                isSendingToMarketing={sendToMarketingMutation.isPending}
-                isSendingToDigital={sendToDigitalMutation.isPending}
-              />
-            </div>
+                  {selectedStageStatusValue === 'in_progress' && (
+                    <Button
+                      onClick={() => stageActionMutation.mutate({ stage: selectedStage, action: 'finish' })}
+                      disabled={stageActionMutation.isPending}
+                      className="rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg"
+                    >
+                      {stageActionMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Finishing...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="mr-2 h-4 w-4" />
+                          Finish Stage
+                        </>
+                      )}
+                    </Button>
+                  )}
 
-            {/* Song Info Card - Takes up 1 column */}
-            <div className="lg:col-span-1">
-              <SongInfoCard song={song} />
-            </div>
-          </div>
+                  {selectedStageStatusValue === 'blocked' && (
+                    <Button
+                      onClick={() => stageActionMutation.mutate({ stage: selectedStage, action: 'resume' })}
+                      disabled={stageActionMutation.isPending}
+                      className="rounded-xl bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 shadow-lg"
+                    >
+                      {stageActionMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Resuming...
+                        </>
+                      ) : (
+                        <>
+                          <Play className="mr-2 h-4 w-4" />
+                          Resume Stage
+                        </>
+                      )}
+                    </Button>
+                  )}
 
-          {/* Recent Activity */}
-          <Card className="rounded-2xl border-white/10 bg-background/50 backdrop-blur-xl shadow-xl">
-            <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
-              <CardDescription>Latest updates and notes</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {notes.length === 0 ? (
-                <div className="text-center py-12">
+                  {selectedStageStatusValue === 'completed' && (
+                    <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+                      <CheckCircle className="h-5 w-5" />
+                      <span className="font-medium">Completed</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Filtered Checklist for selected stage */}
+              {checklist.filter(item => item.stage === selectedStage).length === 0 ? (
+                <div className="text-center py-16">
                   <Clock className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-20" />
-                  <p className="text-muted-foreground mb-2">No activity yet</p>
-                  <p className="text-sm text-muted-foreground">Activity will appear here as work progresses</p>
+                  <p className="text-muted-foreground mb-2">No checklist items for this stage yet</p>
+                  <p className="text-sm text-muted-foreground">Checklist items will appear here once they're created for this stage</p>
                 </div>
               ) : (
-                notes.slice(0, 5).map((note) => (
-                  <ActivityLogItem key={note.id} activity={note} type="note" />
-                ))
+                <ChecklistSection
+                  songId={songId}
+                  items={checklist.filter(item => item.stage === selectedStage)}
+                  currentStage={selectedStage}
+                  onToggle={(itemId) => toggleChecklistMutation.mutate(itemId)}
+                  onAssign={(itemId) => {
+                    const item = checklist.find(i => i.id === itemId);
+                    if (item) {
+                      setSelectedChecklistItem(item);
+                      setAssignDialogOpen(true);
+                    }
+                  }}
+                  onUpdateAssetUrl={(itemId, assetUrl) =>
+                    updateAssetUrlMutation.mutate({ itemId, assetUrl })
+                  }
+                  onValidateAll={() => validateAllMutation.mutate()}
+                  isValidating={validateAllMutation.isPending}
+                />
               )}
-            </CardContent>
-          </Card>
+            </div>
+          )}
+
         </TabsContent>
 
-        <TabsContent value="artists" className="mt-6">
+        <TabsContent value="artists" className="mt-8">
           <ArtistManagementSection song={song} />
         </TabsContent>
 
-        <TabsContent value="work" className="mt-6">
+        <TabsContent value="work" className="mt-8">
           <WorkTab song={song} />
         </TabsContent>
 
-        <TabsContent value="recording" className="mt-6">
+        <TabsContent value="recording" className="mt-8">
           <RecordingTab songId={songId} songStage={song.current_stage} songTitle={song.title} workId={song.work?.id} />
         </TabsContent>
 
-        <TabsContent value="assets" className="space-y-6 mt-6">
+        <TabsContent value="assets" className="space-y-8 mt-8">
           {canUploadAssets && (
             <Card className="rounded-2xl border-white/10 bg-background/50 backdrop-blur-xl shadow-xl">
               <CardHeader>
@@ -600,14 +610,14 @@ export default function SongDetailPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="release" className="space-y-6 mt-6">
+        <TabsContent value="release" className="space-y-8 mt-8">
           <ReleaseTab
             songId={songId}
             releaseId={song.release?.id}
           />
         </TabsContent>
 
-        <TabsContent value="tasks" className="space-y-6 mt-6">
+        <TabsContent value="tasks" className="space-y-8 mt-8">
           {/* Manual trigger buttons */}
           <Card className="rounded-2xl border-white/10 bg-background/50 backdrop-blur-xl shadow-xl">
             <CardHeader>
@@ -631,7 +641,7 @@ export default function SongDetailPage() {
           />
         </TabsContent>
 
-        <TabsContent value="activity" className="space-y-6 mt-6">
+        <TabsContent value="activity" className="space-y-8 mt-8">
           {/* Stage Transition Timeline */}
           {transitions.length > 0 && (
             <TransitionTimeline transitions={transitions} />

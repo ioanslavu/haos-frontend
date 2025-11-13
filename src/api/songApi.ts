@@ -93,6 +93,13 @@ export const validateAllChecklist = (songId: number) => {
   );
 };
 
+export const updateChecklistAssetUrl = (songId: number, itemId: number, assetUrl: string) => {
+  return apiClient.patch<SongChecklistItem>(
+    `${SONGS_BASE}/${songId}/checklist/${itemId}/update_asset_url/`,
+    { asset_url: assetUrl }
+  );
+};
+
 // Assets
 export const fetchAssets = (songId: number) => {
   return apiClient.get<SongAsset[]>(`${SONGS_BASE}/${songId}/assets/`);

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, HelpCircle, UserPlus } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { CheckCircle2, HelpCircle, UserPlus, Link as LinkIcon, Check } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -16,10 +17,21 @@ interface ChecklistItemProps {
   songId?: number;
   onToggle?: (itemId: number) => void;
   onAssign?: (itemId: number) => void;
+  onUpdateAssetUrl?: (itemId: number, assetUrl: string) => void;
   disabled?: boolean;
 }
 
-export const ChecklistItem = ({ item, songId, onToggle, onAssign, disabled = false }: ChecklistItemProps) => {
+export const ChecklistItem = ({
+  item,
+  songId,
+  onToggle,
+  onAssign,
+  onUpdateAssetUrl,
+  disabled = false
+}: ChecklistItemProps) => {
+  const [assetUrl, setAssetUrl] = useState(item.asset_url || '');
+  const [isEditingUrl, setIsEditingUrl] = useState(false);
+
   // Check if item is manual based on validation_type
   const isManual = item.validation_type === 'manual';
 
@@ -33,6 +45,22 @@ export const ChecklistItem = ({ item, songId, onToggle, onAssign, disabled = fal
     e.stopPropagation();
     if (onAssign) {
       onAssign(item.id);
+    }
+  };
+
+  const handleSaveUrl = () => {
+    if (onUpdateAssetUrl && assetUrl.trim() && assetUrl !== item.asset_url) {
+      onUpdateAssetUrl(item.id, assetUrl.trim());
+    }
+    setIsEditingUrl(false);
+  };
+
+  const handleUrlKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSaveUrl();
+    } else if (e.key === 'Escape') {
+      setAssetUrl(item.asset_url || '');
+      setIsEditingUrl(false);
     }
   };
 
@@ -101,6 +129,59 @@ export const ChecklistItem = ({ item, songId, onToggle, onAssign, disabled = fal
             Completed by {item.completed_by_name} on{' '}
             {new Date(item.completed_at).toLocaleDateString()}
           </p>
+        )}
+
+        {/* Asset URL Input - only show for manual items */}
+        {isManual && onUpdateAssetUrl && (
+          <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+            {item.asset_url && !isEditingUrl ? (
+              <div className="flex items-center gap-2">
+                <a
+                  href={item.asset_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                >
+                  <LinkIcon className="h-3 w-3" />
+                  View Asset
+                </a>
+                {!item.is_complete && !disabled && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsEditingUrl(true)}
+                    className="h-6 px-2 text-xs"
+                  >
+                    Edit URL
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Input
+                  type="url"
+                  placeholder="Paste asset URL (Google Drive, Dropbox, etc.)"
+                  value={assetUrl}
+                  onChange={(e) => setAssetUrl(e.target.value)}
+                  onKeyDown={handleUrlKeyDown}
+                  onFocus={() => setIsEditingUrl(true)}
+                  className="h-8 text-xs"
+                  disabled={disabled}
+                />
+                {isEditingUrl && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleSaveUrl}
+                    disabled={!assetUrl.trim() || assetUrl === item.asset_url}
+                    className="h-8 px-2"
+                  >
+                    <Check className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
         )}
       </div>
 

@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../client';
 import { Task, TaskCreateInput, TaskUpdateInput, TaskStats } from '../types/tasks';
 import { toast } from 'sonner';
@@ -56,6 +56,71 @@ export const useTasks = (params?: {
   });
 };
 
+// Fetch tasks with infinite scrolling
+export const useInfiniteTasks = (params?: {
+  status?: string | string[];
+  priority?: number;
+  task_type?: string;
+  assigned_to?: number;
+  department?: number;
+  campaign?: number;
+  entity?: number;
+  entity_type?: 'song' | 'work' | 'recording' | 'opportunity' | 'deliverable' | 'checklist_item';
+  song?: number;
+  work?: number;
+  recording?: number;
+  opportunity?: number;
+  deliverable?: number;
+  checklist_item?: number;
+  is_overdue?: boolean;
+  is_blocked?: boolean;
+  my_tasks?: boolean;
+  assigned_to__in?: string;
+}) => {
+  const buildQueryParams = (pageParam: number) => {
+    const queryParams = new URLSearchParams();
+    queryParams.append('page', pageParam.toString());
+
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          if (Array.isArray(value)) {
+            value.forEach(v => queryParams.append(`${key}__in`, v));
+          } else if (typeof value === 'boolean') {
+            queryParams.append(key, value.toString());
+          } else {
+            queryParams.append(key, value.toString());
+          }
+        }
+      });
+    }
+
+    return queryParams;
+  };
+
+  return useInfiniteQuery({
+    queryKey: ['tasks', 'infinite', params],
+    queryFn: async ({ pageParam = 1 }) => {
+      const queryParams = buildQueryParams(pageParam);
+      const response = await apiClient.get<{ count: number; next: string | null; previous: string | null; results: Task[] }>(
+        `${TASKS_BASE_URL}/?${queryParams.toString()}`
+      );
+      return response.data;
+    },
+    getNextPageParam: (lastPage) => {
+      // Extract page number from next URL
+      if (lastPage.next) {
+        const url = new URL(lastPage.next);
+        const nextPage = url.searchParams.get('page');
+        return nextPage ? parseInt(nextPage) : undefined;
+      }
+      return undefined;
+    },
+    initialPageParam: 1,
+    refetchOnMount: 'always',
+  });
+};
+
 // Get single task
 export const useTask = (taskId: number | string) => {
   return useQuery({
@@ -108,11 +173,15 @@ export const useUpdateTask = () => {
       return response.data;
     },
     onSuccess: (data) => {
+      // Invalidate all task queries including infinite queries
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', 'infinite'] });
       queryClient.invalidateQueries({ queryKey: ['tasks', data.id] });
+      console.log('Task updated successfully, invalidating queries');
       toast.success('Task updated successfully');
     },
     onError: (error: any) => {
+      console.error('Task update error:', error.response?.data || error.message);
       toast.error(error.response?.data?.detail || 'Failed to update task');
     },
   });

@@ -193,6 +193,8 @@ export interface Task {
 
   // Assignment (multiple users)
   assignments?: TaskAssignment[];
+  assigned_to_users?: number[];  // Helper: array of user IDs
+  assigned_to_users_detail?: TaskUserDetail[];  // Helper: array of user objects
   created_by?: number;
   created_by_detail?: TaskUserDetail;
   department?: number;

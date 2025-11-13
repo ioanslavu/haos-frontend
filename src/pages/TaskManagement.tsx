@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -33,8 +34,13 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { TaskFormDialog } from '@/components/tasks/TaskFormDialog'
 import { TaskDetailPanel } from '@/components/tasks/TaskDetailPanel'
+import { TaskCalendar } from '@/components/tasks/TaskCalendar'
 import { EmployeeTaskFilter } from '@/components/tasks/EmployeeTaskFilter'
-import { useTasks, useTaskStats, useMyTasks, useOverdueTasks, useDeleteTask, useUpdateTask, useUpdateTaskStatus } from '@/api/hooks/useTasks'
+import { InlineStatusBadge } from '@/components/tasks/InlineStatusBadge'
+import { InlineAssigneeSelect } from '@/components/tasks/InlineAssigneeSelect'
+import { InlinePrioritySelect } from '@/components/tasks/InlinePrioritySelect'
+import { InlineDatePicker } from '@/components/tasks/InlineDatePicker'
+import { useTasks, useInfiniteTasks, useTaskStats, useMyTasks, useOverdueTasks, useDeleteTask, useUpdateTask, useUpdateTaskStatus } from '@/api/hooks/useTasks'
 import { useAuthStore } from '@/stores/authStore'
 import {
   Task,
@@ -63,6 +69,9 @@ import {
   Target,
   TrendingUp,
   Activity,
+  Link2,
+  Briefcase,
+  Music,
 } from 'lucide-react'
 import { format, formatDistanceToNow, isToday, isTomorrow, isPast } from 'date-fns'
 import { cn } from '@/lib/utils'
@@ -81,7 +90,7 @@ import { useDroppable } from '@dnd-kit/core'
 import { useDraggable } from '@dnd-kit/core'
 import { snapCenterToCursor } from '@dnd-kit/modifiers'
 
-// Droppable Column Component
+// Droppable Column Component - Modern Minimal Design
 function DroppableColumn({ id, children }: { id: string; children: React.ReactNode }) {
   const { setNodeRef, isOver } = useDroppable({ id });
 
@@ -89,8 +98,8 @@ function DroppableColumn({ id, children }: { id: string; children: React.ReactNo
     <div
       ref={setNodeRef}
       className={cn(
-        'transition-colors',
-        isOver && 'bg-primary/5 ring-2 ring-primary/50 rounded-lg'
+        'rounded-xl transition-all duration-200',
+        isOver && 'bg-primary/5 ring-2 ring-primary/30 scale-[1.02]'
       )}
     >
       {children}
@@ -122,9 +131,83 @@ function DraggableTaskCard({ task, children, onClick }: { task: Task; children: 
   );
 }
 
+// Related Entity Component
+function RelatedEntity({ task, onClick }: { task: Task; onClick: (e: React.MouseEvent, path: string) => void }) {
+  // Determine which related entity to display (check in priority order)
+
+  // Opportunity
+  if (task.opportunity && task.opportunity_detail) {
+    return (
+      <div
+        onClick={(e) => onClick(e, `/sales/opportunities/${task.opportunity}`)}
+        className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors cursor-pointer group"
+      >
+        <Briefcase className="h-2.5 w-2.5 flex-shrink-0" />
+        <span className="truncate group-hover:underline">{task.opportunity_detail.title}</span>
+      </div>
+    );
+  }
+
+  // Song
+  if (task.song && task.song_detail) {
+    return (
+      <div
+        onClick={(e) => onClick(e, `/songs/${task.song}`)}
+        className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors cursor-pointer group"
+      >
+        <Music className="h-2.5 w-2.5 flex-shrink-0" />
+        <span className="truncate group-hover:underline">{task.song_detail.title}</span>
+      </div>
+    );
+  }
+
+  // Entity (Contact/Company)
+  if (task.entity && task.entity_detail) {
+    return (
+      <div
+        onClick={(e) => onClick(e, `/entity/${task.entity}`)}
+        className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors cursor-pointer group"
+      >
+        <User className="h-2.5 w-2.5 flex-shrink-0" />
+        <span className="truncate group-hover:underline">{task.entity_detail.display_name}</span>
+      </div>
+    );
+  }
+
+  // Campaign
+  if (task.campaign && task.campaign_detail) {
+    return (
+      <div
+        onClick={(e) => onClick(e, `/digital/campaigns/${task.campaign}`)}
+        className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors cursor-pointer group"
+      >
+        <Link2 className="h-2.5 w-2.5 flex-shrink-0" />
+        <span className="truncate group-hover:underline">{task.campaign_detail.name}</span>
+      </div>
+    );
+  }
+
+  // Contract
+  if (task.contract && task.contract_detail) {
+    return (
+      <div
+        onClick={(e) => onClick(e, `/contracts/${task.contract}`)}
+        className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors cursor-pointer group"
+      >
+        <Link2 className="h-2.5 w-2.5 flex-shrink-0" />
+        <span className="truncate group-hover:underline">{task.contract_detail.title}</span>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 export default function TaskManagement() {
+  const navigate = useNavigate();
   const currentUser = useAuthStore((state) => state.user)
   const [viewMode, setViewMode] = useState<'kanban' | 'list' | 'calendar'>('kanban')
+  const [listDensity, setListDensity] = useState<'comfortable' | 'compact'>('comfortable')
   const [searchQuery, setSearchQuery] = useState('')
   const [filterPriority, setFilterPriority] = useState<string>('all')
   const [filterType, setFilterType] = useState<string>('all')
@@ -132,10 +215,15 @@ export default function TaskManagement() {
   const [showCompleted, setShowCompleted] = useState(false)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [taskDialogOpen, setTaskDialogOpen] = useState(false)
+  const [taskCreateOpen, setTaskCreateOpen] = useState(false)
   const [taskViewOpen, setTaskViewOpen] = useState(false)
   const [viewTask, setViewTask] = useState<Task | null>(null)
   const [selectedEmployees, setSelectedEmployees] = useState<number[]>([])
   const [activeTask, setActiveTask] = useState<Task | null>(null)
+
+  // Ref for infinite scroll detection
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const loadMoreRef = useRef<HTMLDivElement>(null)
 
   // Setup drag sensors
   const sensors = useSensors(
@@ -146,13 +234,25 @@ export default function TaskManagement() {
     })
   )
 
-  // Fetch tasks data
-  const { data: allTasks, isLoading: tasksLoading } = useTasks({
+  // Fetch tasks data with infinite scrolling
+  const taskParams = {
     priority: filterPriority !== 'all' ? parseInt(filterPriority) : undefined,
     task_type: filterType !== 'all' ? filterType : undefined,
     assigned_to: filterAssignee !== 'all' ? parseInt(filterAssignee) : undefined,
     assigned_to__in: selectedEmployees.length > 0 ? selectedEmployees.join(',') : undefined,
-  })
+  } as any
+
+  const {
+    data: infiniteData,
+    isLoading: tasksLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteTasks(taskParams)
+
+  // Flatten all pages into a single array
+  const allTasks = infiniteData?.pages.flatMap(page => page.results) || []
+  const totalTaskCount = infiniteData?.pages[0]?.count || 0
   const { data: myTasks } = useMyTasks()
   const { data: overdueTasks } = useOverdueTasks()
   const { data: taskStats } = useTaskStats()
@@ -160,6 +260,48 @@ export default function TaskManagement() {
   const deleteTask = useDeleteTask()
   const updateTask = useUpdateTask()
   const updateTaskStatus = useUpdateTaskStatus()
+
+  // Infinite scroll: Load more when scrolling near bottom
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries
+        if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage()
+        }
+      },
+      { threshold: 0.1, rootMargin: '100px' }
+    )
+
+    const currentLoadMoreRef = loadMoreRef.current
+    if (currentLoadMoreRef) {
+      observer.observe(currentLoadMoreRef)
+    }
+
+    return () => {
+      if (currentLoadMoreRef) {
+        observer.unobserve(currentLoadMoreRef)
+      }
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
+
+  // Debug: Log what API returns
+  if (allTasks && allTasks.length > 0) {
+    const priorityCounts = allTasks.reduce((acc, task) => {
+      acc[task.priority] = (acc[task.priority] || 0) + 1
+      return acc
+    }, {} as Record<number, number>)
+    const typeCounts = allTasks.reduce((acc, task) => {
+      acc[task.task_type] = (acc[task.task_type] || 0) + 1
+      return acc
+    }, {} as Record<string, number>)
+    console.log('=== Tasks with Infinite Scroll ===')
+    console.log('Tasks loaded so far:', allTasks.length)
+    console.log('Total tasks available:', totalTaskCount)
+    console.log('Has more pages:', hasNextPage)
+    console.log('Priority breakdown:', priorityCounts)
+    console.log('Type breakdown:', typeCounts)
+  }
 
   // Filter tasks
   const filteredTasks = allTasks?.filter(task => {
@@ -219,6 +361,59 @@ export default function TaskManagement() {
     }
   }
 
+  // Inline update handlers
+  const handleInlineStatusUpdate = async (taskId: number, status: string) => {
+    try {
+      await updateTask.mutateAsync({
+        id: taskId,
+        data: { status },
+      })
+      toast.success('Status updated')
+    } catch {
+      toast.error('Failed to update status')
+    }
+  }
+
+  const handleInlinePriorityUpdate = async (taskId: number, priority: number) => {
+    try {
+      await updateTask.mutateAsync({
+        id: taskId,
+        data: { priority },
+      })
+      toast.success('Priority updated')
+    } catch {
+      toast.error('Failed to update priority')
+    }
+  }
+
+  const handleInlineAssigneeUpdate = async (taskId: number, assignedToUsers: number[]) => {
+    console.log('Updating assignees for task', taskId, 'with users:', assignedToUsers)
+    try {
+      const result = await updateTask.mutateAsync({
+        id: taskId,
+        data: { assigned_user_ids: assignedToUsers },
+      })
+      console.log('Assignee update result:', result)
+      toast.success('Assignees updated')
+    } catch (error: any) {
+      console.error('Failed to update assignees:', error)
+      console.error('Error details:', error.response?.data)
+      toast.error(error.response?.data?.detail || 'Failed to update assignees')
+    }
+  }
+
+  const handleInlineDateUpdate = async (taskId: number, dueDate: string | null) => {
+    try {
+      await updateTask.mutateAsync({
+        id: taskId,
+        data: { due_date: dueDate },
+      })
+      toast.success('Due date updated')
+    } catch {
+      toast.error('Failed to update due date')
+    }
+  }
+
   // Drag handlers
   const handleDragStart = (event: DragStartEvent) => {
     const taskId = event.active.id as number
@@ -260,6 +455,11 @@ export default function TaskManagement() {
     setActiveTask(null)
   }
 
+  const handleRelatedEntityClick = (e: React.MouseEvent, path: string) => {
+    e.stopPropagation() // Prevent task click
+    navigate(path)
+  }
+
   const getPriorityColor = (priority: number) => {
     const colors = {
       1: 'text-gray-500',
@@ -280,157 +480,150 @@ export default function TaskManagement() {
 
   return (
     <AppLayout>
-      <div className="h-full flex flex-col">
-        {/* Header */}
-        <div className="border-b p-4 bg-background/95 backdrop-blur">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">Task Management</h1>
-              <p className="text-muted-foreground mt-1">
-                Organize, track, and complete tasks efficiently
-              </p>
-            </div>
-            <Button onClick={() => { setSelectedTask(null); setTaskDialogOpen(true) }}>
-              <Plus className="h-4 w-4 mr-2" />
-              New Task
-            </Button>
-          </div>
+      <div className="h-full flex flex-col space-y-4">
+        {/* Compact Control Bar - Notes Style */}
+        <div className="relative overflow-hidden rounded-2xl bg-background/50 backdrop-blur-xl border border-white/10 shadow-lg">
+          {/* Subtle gradient background */}
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-transparent to-purple-500/5 pointer-events-none" />
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Tasks</CardTitle>
-                <Target className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{taskStats?.total || 0}</div>
-                <p className="text-xs text-muted-foreground">Active tasks</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">My Tasks</CardTitle>
-                <User className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{myTasks?.length || 0}</div>
-                <p className="text-xs text-muted-foreground">Assigned to you</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Overdue</CardTitle>
-                <AlertTriangle className="h-4 w-4 text-red-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-red-600">{taskStats?.overdue || 0}</div>
-                <p className="text-xs text-muted-foreground">Need attention</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Due Today</CardTitle>
-                <Clock className="h-4 w-4 text-orange-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-orange-600">{taskStats?.due_today || 0}</div>
-                <p className="text-xs text-muted-foreground">Complete today</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Completed</CardTitle>
-                <CheckCircle className="h-4 w-4 text-green-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">
-                  {taskStats?.by_status?.done || 0}
+          <div className="relative z-10 p-4">
+            {/* Header: Title + Stats + Button */}
+            <div className="flex items-center justify-between gap-4 mb-4">
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl font-bold tracking-tight">Task Management</h1>
+                <div className="flex items-center gap-2">
+                  {/* Overdue Badge - Always show if > 0 */}
+                  {(taskStats?.overdue ?? 0) > 0 && (
+                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/20">
+                      <AlertTriangle className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
+                      <span className="text-sm font-bold text-red-600 dark:text-red-400">{taskStats?.overdue || 0}</span>
+                      <span className="text-xs text-red-600/70 dark:text-red-400/70">overdue</span>
+                    </div>
+                  )}
+                  {/* Due Today Badge - Always show if > 0 */}
+                  {(taskStats?.due_today ?? 0) > 0 && (
+                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-orange-500/10 border border-orange-500/20">
+                      <Clock className="h-3.5 w-3.5 text-orange-600 dark:text-orange-400" />
+                      <span className="text-sm font-bold text-orange-600 dark:text-orange-400">{taskStats?.due_today || 0}</span>
+                      <span className="text-xs text-orange-600/70 dark:text-orange-400/70">today</span>
+                    </div>
+                  )}
                 </div>
-                <p className="text-xs text-muted-foreground">This month</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Filters */}
-          <div className="flex items-center gap-4 mt-4 flex-wrap">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search tasks..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
+              </div>
+              <Button
+                onClick={() => setTaskCreateOpen(true)}
+                size="default"
+                className="rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                New Task
+              </Button>
             </div>
 
-            <Select value={filterPriority} onValueChange={setFilterPriority}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Priority" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Priorities</SelectItem>
-                <SelectItem value="4">Urgent</SelectItem>
-                <SelectItem value="3">High</SelectItem>
-                <SelectItem value="2">Normal</SelectItem>
-                <SelectItem value="1">Low</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* Filters Row */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex-1 min-w-[300px]">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search tasks..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 h-10 rounded-lg bg-background/50 border-white/10"
+                  />
+                </div>
+              </div>
 
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                {Object.entries(TASK_TYPE_LABELS).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>{label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <Select value={filterPriority} onValueChange={setFilterPriority}>
+                <SelectTrigger className="w-[140px] h-10 rounded-lg">
+                  <SelectValue placeholder="Priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Priorities</SelectItem>
+                  <SelectItem value="4">Urgent</SelectItem>
+                  <SelectItem value="3">High</SelectItem>
+                  <SelectItem value="2">Normal</SelectItem>
+                  <SelectItem value="1">Low</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <EmployeeTaskFilter
-              selectedEmployees={selectedEmployees}
-              onSelectionChange={setSelectedEmployees}
-            />
+              {/* Task Type Filter - Hidden until department-specific filtering is implemented */}
+              {/* <Select value={filterType} onValueChange={setFilterType}>
+                <SelectTrigger className="w-[140px] h-10 rounded-lg">
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  {Object.entries(TASK_TYPE_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select> */}
 
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="show-completed"
-                checked={showCompleted}
-                onCheckedChange={(checked) => setShowCompleted(checked as boolean)}
+              <EmployeeTaskFilter
+                selectedEmployees={selectedEmployees}
+                onSelectionChange={setSelectedEmployees}
               />
-              <label htmlFor="show-completed" className="text-sm">
-                Show completed
-              </label>
-            </div>
 
-            <div className="flex gap-1 p-1 bg-muted rounded-lg">
-              <Button
-                variant={viewMode === 'kanban' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('kanban')}
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === 'list' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('list')}
-              >
-                <List className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === 'calendar' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('calendar')}
-              >
-                <Calendar className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="show-completed"
+                  checked={showCompleted}
+                  onCheckedChange={(checked) => setShowCompleted(checked as boolean)}
+                />
+                <label htmlFor="show-completed" className="text-sm">
+                  Show completed
+                </label>
+              </div>
+
+              <div className="flex gap-2">
+                <div className="flex gap-1 p-0.5 bg-muted rounded-lg">
+                  <Button
+                    variant={viewMode === 'kanban' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('kanban')}
+                    className="h-8 w-8 rounded-md"
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === 'list' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('list')}
+                    className="h-8 w-8 rounded-md"
+                  >
+                    <List className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === 'calendar' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('calendar')}
+                    className="h-8 w-8 rounded-md"
+                  >
+                    <Calendar className="h-4 w-4" />
+                  </Button>
+                </div>
+                {viewMode === 'list' && (
+                  <div className="flex gap-1 p-0.5 bg-muted rounded-lg">
+                    <Button
+                      variant={listDensity === 'comfortable' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setListDensity('comfortable')}
+                      className="h-8 px-2 rounded-md text-xs"
+                    >
+                      Comfortable
+                    </Button>
+                    <Button
+                      variant={listDensity === 'compact' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setListDensity('compact')}
+                      className="h-8 px-2 rounded-md text-xs"
+                    >
+                      Compact
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -443,210 +636,248 @@ export default function TaskManagement() {
           onDragEnd={handleDragEnd}
           onDragCancel={handleDragCancel}
         >
-          <div className="flex-1 overflow-auto p-4">
+          <div className="flex-1 overflow-auto">
             {viewMode === 'kanban' ? (
-              // Kanban View
-              <div className="flex gap-4 h-full">
+              // Kanban View - Modern Minimal Design
+              <div className="flex gap-3 h-full">
                 {statusColumns.map((column) => {
                   const Icon = column.icon
                   const tasks = tasksByStatus[column.id as keyof typeof tasksByStatus]
 
                   return (
                     <DroppableColumn key={column.id} id={column.id}>
-                      <div className="flex-1 min-w-[300px]">
-                        <Card className="h-full flex flex-col">
-                          <CardHeader className="pb-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <Icon className="h-4 w-4 text-muted-foreground" />
-                                <CardTitle className="text-sm">{column.label}</CardTitle>
-                              </div>
-                              <Badge variant="secondary">{tasks.length}</Badge>
-                            </div>
-                          </CardHeader>
-                          <CardContent className="flex-1 overflow-auto">
-                            <div className="space-y-2">
-                              {tasks.map((task) => (
-                                <DraggableTaskCard key={task.id} task={task} onClick={() => handleTaskClick(task)}>
-                                  <Card className="p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
+                      <div className="flex-1 min-w-[280px] flex flex-col">
+                        {/* Column Header - No card wrapper */}
+                        <div className="flex items-center justify-between px-2 py-2 mb-2">
+                          <div className="flex items-center gap-1.5">
+                            <div className={cn("w-1.5 h-1.5 rounded-full",
+                              column.id === 'todo' ? 'bg-gray-400' :
+                              column.id === 'in_progress' ? 'bg-blue-500' :
+                              column.id === 'blocked' ? 'bg-red-500' :
+                              column.id === 'review' ? 'bg-orange-500' :
+                              'bg-green-500'
+                            )} />
+                            <h3 className="text-xs font-semibold">{column.label}</h3>
+                            <span className="text-xs text-muted-foreground font-medium">{tasks.length}</span>
+                          </div>
+                        </div>
+
+                        {/* Tasks Container - More compact */}
+                        <div className="flex-1 overflow-auto space-y-1.5">
+                          {tasks.map((task) => (
+                            <DraggableTaskCard key={task.id} task={task} onClick={() => handleTaskClick(task)}>
+                              <Card className="group p-2.5 cursor-grab active:cursor-grabbing hover:shadow-lg hover:border-primary/40 transition-all duration-200 bg-card border-border/60"
                                 >
                               <div className="space-y-2">
-                                <div className="flex items-start justify-between">
-                                  <h4 className="text-sm font-medium line-clamp-2">{task.title}</h4>
-                                  <Flag className={cn("h-3 w-3 flex-shrink-0", getPriorityColor(task.priority))} />
+                                {/* Title and Priority */}
+                                <div className="flex items-start justify-between gap-1.5">
+                                  <h4 className="text-xs font-semibold line-clamp-2 leading-tight flex-1">{task.title}</h4>
+                                  <div className={cn(
+                                    "flex-shrink-0 w-4 h-4 rounded flex items-center justify-center",
+                                    task.priority === 4 ? 'bg-red-500/15' :
+                                    task.priority === 3 ? 'bg-orange-500/15' :
+                                    task.priority === 2 ? 'bg-blue-500/15' :
+                                    'bg-gray-500/15'
+                                  )}>
+                                    <Flag className={cn("h-2.5 w-2.5", getPriorityColor(task.priority))} />
+                                  </div>
                                 </div>
 
-                                {task.description && (
-                                  <p className="text-xs text-muted-foreground line-clamp-2">
-                                    {task.description}
-                                  </p>
-                                )}
-
-                                <div className="flex items-center gap-2">
-                                  <Badge variant="outline" className="text-xs">
+                                {/* Type Badge and Related Entity */}
+                                <div className="flex items-center gap-1.5">
+                                  <Badge variant="outline" className="text-[10px] font-normal border-border/60 bg-background/50 h-4 px-1.5">
                                     {TASK_TYPE_LABELS[task.task_type]}
                                   </Badge>
-                                  <Badge variant="secondary" className="text-xs">
-                                    <Flag className={cn("h-3 w-3 mr-1", getPriorityColor(task.priority))} />
-                                    {TASK_PRIORITY_LABELS[task.priority]}
-                                  </Badge>
+                                  <RelatedEntity task={task} onClick={handleRelatedEntityClick} />
                                 </div>
 
-                                {task.labels && task.labels.length > 0 && (
-                                  <div className="flex flex-wrap gap-1">
-                                    {task.labels.map((label) => (
-                                      <Badge key={label} variant="outline" className="text-xs">
-                                        {label}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                )}
-
-                                <div className="flex items-center justify-between pt-2 border-t">
+                                {/* Footer Section - Compact */}
+                                <div className="flex items-center justify-between pt-1.5 border-t border-border/30">
                                   {task.assigned_to_users_detail && task.assigned_to_users_detail.length > 0 ? (
                                     <div className="flex items-center gap-1">
-                                      <div className="flex -space-x-2">
-                                        {task.assigned_to_users_detail.slice(0, 3).map((user) => (
-                                          <Avatar key={user.id} className="h-5 w-5 border-2 border-background">
-                                            <AvatarFallback className="text-xs">
+                                      <div className="flex -space-x-1.5">
+                                        {task.assigned_to_users_detail.slice(0, 2).map((user) => (
+                                          <Avatar key={user.id} className="h-5 w-5 border border-background">
+                                            <AvatarFallback className="text-[10px] font-medium">
                                               {user.full_name.substring(0, 2).toUpperCase()}
                                             </AvatarFallback>
                                           </Avatar>
                                         ))}
                                       </div>
-                                      {task.assigned_to_users_detail.length > 3 && (
-                                        <span className="text-xs text-muted-foreground">
-                                          +{task.assigned_to_users_detail.length - 3}
+                                      {task.assigned_to_users_detail.length > 2 && (
+                                        <span className="text-[10px] text-muted-foreground font-medium">
+                                          +{task.assigned_to_users_detail.length - 2}
                                         </span>
                                       )}
                                     </div>
                                   ) : (
-                                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                      <User className="h-3 w-3" />
-                                      <span>Unassigned</span>
+                                    <div className="w-5 h-5 rounded-full bg-muted/40 flex items-center justify-center">
+                                      <User className="h-2.5 w-2.5 text-muted-foreground/60" />
                                     </div>
                                   )}
 
                                   {task.due_date && (
                                     <div className={cn(
-                                      "flex items-center gap-1 text-xs",
-                                      getDeadlineText(task.due_date).className
+                                      "flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded",
+                                      isPast(new Date(task.due_date)) && !isToday(new Date(task.due_date))
+                                        ? 'bg-red-500/10 text-red-600 dark:text-red-400'
+                                        : isToday(new Date(task.due_date))
+                                        ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
+                                        : 'bg-muted/50 text-muted-foreground'
                                     )}>
-                                      <Clock className="h-3 w-3" />
-                                      <span>{getDeadlineText(task.due_date).text}</span>
+                                      <Clock className="h-2.5 w-2.5" />
+                                      <span>{format(new Date(task.due_date), 'MMM d')}</span>
                                     </div>
                                   )}
                                 </div>
 
+                                {/* Progress Bar - Only if > 0 */}
                                 {task.completion_percentage > 0 && (
-                                  <div className="space-y-1">
-                                    <div className="flex justify-between text-xs">
-                                      <span className="text-muted-foreground">Progress</span>
-                                      <span>{task.completion_percentage}%</span>
-                                    </div>
-                                    <Progress value={task.completion_percentage} className="h-1" />
+                                  <div className="flex items-center gap-1.5 pt-0.5">
+                                    <Progress value={task.completion_percentage} className="h-1 flex-1" />
+                                    <span className="text-[10px] font-medium">{task.completion_percentage}%</span>
                                   </div>
                                 )}
                               </div>
-                                </Card>
-                                </DraggableTaskCard>
-                              ))}
-                            </div>
-                          </CardContent>
-                        </Card>
+                              </Card>
+                            </DraggableTaskCard>
+                          ))}
+                        </div>
                       </div>
                     </DroppableColumn>
                   )
                 })}
               </div>
           ) : viewMode === 'list' ? (
-            // List View
-            <Card>
-              <CardContent className="p-0">
+            listDensity === 'comfortable' ? (
+              // Comfortable List View - Modern Table Design
+              <div className="rounded-lg border border-border/60 bg-card/50 backdrop-blur-sm overflow-hidden">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[30px]"></TableHead>
-                      <TableHead>Task</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Priority</TableHead>
-                      <TableHead>Assigned To</TableHead>
-                      <TableHead>Due Date</TableHead>
-                      <TableHead>Progress</TableHead>
-                      <TableHead>Status</TableHead>
+                    <TableRow className="border-b border-border/60 hover:bg-transparent">
+                      <TableHead className="w-[40px]"></TableHead>
+                      <TableHead className="w-[40px]"></TableHead>
+                      <TableHead className="font-semibold">Task</TableHead>
+                      <TableHead className="font-semibold w-[120px]">Type</TableHead>
+                      <TableHead className="font-semibold w-[140px]">Assigned</TableHead>
+                      <TableHead className="font-semibold w-[120px]">Due Date</TableHead>
+                      <TableHead className="font-semibold w-[140px]">Progress</TableHead>
+                      <TableHead className="font-semibold w-[120px]">Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredTasks.map((task) => (
-                      <TableRow key={task.id} className="cursor-pointer" onClick={() => handleTaskClick(task)}>
-                        <TableCell>
-                          <Checkbox onClick={(e) => e.stopPropagation()} />
+                      <TableRow
+                        key={task.id}
+                        className="cursor-pointer hover:bg-muted/50 transition-colors border-b border-border/40 last:border-0"
+                        onClick={() => handleTaskClick(task)}
+                      >
+                        {/* Checkbox */}
+                        <TableCell className="py-3">
+                          <Checkbox
+                            checked={task.status === 'done'}
+                            onClick={(e) => e.stopPropagation()}
+                            className="h-4 w-4"
+                          />
                         </TableCell>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{task.title}</p>
+
+                        {/* Priority */}
+                        <TableCell className="py-3">
+                          <div className={cn(
+                            "w-1 h-8 rounded-full",
+                            task.priority === 4 ? 'bg-red-500' :
+                            task.priority === 3 ? 'bg-orange-500' :
+                            task.priority === 2 ? 'bg-blue-500' :
+                            'bg-gray-400'
+                          )} />
+                        </TableCell>
+
+                        {/* Task Title */}
+                        <TableCell className="py-3">
+                          <div className="flex flex-col gap-1">
+                            <span className="font-semibold text-sm">{task.title}</span>
                             {task.description && (
-                              <p className="text-xs text-muted-foreground line-clamp-1">
+                              <span className="text-xs text-muted-foreground/80 line-clamp-1">
                                 {task.description}
-                              </p>
+                              </span>
                             )}
+                            <RelatedEntity task={task} onClick={handleRelatedEntityClick} />
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-xs">
+
+                        {/* Type */}
+                        <TableCell className="py-3">
+                          <Badge variant="outline" className="text-xs font-normal border-border/60 bg-background/50">
                             {TASK_TYPE_LABELS[task.task_type]}
                           </Badge>
                         </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary" className="text-xs">
-                            <Flag className={cn("h-3 w-3 mr-1", getPriorityColor(task.priority))} />
-                            {TASK_PRIORITY_LABELS[task.priority]}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
+
+                        {/* Assigned */}
+                        <TableCell className="py-3">
                           {task.assigned_to_users_detail && task.assigned_to_users_detail.length > 0 ? (
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5">
                               <div className="flex -space-x-2">
-                                {task.assigned_to_users_detail.slice(0, 2).map((user) => (
-                                  <Avatar key={user.id} className="h-6 w-6 border-2 border-background">
-                                    <AvatarFallback className="text-xs">
+                                {task.assigned_to_users_detail.slice(0, 3).map((user) => (
+                                  <Avatar key={user.id} className="h-6 w-6 border-2 border-background ring-1 ring-border/20">
+                                    <AvatarFallback className="text-xs font-medium">
                                       {user.full_name.substring(0, 2).toUpperCase()}
                                     </AvatarFallback>
                                   </Avatar>
                                 ))}
                               </div>
-                              {task.assigned_to_users_detail.length > 2 && (
-                                <span className="text-xs text-muted-foreground">
-                                  +{task.assigned_to_users_detail.length - 2} more
+                              {task.assigned_to_users_detail.length > 3 && (
+                                <span className="text-xs text-muted-foreground font-medium">
+                                  +{task.assigned_to_users_detail.length - 3}
                                 </span>
                               )}
                             </div>
                           ) : (
-                            <span className="text-sm text-muted-foreground">Unassigned</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {task.due_date && (
-                            <span className={cn("text-sm", getDeadlineText(task.due_date).className)}>
-                              {format(new Date(task.due_date), 'MMM d, yyyy')}
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {task.completion_percentage > 0 && (
-                            <div className="flex items-center gap-2">
-                              <Progress value={task.completion_percentage} className="w-16 h-1" />
-                              <span className="text-xs">{task.completion_percentage}%</span>
+                            <div className="w-6 h-6 rounded-full bg-muted/50 flex items-center justify-center">
+                              <User className="h-3 w-3 text-muted-foreground/60" />
                             </div>
                           )}
                         </TableCell>
-                        <TableCell>
-                          <Badge variant={
-                            task.status === 'done' ? 'default' :
-                            task.status === 'in_progress' ? 'secondary' :
-                            task.status === 'blocked' ? 'destructive' :
-                            'outline'
-                          }>
+
+                        {/* Due Date */}
+                        <TableCell className="py-3">
+                          {task.due_date && (
+                            <div className={cn(
+                              "inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-md",
+                              isPast(new Date(task.due_date)) && !isToday(new Date(task.due_date))
+                                ? 'bg-red-500/10 text-red-600 dark:text-red-400'
+                                : isToday(new Date(task.due_date))
+                                ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
+                                : 'bg-muted/50 text-muted-foreground'
+                            )}>
+                              <Clock className="h-3 w-3" />
+                              <span>{format(new Date(task.due_date), 'MMM d')}</span>
+                            </div>
+                          )}
+                        </TableCell>
+
+                        {/* Progress */}
+                        <TableCell className="py-3">
+                          {task.completion_percentage > 0 && (
+                            <div className="flex items-center gap-2">
+                              <Progress value={task.completion_percentage} className="h-1.5 w-20" />
+                              <span className="text-xs font-medium w-8">{task.completion_percentage}%</span>
+                            </div>
+                          )}
+                        </TableCell>
+
+                        {/* Status */}
+                        <TableCell className="py-3">
+                          <Badge
+                            className={cn(
+                              "font-medium",
+                              task.status === 'done' ? 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20 hover:bg-green-500/20' :
+                              task.status === 'in_progress' ? 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20 hover:bg-blue-500/20' :
+                              task.status === 'blocked' ? 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20 hover:bg-red-500/20' :
+                              task.status === 'review' ? 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20 hover:bg-orange-500/20' :
+                              'bg-gray-500/10 text-gray-700 dark:text-gray-400 border-gray-500/20 hover:bg-gray-500/20'
+                            )}
+                            variant="outline"
+                          >
                             {TASK_STATUS_LABELS[task.status]}
                           </Badge>
                         </TableCell>
@@ -654,37 +885,166 @@ export default function TaskManagement() {
                     ))}
                   </TableBody>
                 </Table>
-              </CardContent>
-            </Card>
+                {/* Infinite scroll trigger */}
+                <div ref={loadMoreRef} className="py-4 flex items-center justify-center">
+                  {isFetchingNextPage && (
+                    <div className="text-sm text-muted-foreground">Loading more tasks...</div>
+                  )}
+                  {!hasNextPage && allTasks.length > 0 && (
+                    <div className="text-sm text-muted-foreground">
+                      All {totalTaskCount} tasks loaded
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              // Compact List View - Single Row, Inline Editable
+              <div className="rounded-lg border border-border/60 bg-card/50 backdrop-blur-sm overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-b border-border/60 hover:bg-transparent">
+                      <TableHead className="w-8 py-2"></TableHead>
+                      <TableHead className="font-semibold py-2 text-xs min-w-[200px]">Task</TableHead>
+                      <TableHead className="font-semibold w-20 py-2 text-xs">Type</TableHead>
+                      <TableHead className="font-semibold w-20 py-2 text-xs">Priority</TableHead>
+                      <TableHead className="font-semibold w-24 py-2 text-xs">Status</TableHead>
+                      <TableHead className="font-semibold w-32 py-2 text-xs">Assigned</TableHead>
+                      <TableHead className="font-semibold w-28 py-2 text-xs">Due</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredTasks.map((task) => (
+                      <TableRow
+                        key={task.id}
+                        className="hover:bg-muted/30 transition-colors border-b border-border/30 last:border-0 group"
+                      >
+                        {/* Checkbox */}
+                        <TableCell className="py-1.5">
+                          <Checkbox
+                            checked={task.status === 'done'}
+                            onClick={(e) => e.stopPropagation()}
+                            className="h-3.5 w-3.5"
+                          />
+                        </TableCell>
+
+                        {/* Task Title with Related Entity - Single Line */}
+                        <TableCell className="py-1.5">
+                          <div
+                            className="flex items-center gap-2 cursor-pointer"
+                            onClick={() => handleTaskClick(task)}
+                          >
+                            <div className={cn(
+                              "w-1 h-5 rounded-full flex-shrink-0",
+                              task.priority === 4 ? 'bg-red-500' :
+                              task.priority === 3 ? 'bg-orange-500' :
+                              task.priority === 2 ? 'bg-blue-500' :
+                              'bg-gray-500'
+                            )} />
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <span className="font-medium text-xs truncate">{task.title}</span>
+                              <RelatedEntity task={task} onClick={handleRelatedEntityClick} />
+                            </div>
+                          </div>
+                        </TableCell>
+
+                        {/* Type Badge */}
+                        <TableCell className="py-1.5" onClick={(e) => e.stopPropagation()}>
+                          <Badge variant="outline" className="text-[10px] font-normal border-border/60 bg-background/50 px-1.5 py-0 whitespace-nowrap">
+                            {TASK_TYPE_LABELS[task.task_type]}
+                          </Badge>
+                        </TableCell>
+
+                        {/* Priority - Inline Editable (Click to change) */}
+                        <TableCell className="py-1.5" onClick={(e) => e.stopPropagation()}>
+                          <InlinePrioritySelect
+                            value={task.priority}
+                            onSave={(priority) => handleInlinePriorityUpdate(task.id, priority)}
+                            className="h-6 text-[10px] whitespace-nowrap hover:bg-accent/50 rounded transition-colors"
+                          />
+                        </TableCell>
+
+                        {/* Status - Inline Editable (Click to change) */}
+                        <TableCell className="py-1.5" onClick={(e) => e.stopPropagation()}>
+                          <InlineStatusBadge
+                            value={task.status}
+                            onSave={(status) => handleInlineStatusUpdate(task.id, status)}
+                            labels={TASK_STATUS_LABELS}
+                            className="text-[10px] py-0.5 px-2 h-auto whitespace-nowrap hover:ring-2 hover:ring-primary/50 hover:brightness-110 transition-all cursor-pointer select-none"
+                          />
+                        </TableCell>
+
+                        {/* Assigned - Inline Editable */}
+                        <TableCell className="py-1.5" onClick={(e) => e.stopPropagation()}>
+                          <InlineAssigneeSelect
+                            value={task.assigned_to_users || []}
+                            onSave={(users) => handleInlineAssigneeUpdate(task.id, users)}
+                            className="h-6 px-1 text-[10px]"
+                            placeholder="Assign"
+                            compact
+                          />
+                        </TableCell>
+
+                        {/* Due Date - Inline Editable */}
+                        <TableCell className="py-1.5" onClick={(e) => e.stopPropagation()}>
+                          <InlineDatePicker
+                            value={task.due_date}
+                            onSave={(date) => handleInlineDateUpdate(task.id, date)}
+                            placeholder="Set date"
+                            className="h-6 px-1 text-[10px]"
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                {/* Infinite scroll trigger */}
+                <div ref={loadMoreRef} className="py-4 flex items-center justify-center">
+                  {isFetchingNextPage && (
+                    <div className="text-sm text-muted-foreground">Loading more tasks...</div>
+                  )}
+                  {!hasNextPage && allTasks.length > 0 && (
+                    <div className="text-sm text-muted-foreground">
+                      All {totalTaskCount} tasks loaded
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
           ) : (
             // Calendar View
-            <Card>
-              <CardContent className="p-8">
-                <p className="text-center text-muted-foreground">Calendar view coming soon...</p>
-              </CardContent>
-            </Card>
+            <TaskCalendar
+              tasks={filteredTasks}
+              onTaskClick={(task) => {
+                setViewTask(task)
+                setTaskViewOpen(true)
+              }}
+              onDateClick={(date) => {
+                // Could open create panel with pre-filled due date
+                setTaskCreateOpen(true)
+              }}
+            />
           )}
 
           {/* Drag Overlay - shows the task being dragged */}
           <DragOverlay modifiers={[snapCenterToCursor]}>
             {activeTask ? (
-              <Card className="p-3 cursor-grabbing shadow-2xl rotate-2 w-[280px]">
+              <Card className="p-2.5 cursor-grabbing shadow-2xl ring-2 ring-primary/50 rotate-2 w-[280px] bg-card border-primary/40">
                 <div className="space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <h4 className="text-sm font-medium line-clamp-2 flex-1">{activeTask.title}</h4>
-                    <Flag className={cn("h-3 w-3 flex-shrink-0", getPriorityColor(activeTask.priority))} />
+                  <div className="flex items-start justify-between gap-1.5">
+                    <h4 className="text-xs font-semibold line-clamp-2 flex-1 leading-tight">{activeTask.title}</h4>
+                    <div className={cn(
+                      "flex-shrink-0 w-4 h-4 rounded flex items-center justify-center",
+                      activeTask.priority === 4 ? 'bg-red-500/15' :
+                      activeTask.priority === 3 ? 'bg-orange-500/15' :
+                      activeTask.priority === 2 ? 'bg-blue-500/15' :
+                      'bg-gray-500/15'
+                    )}>
+                      <Flag className={cn("h-2.5 w-2.5", getPriorityColor(activeTask.priority))} />
+                    </div>
                   </div>
-                  {activeTask.description && (
-                    <p className="text-xs text-muted-foreground line-clamp-2">
-                      {activeTask.description}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-1 flex-wrap">
-                    <Badge variant="outline" className="text-xs">
+                  <div className="flex items-center gap-1">
+                    <Badge variant="outline" className="text-[10px] font-normal border-border/60 bg-background/50 h-4 px-1.5">
                       {TASK_TYPE_LABELS[activeTask.task_type]}
-                    </Badge>
-                    <Badge variant="secondary" className="text-xs">
-                      {TASK_PRIORITY_LABELS[activeTask.priority]}
                     </Badge>
                   </div>
                 </div>
@@ -695,18 +1055,26 @@ export default function TaskManagement() {
         </DndContext>
       </div>
 
-      {/* Task Form Dialog */}
+      {/* Task Form Dialog - Only for advanced editing */}
       <TaskFormDialog
         open={taskDialogOpen}
         onOpenChange={setTaskDialogOpen}
         task={selectedTask}
       />
 
-      {/* Task Detail Panel */}
+      {/* Task Detail Panel - View/Edit existing tasks */}
       <TaskDetailPanel
         task={viewTask}
         open={taskViewOpen}
         onOpenChange={setTaskViewOpen}
+      />
+
+      {/* Task Create Panel - Same panel but in create mode */}
+      <TaskDetailPanel
+        task={null}
+        open={taskCreateOpen}
+        onOpenChange={setTaskCreateOpen}
+        createMode={true}
       />
     </AppLayout>
   )

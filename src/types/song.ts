@@ -104,6 +104,7 @@ export interface SongChecklistItem {
   validation_rule: Record<string, any>;
   help_text?: string;
   help_link?: string;
+  asset_url?: string;
   order: number;
   completed_at?: string;
   completed_by?: number | null;

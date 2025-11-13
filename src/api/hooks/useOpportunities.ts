@@ -331,6 +331,23 @@ export function useCreateOpportunityDeliverable() {
   });
 }
 
+export function useUpdateOpportunityDeliverable() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<OpportunityDeliverable> }) =>
+      opportunityDeliverablesApi.update(id, data).then(res => res.data),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: opportunityKeys.deliverables(data.opportunity) });
+      queryClient.invalidateQueries({ queryKey: opportunityKeys.detail(data.opportunity) });
+      toast.success('Deliverable updated');
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || 'Failed to update deliverable');
+    },
+  });
+}
+
 // === USAGE TERMS ===
 
 export function useUsageTerms(params?: { is_template?: boolean; search?: string }) {

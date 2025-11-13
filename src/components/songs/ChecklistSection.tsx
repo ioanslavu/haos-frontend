@@ -38,6 +38,7 @@ interface ChecklistSectionProps {
   currentStage?: string;
   onToggle?: (itemId: number) => void;
   onAssign?: (itemId: number) => void;
+  onUpdateAssetUrl?: (itemId: number, assetUrl: string) => void;
   onValidateAll?: () => void;
   onCompleteStage?: () => void;
   onSendToMarketing?: () => void;
@@ -55,6 +56,7 @@ export const ChecklistSection = ({
   currentStage,
   onToggle,
   onAssign,
+  onUpdateAssetUrl,
   onValidateAll,
   onCompleteStage,
   onSendToMarketing,
@@ -187,6 +189,7 @@ export const ChecklistSection = ({
                           songId={songId}
                           onToggle={onToggle}
                           onAssign={onAssign}
+                          onUpdateAssetUrl={onUpdateAssetUrl}
                           disabled={disabled}
                         />
                       ))}
@@ -221,6 +224,7 @@ export const ChecklistSection = ({
                       songId={songId}
                       onToggle={onToggle}
                       onAssign={onAssign}
+                      onUpdateAssetUrl={onUpdateAssetUrl}
                       disabled={disabled}
                     />
                   ))}
@@ -300,6 +304,7 @@ export const ChecklistSection = ({
                                 songId={songId}
                                 onToggle={onToggle}
                                 onAssign={onAssign}
+                                onUpdateAssetUrl={onUpdateAssetUrl}
                                 disabled={disabled}
                               />
                             ))}

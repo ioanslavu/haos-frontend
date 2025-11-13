@@ -37,7 +37,15 @@ export const TopBar: React.FC<TopBarProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 max-w-2xl mx-6">
+      {/* ===== SEARCH BAR UI DISABLED (2025-01-13) =====
+          To re-enable:
+          1. Uncomment the div block below
+          2. Uncomment the onClick handler (line ~42)
+          3. Uncomment keyboard shortcut in command-palette.tsx (lines ~90-100)
+          Reason: Temporarily disabled per user request
+          ================================================ */}
+
+      {/* <div className="flex-1 max-w-2xl mx-6">
         <button
           // onClick={() => setOpen(true)}
           aria-label="Open command palette to search"
@@ -51,7 +59,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             ⌘K
           </kbd>
         </button>
-      </div>
+      </div> */}
 
       <div className="flex items-center gap-2">
         <NotificationBell />

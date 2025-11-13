@@ -126,12 +126,45 @@ export function CampaignsTab({ searchQuery, filterStatus, filterService, filterP
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
 
-  const { data: campaigns, isLoading } = useCampaigns({
+  // Build filter params for backend
+  const filterParams: any = {
     status: filterStatus !== 'all' ? filterStatus : undefined,
     service_type: filterService !== 'all' ? filterService : undefined,
+    search: searchQuery || undefined,
     page: currentPage,
     page_size: itemsPerPage,
-  });
+  };
+
+  // Add client filter
+  if (filterClient && filterClient !== 'all') {
+    filterParams.client = Number(filterClient);
+  }
+
+  // Add date range filters
+  if (filterPeriod === 'custom') {
+    if (startDate) {
+      filterParams.created_after = startDate.toISOString();
+    }
+    if (endDate) {
+      filterParams.created_before = endDate.toISOString();
+    }
+  } else if (filterPeriod !== 'all' && filterPeriod !== '30d') {
+    // For predefined periods, calculate the date range
+    const now = new Date();
+    const periodDays: Record<string, number> = {
+      '7d': 7,
+      '30d': 30,
+      '90d': 90,
+      'year': 365
+    };
+    const days = periodDays[filterPeriod];
+    if (days) {
+      const cutoffDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+      filterParams.created_after = cutoffDate.toISOString();
+    }
+  }
+
+  const { data: campaigns, isLoading } = useCampaigns(filterParams);
   const updateCampaign = useUpdateCampaign();
 
   // Extract campaigns from paginated response
@@ -155,44 +188,9 @@ export function CampaignsTab({ searchQuery, filterStatus, filterService, filterP
     })
   );
 
-  // Filter campaigns based on search, date range, and client
-  const filteredCampaigns = campaignsList.filter(campaign => {
-    // Search filter
-    const matchesSearch =
-      campaign.campaign_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      campaign.client.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      campaign.artist?.display_name.toLowerCase().includes(searchQuery.toLowerCase());
-
-    if (!matchesSearch) return false;
-
-    // Date range filter
-    if (filterPeriod === 'custom' && (startDate || endDate)) {
-      const createdAt = new Date(campaign.created_at);
-      if (startDate && createdAt < startDate) return false;
-      if (endDate && createdAt > endDate) return false;
-    } else if (filterPeriod !== 'custom' && filterPeriod !== 'all') {
-      const now = new Date();
-      const periodDays: Record<string, number> = {
-        '7d': 7,
-        '30d': 30,
-        '90d': 90,
-        'year': 365
-      };
-      const days = periodDays[filterPeriod];
-      if (days) {
-        const cutoffDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-        const createdAt = new Date(campaign.created_at);
-        if (createdAt < cutoffDate) return false;
-      }
-    }
-
-    // Client filter
-    if (filterClient && filterClient !== 'all') {
-      if (String(campaign.client.id) !== filterClient) return false;
-    }
-
-    return true;
-  });
+  // Campaigns are already filtered by the backend
+  // No need for frontend filtering anymore
+  const filteredCampaigns = campaignsList;
 
   // Group campaigns by status for kanban view
   const campaignsByStatus = {
@@ -450,34 +448,37 @@ export function CampaignsTab({ searchQuery, filterStatus, filterService, filterP
           onDragEnd={handleDragEnd}
           onDragCancel={handleDragCancel}
         >
-        <div className="grid grid-cols-6 gap-4">
+        <div className="grid grid-cols-6 gap-8">
           {statusColumns.map((column) => (
             <DroppableColumn key={column.id} id={column.id}>
-            <Card className="h-[600px] flex flex-col">
-              <CardHeader className="pb-3">
+            <div className="h-[700px] flex flex-col">
+              {/* Column Header */}
+              <div className="pb-5 mb-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${column.color}`} />
-                    <CardTitle className="text-sm">{column.label}</CardTitle>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-3 h-3 rounded-full ${column.color}`} />
+                    <h3 className="text-base font-semibold">{column.label}</h3>
                   </div>
-                  <Badge variant="secondary">
+                  <Badge variant="secondary" className="text-sm px-2.5 py-1 font-medium">
                     {campaignsByStatus[column.id as keyof typeof campaignsByStatus].length}
                   </Badge>
                 </div>
-              </CardHeader>
-              <CardContent className="flex-1 overflow-auto">
-                <div className="space-y-2">
+              </div>
+              {/* Scrollable Cards Container */}
+              <div className="flex-1 overflow-auto">
+                <div className="space-y-4 pr-2">
                   {campaignsByStatus[column.id as keyof typeof campaignsByStatus].map((campaign) => (
                     <DraggableCampaignCard key={campaign.id} campaign={campaign} onClick={() => navigate(`/digital/campaigns/${campaign.id}`)}>
                     <Card
-                      className="p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
+                      className="p-5 cursor-grab active:cursor-grabbing hover:shadow-xl hover:border-primary/50 transition-all duration-200 bg-card"
                     >
-                      <div className="space-y-2">
-                        <div className="flex items-start justify-between">
-                          <h4 className="text-sm font-medium line-clamp-2">
+                      <div className="space-y-4">
+                        {/* Title and Actions */}
+                        <div className="flex items-start justify-between gap-3">
+                          <h4 className="text-sm font-semibold line-clamp-2 leading-snug flex-1 min-w-0">
                             {campaign.campaign_name}
                           </h4>
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1 flex-shrink-0">
                             <ServiceMetricsUpdateDialog
                               campaign={campaign}
                               variant="ghost"
@@ -486,72 +487,76 @@ export function CampaignsTab({ searchQuery, filterStatus, filterService, filterP
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-6 w-6"
+                                className="h-8 w-8 hover:bg-muted"
                                 onClick={(e) => e.stopPropagation()}
                               >
-                                <Edit className="h-3 w-3" />
+                                <Edit className="h-4 w-4" />
                               </Button>
                             </ServiceMetricsUpdateDialog>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-6 w-6"
+                              className="h-8 w-8 hover:bg-muted"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <MoreHorizontal className="h-3 w-3" />
+                              <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          {campaign.service_types && campaign.service_types.length > 0 && (
-                            campaign.service_types.map((st: string, idx: number) => (
-                              <Badge key={idx} variant="outline" className="text-xs">
-                                {campaign.service_types_display?.[idx] || st}
+                        {/* Service Types - Show only first one + count */}
+                        {campaign.service_types && campaign.service_types.length > 0 && (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant="outline" className="text-xs font-medium px-2.5 py-1">
+                              {campaign.service_types_display?.[0] || campaign.service_types[0]}
+                            </Badge>
+                            {campaign.service_types.length > 1 && (
+                              <Badge variant="secondary" className="text-xs px-2 py-1">
+                                +{campaign.service_types.length - 1}
                               </Badge>
-                            ))
-                          )}
-                          {campaign.platforms && campaign.platforms.length > 0 && (
-                            campaign.platforms.map((p: string, idx: number) => (
-                              <Badge key={idx} variant="secondary" className="text-xs">
-                                {campaign.platforms_display?.[idx] || p}
-                              </Badge>
-                            ))
-                          )}
-                        </div>
+                            )}
+                          </div>
+                        )}
 
-                        <div className="space-y-1">
-                          <p className="text-xs text-muted-foreground">
+                        {/* Client & Artist */}
+                        <div className="space-y-1.5">
+                          <p className="text-sm font-semibold text-foreground truncate">
                             {campaign.client.display_name}
                           </p>
                           {campaign.artist && (
-                            <p className="text-xs text-muted-foreground">
-                              {campaign.artist.display_name}
+                            <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                              <span>🎵</span>
+                              <span>{campaign.artist.display_name}</span>
                             </p>
                           )}
                         </div>
 
-                        <div className="flex items-center justify-between pt-2 border-t">
+                        {/* Metrics Row */}
+                        <div className="flex items-center justify-between pt-3 border-t border-border/50">
                           {/* Campaign Value - Hidden for digital_employee */}
-                          {currentUser?.role !== 'digital_employee' && (
-                            <div className="flex items-center gap-1">
-                              <DollarSign className="h-3 w-3 text-muted-foreground" />
-                              <span className="text-xs">
+                          {currentUser?.role !== 'digital_employee' && campaign.value && (
+                            <div className="flex items-center gap-2">
+                              <DollarSign className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+                              <span className="text-sm font-semibold text-foreground">
                                 {campaign.currency || '€'}{parseFloat(campaign.value).toLocaleString()}
                               </span>
                             </div>
                           )}
-                          <div className="flex items-center gap-1">
-                            <Target className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-xs">
+                          <div className={cn(
+                            "flex items-center gap-2",
+                            currentUser?.role === 'digital_employee' || !campaign.value ? "ml-0" : "ml-auto"
+                          )}>
+                            <Target className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                            <span className="text-sm font-medium">
                               {campaign.kpi_completion || 0}%
                             </span>
                           </div>
                         </div>
 
+                        {/* Due Date */}
                         {campaign.end_date && (
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Clock className="h-3 w-3" />
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground pt-0.5">
+                            <Clock className="h-4 w-4 flex-shrink-0" />
                             <span>
                               {formatDistanceToNow(new Date(campaign.end_date), { addSuffix: true })}
                             </span>
@@ -562,8 +567,8 @@ export function CampaignsTab({ searchQuery, filterStatus, filterService, filterP
                     </DraggableCampaignCard>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
             </DroppableColumn>
           ))}
         </div>
@@ -571,27 +576,26 @@ export function CampaignsTab({ searchQuery, filterStatus, filterService, filterP
         {/* Drag Overlay - shows the campaign being dragged */}
         <DragOverlay modifiers={[snapCenterToCursor]}>
           {activeCampaign ? (
-            <Card className="p-3 cursor-grabbing shadow-2xl rotate-2 w-[280px]">
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium line-clamp-2">
+            <Card className="p-5 cursor-grabbing shadow-2xl rotate-2 w-[300px] bg-card border-2 border-primary/50">
+              <div className="space-y-4">
+                <h4 className="text-sm font-semibold line-clamp-2 leading-snug">
                   {activeCampaign.campaign_name}
                 </h4>
-                <div className="flex items-center gap-2">
-                  {activeCampaign.service_types && activeCampaign.service_types.length > 0 && (
-                    activeCampaign.service_types.map((st: string, idx: number) => (
-                      <Badge key={idx} variant="outline" className="text-xs">
-                        {activeCampaign.service_types_display?.[idx] || st}
+                {activeCampaign.service_types && activeCampaign.service_types.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-xs font-medium px-2.5 py-1">
+                      {activeCampaign.service_types_display?.[0] || activeCampaign.service_types[0]}
+                    </Badge>
+                    {activeCampaign.service_types.length > 1 && (
+                      <Badge variant="secondary" className="text-xs px-2 py-1">
+                        +{activeCampaign.service_types.length - 1}
                       </Badge>
-                    ))
-                  )}
-                  {activeCampaign.platforms && activeCampaign.platforms.length > 0 && (
-                    activeCampaign.platforms.map((p: string, idx: number) => (
-                      <Badge key={idx} variant="secondary" className="text-xs">
-                        {activeCampaign.platforms_display?.[idx] || p}
-                      </Badge>
-                    ))
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
+                <p className="text-sm font-semibold text-foreground truncate">
+                  {activeCampaign.client.display_name}
+                </p>
               </div>
             </Card>
           ) : null}

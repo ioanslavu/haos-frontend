@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Flag } from 'lucide-react';
+import { Flag, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TASK_PRIORITY_LABELS, TASK_PRIORITY_COLORS } from '@/api/types/tasks';
 
@@ -15,7 +16,12 @@ interface InlinePrioritySelectProps {
   className?: string;
 }
 
-const PRIORITY_CHOICES = [4, 3, 2, 1];
+const PRIORITY_CHOICES = [
+  { value: 4, label: 'Urgent', color: 'text-red-600 dark:text-red-400', bg: 'hover:bg-red-500/10' },
+  { value: 3, label: 'High', color: 'text-orange-600 dark:text-orange-400', bg: 'hover:bg-orange-500/10' },
+  { value: 2, label: 'Normal', color: 'text-blue-600 dark:text-blue-400', bg: 'hover:bg-blue-500/10' },
+  { value: 1, label: 'Low', color: 'text-gray-600 dark:text-gray-400', bg: 'hover:bg-gray-500/10' },
+];
 
 export function InlinePrioritySelect({
   value,
@@ -25,20 +31,7 @@ export function InlinePrioritySelect({
   const [isOpen, setIsOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const getPriorityColor = (priority: number) => {
-    switch (priority) {
-      case 4:
-        return 'text-red-600';
-      case 3:
-        return 'text-orange-600';
-      case 2:
-        return 'text-blue-600';
-      case 1:
-        return 'text-gray-600';
-      default:
-        return 'text-gray-600';
-    }
-  };
+  const currentPriority = PRIORITY_CHOICES.find(p => p.value === value) || PRIORITY_CHOICES[2];
 
   const handleChange = async (newValue: number) => {
     if (newValue === value) {
@@ -58,38 +51,50 @@ export function InlinePrioritySelect({
   };
 
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
+    <Popover open={isOpen} onOpenChange={setIsOpen} modal={true}>
       <PopoverTrigger asChild>
-        <Badge
-          variant={TASK_PRIORITY_COLORS[value] as any || 'secondary'}
+        <Button
+          variant="ghost"
+          size="sm"
           className={cn(
-            'cursor-pointer transition-all duration-200',
-            'hover:scale-105 hover:shadow-md',
-            'animate-in fade-in duration-200',
+            'h-7 px-2 gap-1.5 font-medium',
+            'hover:bg-accent transition-colors',
             className
           )}
         >
-          <Flag className={cn('h-3 w-3 mr-1', getPriorityColor(value))} />
-          {TASK_PRIORITY_LABELS[value]}
-        </Badge>
+          <Flag className={cn('h-3.5 w-3.5', currentPriority.color)} />
+          <span className="text-xs">{currentPriority.label}</span>
+        </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[180px] p-2" align="start">
-        <div className="space-y-1">
-          {PRIORITY_CHOICES.map((priority) => (
-            <button
-              key={priority}
-              onClick={() => handleChange(priority)}
-              disabled={isSaving}
-              className={cn(
-                'w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md',
-                'hover:bg-accent transition-colors duration-150',
-                priority === value && 'bg-accent font-medium'
-              )}
-            >
-              <Flag className={cn('h-4 w-4', getPriorityColor(priority))} />
-              {TASK_PRIORITY_LABELS[priority]}
-            </button>
-          ))}
+      <PopoverContent className="w-[200px] p-1 z-[60]" align="start">
+        <div className="space-y-0.5">
+          <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+            Set Priority
+          </div>
+          {PRIORITY_CHOICES.map((priority) => {
+            const isSelected = priority.value === value;
+            return (
+              <button
+                key={priority.value}
+                onClick={() => handleChange(priority.value)}
+                disabled={isSaving}
+                className={cn(
+                  'w-full flex items-center justify-between gap-2 px-2 py-2 text-sm rounded-md',
+                  'transition-colors duration-150',
+                  priority.bg,
+                  isSelected && 'bg-accent/50 font-medium'
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <Flag className={cn('h-4 w-4', priority.color)} />
+                  <span>{priority.label}</span>
+                </div>
+                {isSelected && (
+                  <Check className="h-4 w-4 text-primary" />
+                )}
+              </button>
+            );
+          })}
         </div>
       </PopoverContent>
     </Popover>

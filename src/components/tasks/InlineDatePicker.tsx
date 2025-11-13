@@ -57,7 +57,7 @@ export function InlineDatePicker({
   };
 
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
+    <Popover open={isOpen} onOpenChange={setIsOpen} modal={true}>
       <PopoverTrigger asChild>
         <Button
           variant="ghost"
@@ -82,7 +82,7 @@ export function InlineDatePicker({
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
+      <PopoverContent className="w-auto p-0 z-[60]" align="start">
         <Calendar
           mode="single"
           selected={value ? new Date(value) : undefined}

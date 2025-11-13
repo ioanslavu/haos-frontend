@@ -10,8 +10,9 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useOpportunity, useMarkWon, useMarkLost, useOpportunityActivities, useUsageTerm, useDeliverablePack, useApprovals, opportunityKeys, useUsageTerms, useUpdateOpportunity } from '@/api/hooks/useOpportunities';
+import { useOpportunity, useMarkWon, useMarkLost, useOpportunityActivities, useUsageTerm, useDeliverablePack, useApprovals, opportunityKeys, useUsageTerms, useUpdateOpportunity, useUpdateOpportunityDeliverable } from '@/api/hooks/useOpportunities';
 import { opportunityDeliverablesApi } from '@/api/services/opportunities.service';
 import { useQueryClient } from '@tanstack/react-query';
 import { formatMoney, formatDate } from '@/lib/utils';
@@ -48,6 +49,32 @@ export default function OpportunityDetail() {
   const markWonMutation = useMarkWon();
   const markLostMutation = useMarkLost();
   const updateMutation = useUpdateOpportunity();
+  const updateDeliverableMutation = useUpdateOpportunityDeliverable();
+  const [assetUrlEdits, setAssetUrlEdits] = useState<Record<number, string>>({});
+
+  // Handle asset URL update
+  const handleAssetUrlChange = (deliverableId: number, value: string) => {
+    setAssetUrlEdits(prev => ({ ...prev, [deliverableId]: value }));
+  };
+
+  const handleAssetUrlSave = async (deliverableId: number, currentValue: string) => {
+    const newValue = assetUrlEdits[deliverableId];
+    if (newValue !== undefined && newValue !== currentValue) {
+      try {
+        await updateDeliverableMutation.mutateAsync({
+          id: deliverableId,
+          data: { asset_url: newValue }
+        });
+        // Clear the edit state after successful save
+        setAssetUrlEdits(prev => {
+          const { [deliverableId]: _, ...rest } = prev;
+          return rest;
+        });
+      } catch (error) {
+        // Error is handled by the mutation's onError
+      }
+    }
+  };
 
   // Import deliverables from pack
   const handleImportFromPack = async () => {
@@ -603,10 +630,52 @@ export default function OpportunityDetail() {
                               Due: {formatDate(deliverable.due_date)}
                             </p>
                           )}
+
+                          {/* Asset URL Input */}
+                          <div className="mt-3">
+                            <label className="text-xs text-muted-foreground mb-1 block">
+                              Asset URL
+                            </label>
+                            <Input
+                              placeholder="https://s3.amazonaws.com/... or Google Drive link"
+                              value={assetUrlEdits[deliverable.id] ?? deliverable.asset_url ?? ''}
+                              onChange={(e) => handleAssetUrlChange(deliverable.id, e.target.value)}
+                              onBlur={() => handleAssetUrlSave(deliverable.id, deliverable.asset_url || '')}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.currentTarget.blur();
+                                }
+                              }}
+                              className="text-xs h-8"
+                              disabled={updateDeliverableMutation.isPending}
+                            />
+                            {deliverable.asset_url && (
+                              <a
+                                href={deliverable.asset_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-primary hover:underline mt-1 inline-block"
+                              >
+                                View asset →
+                              </a>
+                            )}
+                          </div>
                         </div>
                         <div className="flex gap-2">
                           <DeliverableTriggerButton
                             deliverableId={deliverable.id}
+                            context="opportunity_detail"
+                            contextData={{
+                              deliverable_type: DELIVERABLE_TYPE_CONFIG[deliverable.deliverable_type as DeliverableType]?.label || deliverable.deliverable_type,
+                              quantity: deliverable.quantity,
+                              due_date: deliverable.due_date || 'Not set',
+                              status: deliverable.status.replace('_', ' '),
+                              description: deliverable.description || 'No description provided',
+                              opportunity: {
+                                id: opportunity.id,
+                                name: opportunity.title
+                              }
+                            }}
                             className="text-xs"
                             variant="outline"
                           />

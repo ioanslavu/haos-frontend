@@ -799,27 +799,32 @@ export default function CampaignDetailPage() {
                   Team ({campaign.assignments.length})
                 </h2>
                 <div className="space-y-4">
-                  {campaign.assignments.map((handler: any) => (
-                    <div key={handler.id} className="flex items-center gap-3 p-3 rounded-lg bg-background/30 border border-white/10">
-                      <Avatar>
-                        <AvatarImage src={handler.user?.avatar} />
-                        <AvatarFallback>
-                          {handler.user?.first_name?.[0]}{handler.user?.last_name?.[0]}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium truncate">
-                          {handler.user?.first_name} {handler.user?.last_name}
+                  {campaign.assignments.map((handler: any) => {
+                    // Get initials from user_name if available
+                    const userName = handler.user_name || 'Unknown User';
+                    const initials = userName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
+
+                    return (
+                      <div key={handler.id} className="flex items-center gap-3 p-3 rounded-lg bg-background/30 border border-white/10">
+                        <Avatar>
+                          <AvatarFallback>
+                            {initials}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">
+                            {userName}
+                          </div>
+                          <div className="text-sm text-muted-foreground truncate">
+                            {handler.user_email || 'No email'}
+                          </div>
                         </div>
-                        <div className="text-sm text-muted-foreground truncate">
-                          {handler.user?.email || 'No email'}
-                        </div>
+                        <Badge variant="outline" className="capitalize shrink-0">
+                          {handler.role_display || handler.role}
+                        </Badge>
                       </div>
-                      <Badge variant="outline" className="capitalize shrink-0">
-                        {handler.role_display || handler.role}
-                      </Badge>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ) : (

@@ -64,7 +64,7 @@ export default function SongCreatePage() {
       artist: undefined,
       genre: '',
       language: 'English',
-      target_release_date: '',
+      target_release_date: undefined,
     },
   });
 
@@ -111,7 +111,12 @@ export default function SongCreatePage() {
   });
 
   const onSubmit = (data: FormValues) => {
-    createMutation.mutate(data as SongCreate);
+    // Convert empty strings to null for optional date fields
+    const cleanedData = {
+      ...data,
+      target_release_date: data.target_release_date || null,
+    };
+    createMutation.mutate(cleanedData as SongCreate);
   };
 
   const handleAddFeaturedArtist = () => {
