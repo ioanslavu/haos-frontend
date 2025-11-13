@@ -209,7 +209,7 @@ export const ChecklistSection = ({
           return (
             <div key={category} className="space-y-3">
               <div className="flex items-center justify-between">
-                <h4 className="font-medium text-sm text-gray-700">{category}</h4>
+                <h4 className="font-medium text-sm text-gray-700 dark:text-gray-300">{category}</h4>
                 <span className="text-xs text-muted-foreground">
                   {categoryCompleted} / {categoryTotal}
                 </span>
@@ -289,7 +289,7 @@ export const ChecklistSection = ({
                     return (
                       <div key={category} className="space-y-3">
                         <div className="flex items-center justify-between">
-                          <h5 className="font-medium text-sm text-gray-700">{category}</h5>
+                          <h5 className="font-medium text-sm text-gray-700 dark:text-gray-300">{category}</h5>
                           <span className="text-xs text-muted-foreground">
                             {categoryCompleted} / {categoryTotal}
                           </span>

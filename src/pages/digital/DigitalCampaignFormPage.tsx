@@ -33,7 +33,7 @@ import { ContactPersonFormDialog } from '@/components/entities/ContactPersonForm
 import { FormProgress } from '@/components/ui/form-progress'
 import { ClientHealthScore } from '@/components/entities/ClientHealthScore'
 import { useCreateCampaign, useUpdateCampaign, useCampaign } from '@/api/hooks/useCampaigns'
-import { CAMPAIGN_STATUS_LABELS, CAMPAIGN_ASSIGNMENT_ROLE_LABELS, PRICING_MODEL_LABELS, INVOICE_STATUS_LABELS } from '@/types/campaign'
+import { CAMPAIGN_STATUS_LABELS, CAMPAIGN_TYPE_LABELS, CAMPAIGN_ASSIGNMENT_ROLE_LABELS, PRICING_MODEL_LABELS, INVOICE_STATUS_LABELS } from '@/types/campaign'
 import {
   SERVICE_TYPE_LABELS,
   PLATFORM_LABELS,
@@ -61,6 +61,7 @@ const kpiTargetSchema = z.object({
 
 const digitalCampaignFormSchema = z.object({
   campaign_name: z.string().min(1, 'Campaign name is required'),
+  campaign_type: z.enum(['endorsement', 'post', 'song', 'sale']).optional().nullable(),
   client_type: z.enum(['internal', 'external']),
   client: z.number({ required_error: 'Client is required' }),
   contact_person: z.number().optional().nullable(),
@@ -109,6 +110,7 @@ export function DigitalCampaignFormPage() {
     resolver: zodResolver(digitalCampaignFormSchema),
     defaultValues: {
       campaign_name: '',
+      campaign_type: null,
       client_type: 'external',
       client: undefined,
       contact_person: null,
@@ -239,6 +241,7 @@ export function DigitalCampaignFormPage() {
     if (campaign && isEdit) {
       form.reset({
         campaign_name: campaign.campaign_name,
+        campaign_type: campaign.campaign_type || null,
         client_type: (campaign.client as any).is_internal ? 'internal' : 'external',
         client: campaign.client.id,
         contact_person: campaign.contact_person?.id || null,
@@ -295,6 +298,7 @@ export function DigitalCampaignFormPage() {
 
       const payload = {
         campaign_name: data.campaign_name,
+        campaign_type: data.campaign_type || undefined,
         client: data.client,
         brand: data.client, // For digital campaigns, brand is the same as client
         contact_person: data.contact_person || undefined,
@@ -457,6 +461,35 @@ export function DigitalCampaignFormPage() {
                       <FormControl>
                         <Input placeholder="Enter campaign name" {...field} />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="campaign_type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Campaign Type</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value || undefined}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select type (optional)" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          {Object.entries(CAMPAIGN_TYPE_LABELS).map(([value, label]) => (
+                            <SelectItem key={value} value={value}>
+                              {label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

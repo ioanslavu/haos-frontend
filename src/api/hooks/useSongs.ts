@@ -1,12 +1,23 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../client';
-import { WorkWithSplits } from '@/types/song';
+import { WorkWithSplits, Song } from '@/types/song';
+import { fetchSongDetail } from '../songApi';
 
 // Query keys
 export const songKeys = {
   all: ['songs'] as const,
+  detail: (songId: number) => [...songKeys.all, 'detail', songId] as const,
   work: (workId: number) => [...songKeys.all, 'work', workId] as const,
   songWork: (songId: number) => [...songKeys.all, 'song-work', songId] as const,
+};
+
+// Song detail hook
+export const useSong = (songId: number, enabled = true) => {
+  return useQuery({
+    queryKey: songKeys.detail(songId),
+    queryFn: () => fetchSongDetail(songId).then(res => res.data),
+    enabled: enabled && songId > 0,
+  });
 };
 
 // Work hooks for songs

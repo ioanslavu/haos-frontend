@@ -38,6 +38,7 @@ import { KPIProgressUpdateDialog } from '@/components/digital/KPIProgressUpdateD
 import { ActivityTimeline } from '@/components/activities/ActivityTimeline';
 import { TaskDetailPanel } from '@/components/tasks/TaskDetailPanel';
 import { useAuthStore } from '@/stores/authStore';
+import { CAMPAIGN_TYPE_LABELS, CAMPAIGN_TYPE_COLORS } from '@/types/campaign';
 
 export default function CampaignDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -152,6 +153,11 @@ export default function CampaignDetailPage() {
                   <Badge className={cn("text-white", getStatusColor(campaign.status))}>
                     {campaign.status_display || campaign.status}
                   </Badge>
+                  {campaign.campaign_type && (
+                    <Badge className={cn(CAMPAIGN_TYPE_COLORS[campaign.campaign_type])}>
+                      {CAMPAIGN_TYPE_LABELS[campaign.campaign_type]}
+                    </Badge>
+                  )}
                   {campaign.service_types && campaign.service_types.length > 0 && (
                     campaign.service_types.map((st: string, idx: number) => (
                       <Badge key={idx} variant="outline" className="capitalize">

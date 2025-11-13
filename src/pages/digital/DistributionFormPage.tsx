@@ -8,6 +8,7 @@ import { DistributionFormData } from '@/types/distribution'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -50,6 +51,7 @@ export default function DistributionFormPage() {
     if (distribution && isEdit) {
       setValue('entity', distribution.entity.id)
       setValue('deal_type', distribution.deal_type)
+      setValue('includes_dsps_youtube', distribution.includes_dsps_youtube)
       setValue('deal_status', distribution.deal_status)
       setValue('global_revenue_share_percentage', distribution.global_revenue_share_percentage)
       setValue('signing_date', distribution.signing_date)
@@ -65,13 +67,15 @@ export default function DistributionFormPage() {
     if (selectedEntity && !isEdit) {
       const roles = selectedEntity.roles || []
 
-      // Priority: artist > label > aggregator
+      // Priority: artist > label > aggregator > company
       if (roles.some(role => role.toLowerCase() === 'artist')) {
         setValue('deal_type', 'artist')
       } else if (roles.some(role => role.toLowerCase() === 'label')) {
         setValue('deal_type', 'label')
       } else if (roles.some(role => role.toLowerCase() === 'aggregator')) {
         setValue('deal_type', 'aggregator')
+      } else if (roles.some(role => role.toLowerCase() === 'company')) {
+        setValue('deal_type', 'company')
       }
     }
   }, [selectedEntity, isEdit, setValue])
@@ -159,6 +163,7 @@ export default function DistributionFormPage() {
                     <SelectItem value="artist">Artist</SelectItem>
                     <SelectItem value="label">Label</SelectItem>
                     <SelectItem value="aggregator">Aggregator</SelectItem>
+                    <SelectItem value="company">Company</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">Auto-populated from entity roles, but editable</p>
@@ -181,6 +186,21 @@ export default function DistributionFormPage() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            {/* DSPs/Youtube Checkbox */}
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="includes_dsps_youtube"
+                checked={watch('includes_dsps_youtube') || false}
+                onCheckedChange={(checked) => setValue('includes_dsps_youtube', checked as boolean)}
+              />
+              <Label
+                htmlFor="includes_dsps_youtube"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Includes DSPs/YouTube
+              </Label>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">

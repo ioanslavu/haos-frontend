@@ -68,8 +68,10 @@ export const ChecklistItem = ({
     <div
       className={cn(
         'flex items-start gap-3 p-3 rounded-md border',
-        item.is_complete ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200',
-        isManual && !disabled && 'hover:bg-gray-50 cursor-pointer'
+        item.is_complete
+          ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800'
+          : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700',
+        isManual && !disabled && 'hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer'
       )}
       onClick={handleToggle}
     >
@@ -78,7 +80,7 @@ export const ChecklistItem = ({
           <CheckCircle2
             className={cn(
               'h-5 w-5',
-              item.is_complete ? 'text-green-600' : 'text-gray-400'
+              item.is_complete ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'
             )}
           />
         ) : (
@@ -96,7 +98,9 @@ export const ChecklistItem = ({
           <p
             className={cn(
               'text-sm font-medium',
-              item.is_complete ? 'text-green-900 line-through' : 'text-gray-900'
+              item.is_complete
+                ? 'text-green-900 dark:text-green-100 line-through'
+                : 'text-gray-900 dark:text-gray-100'
             )}
           >
             {item.description}
@@ -109,7 +113,7 @@ export const ChecklistItem = ({
           {item.help_text && (
             <Tooltip>
               <TooltipTrigger onClick={(e) => e.stopPropagation()}>
-                <HelpCircle className="h-4 w-4 text-gray-400" />
+                <HelpCircle className="h-4 w-4 text-gray-400 dark:text-gray-500" />
               </TooltipTrigger>
               <TooltipContent>
                 <p className="max-w-xs">{item.help_text}</p>
@@ -119,13 +123,13 @@ export const ChecklistItem = ({
         </div>
 
         {item.assigned_to_name && !item.is_complete && (
-          <p className="text-xs text-blue-600 mt-1 font-medium">
+          <p className="text-xs text-blue-600 dark:text-blue-400 mt-1 font-medium">
             Assigned to {item.assigned_to_name}
           </p>
         )}
 
         {item.completed_at && item.completed_by_name && (
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             Completed by {item.completed_by_name} on{' '}
             {new Date(item.completed_at).toLocaleDateString()}
           </p>
@@ -140,7 +144,7 @@ export const ChecklistItem = ({
                   href={item.asset_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1"
                 >
                   <LinkIcon className="h-3 w-3" />
                   View Asset

@@ -19,7 +19,7 @@ export interface Release {
   release_date?: string
 }
 
-export type DealType = 'artist' | 'label' | 'aggregator'
+export type DealType = 'artist' | 'label' | 'aggregator' | 'company'
 export type DealStatus = 'active' | 'in_negotiation' | 'expired'
 export type DistributionStatus = 'pending' | 'live' | 'taken_down'
 export type Platform = 'meta' | 'google' | 'tiktok' | 'spotify' | 'youtube' | 'apple_music' | 'deezer' | 'amazon_music' | 'soundcloud' | 'twitter' | 'linkedin' | 'snapchat' | 'pinterest' | 'multi'
@@ -29,6 +29,7 @@ export interface Distribution {
   entity: Entity
   deal_type: DealType
   deal_type_display: string
+  includes_dsps_youtube: boolean
   deal_status: DealStatus
   deal_status_display: string
   contract?: {
@@ -99,6 +100,7 @@ export interface DistributionRevenueReport {
 export interface DistributionFormData {
   entity: number
   deal_type?: DealType
+  includes_dsps_youtube?: boolean
   deal_status: DealStatus
   contract?: number | null
   department?: number | null

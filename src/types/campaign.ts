@@ -18,6 +18,12 @@ export type CampaignStatus =
   | 'completed'
   | 'lost'
 
+export type CampaignType =
+  | 'endorsement'
+  | 'post'
+  | 'song'
+  | 'sale'
+
 export type CampaignAssignmentRole = 'lead' | 'support' | 'observer'
 
 export interface CampaignAssignment {
@@ -38,6 +44,7 @@ export type InvoiceStatus = 'not_issued' | 'issued' | 'collected' | 'delayed'
 export interface Campaign {
   id: number
   campaign_name: string
+  campaign_type?: CampaignType | null
   client: Entity
   artist?: Entity | null
   brand: Entity
@@ -97,6 +104,7 @@ export interface Campaign {
 
 export interface CampaignFormData {
   campaign_name: string
+  campaign_type?: CampaignType | null
   client: number
   artist?: number | null
   brand: number
@@ -259,4 +267,18 @@ export const INVOICE_STATUS_COLORS: Record<InvoiceStatus, string> = {
   issued: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
   collected: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
   delayed: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+}
+
+export const CAMPAIGN_TYPE_LABELS: Record<CampaignType, string> = {
+  endorsement: 'Endorsement',
+  post: 'Post',
+  song: 'Song',
+  sale: 'Sale',
+}
+
+export const CAMPAIGN_TYPE_COLORS: Record<CampaignType, string> = {
+  endorsement: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+  post: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+  song: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200',
+  sale: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
 }
