@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,6 +48,7 @@ type ViewSection = 'active' | 'archived';
 
 export default function WorkboardPage() {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
 
   // View state
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -113,8 +115,11 @@ export default function WorkboardPage() {
 
   // Handlers
   const handleProjectClick = (project: Project) => {
-    setSelectedProject(project);
-    setIsDetailOpen(true);
+    // Navigate directly to project detail page
+    navigate(`/workboard/${project.id}`);
+    // TODO: Re-enable modal if needed
+    // setSelectedProject(project);
+    // setIsDetailOpen(true);
   };
 
   const handleClearFilters = () => {
@@ -373,6 +378,7 @@ export default function WorkboardPage() {
       </div>
 
       {/* Modals and Sheets */}
+      {/* TODO: Re-enable modal if needed
       <ProjectDetailSheet
         project={selectedProject}
         isOpen={isDetailOpen}
@@ -381,6 +387,7 @@ export default function WorkboardPage() {
           setSelectedProject(null);
         }}
       />
+      */}
 
       <CreateProjectDialog
         isOpen={isCreateOpen}

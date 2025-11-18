@@ -288,6 +288,12 @@ export const useStartProjectTask = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      toast.success('Task started');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to start task');
     },
   });
 };
@@ -303,7 +309,11 @@ export const useCompleteProjectTask = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
       toast.success('Task completed');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to complete task');
     },
   });
 };
@@ -319,7 +329,11 @@ export const useReopenProjectTask = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
       toast.success('Task reopened');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to reopen task');
     },
   });
 };

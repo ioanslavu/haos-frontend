@@ -77,6 +77,7 @@ export const useUpdateNote = () => {
       queryClient.invalidateQueries({ queryKey: notesKeys.lists() });
       queryClient.invalidateQueries({ queryKey: notesKeys.detail(variables.id) });
       queryClient.invalidateQueries({ queryKey: notesKeys.statistics() });
+      toast.success('Note updated successfully');
     },
     onError: () => {
       toast.error('Failed to update note');
