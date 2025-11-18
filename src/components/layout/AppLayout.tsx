@@ -5,6 +5,7 @@ import { InsightsPanel } from './InsightsPanel';
 import { ImpersonationBanner } from './ImpersonationBanner';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/uiStore';
+import { useAuthStore } from '@/stores/authStore';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -13,14 +14,15 @@ interface AppLayoutProps {
 }
 
 export const AppLayout: React.FC<AppLayoutProps> = ({ children, title, actions }) => {
-  const { 
-    sidebarCollapsed, 
-    setSidebarCollapsed, 
+  const {
+    sidebarCollapsed,
+    setSidebarCollapsed,
     toggleSidebar,
     insightsPanelOpen,
     setInsightsPanelOpen,
     toggleInsightsPanel
   } = useUIStore();
+  const { isAdmin } = useAuthStore();
 
   return (
     <div className="h-screen flex flex-col relative overflow-hidden">
@@ -76,14 +78,15 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, title, actions }
             </div>
           </main>
 
-          <div className="print:hidden">
-            <InsightsPanel
-              isOpen={insightsPanelOpen}
-              onClose={() => setInsightsPanelOpen(false)}
-            />
-          </div>
         </div>
       </div>
+
+      {isAdmin() && (
+        <InsightsPanel
+          isOpen={insightsPanelOpen}
+          onClose={() => setInsightsPanelOpen(false)}
+        />
+      )}
     </div>
   );
 };

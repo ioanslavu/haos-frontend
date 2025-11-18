@@ -1,10 +1,11 @@
 
 import React from 'react';
-import { Search, Menu } from 'lucide-react';
+import { Search, Menu, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { UserDropdownMenu } from './UserDropdownMenu';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { useCommandPalette } from '@/components/command-palette';
+import { useAuthStore } from '@/stores/authStore';
 
 interface TopBarProps {
   onToggleSidebar: () => void;
@@ -18,6 +19,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   insightsPanelOpen
 }) => {
   const { setOpen } = useCommandPalette();
+  const { isAdmin } = useAuthStore();
 
   return (
     <header className="h-16 backdrop-blur-xl bg-white/40 dark:bg-slate-900/40 border-b border-white/20 dark:border-white/10 px-6 flex items-center justify-between m-4 rounded-3xl shadow-2xl">
@@ -63,6 +65,18 @@ export const TopBar: React.FC<TopBarProps> = ({
 
       <div className="flex items-center gap-2">
         <NotificationBell />
+
+        {isAdmin() && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onToggleInsights}
+            className={`h-10 w-10 rounded-xl hover:bg-white/20 dark:hover:bg-white/10 transition-all duration-300 ${insightsPanelOpen ? 'bg-white/20 dark:bg-white/10' : ''}`}
+            aria-label="Toggle stream panel"
+          >
+            <Play className="h-4 w-4" />
+          </Button>
+        )}
 
         {/* User Dropdown Menu with integrated Role Testing for Admins */}
         <UserDropdownMenu />
