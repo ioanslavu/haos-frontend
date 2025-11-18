@@ -43,8 +43,14 @@ const NotesPage = () => {
   const [showSavedIndicator, setShowSavedIndicator] = useState(false);
   const [editorKey, setEditorKey] = useState(0);
   const justLoadedRef = useRef(false);
-  const loadedContentRef = useRef<any>(null); // Track original loaded content to detect real changes
+  const loadedDataRef = useRef<{
+    title: string;
+    content: string;
+    tags: string;
+    color: string | null;
+  } | null>(null); // Track original loaded data to detect real changes
   const isCreatingRef = useRef(false); // Track if a creation request is in-flight
+  const editingNoteIdRef = useRef<number | null>(null); // Mirror editingNoteId for sync access in closures
   const pendingChangesRef = useRef<{
     title: string;
     content: any;
@@ -72,14 +78,23 @@ const NotesPage = () => {
     if (noteDetail && editingNoteId && noteDetail.id === editingNoteId) {
       justLoadedRef.current = true;
       const loadedContent = noteDetail.content || { type: 'doc', content: [] };
-      setNoteTitle(noteDetail.title || '');
+      const loadedTitle = noteDetail.title || '';
+      const loadedTags = noteDetail.tags || [];
+      const loadedColor = noteDetail.color || null;
+
+      setNoteTitle(loadedTitle);
       setNoteContent(loadedContent);
-      setNoteTags(noteDetail.tags || []);
-      setNoteColor(noteDetail.color || null);
+      setNoteTags(loadedTags);
+      setNoteColor(loadedColor);
       setSaveState('idle');
       setEditorKey(prev => prev + 1); // Fresh editor with loaded content
-      // Store the loaded content so we can detect real changes
-      loadedContentRef.current = JSON.stringify(loadedContent);
+      // Store all loaded data so we can detect real changes
+      loadedDataRef.current = {
+        title: loadedTitle,
+        content: JSON.stringify(loadedContent),
+        tags: JSON.stringify(loadedTags.map(t => t.id).sort()),
+        color: loadedColor
+      };
       // NOW open the dialog with the loaded data
       setIsNoteDialogOpen(true);
     }
@@ -99,12 +114,23 @@ const NotesPage = () => {
     // Don't save if no title (prevents saving empty notes)
     if (!noteTitle.trim()) return;
 
-    // CRITICAL: Only save if content actually changed from what was loaded
-    // This prevents overwriting real content with empty content
-    if (editingNoteId && loadedContentRef.current) {
-      const currentContent = JSON.stringify(noteContent);
-      if (currentContent === loadedContentRef.current) {
-        // Content hasn't changed, don't save
+    // CRITICAL: Only save if something actually changed from what was loaded
+    // This prevents unnecessary saves and overwriting with stale data
+    if (editingNoteId && loadedDataRef.current) {
+      const currentData = {
+        title: noteTitle,
+        content: JSON.stringify(noteContent),
+        tags: JSON.stringify(noteTags.map(t => t.id).sort()),
+        color: noteColor
+      };
+      const hasChanges =
+        currentData.title !== loadedDataRef.current.title ||
+        currentData.content !== loadedDataRef.current.content ||
+        currentData.tags !== loadedDataRef.current.tags ||
+        currentData.color !== loadedDataRef.current.color;
+
+      if (!hasChanges) {
+        // Nothing changed, don't save
         return;
       }
     }
@@ -119,10 +145,13 @@ const NotesPage = () => {
 
       setSaveState('saving');
 
-      if (editingNoteId) {
+      // Use ref for sync access - the closure might have stale editingNoteId
+      const currentNoteId = editingNoteIdRef.current;
+
+      if (currentNoteId) {
         // Update existing note
         updateNote.mutate(
-          { id: editingNoteId, data: { title: noteTitle, content: noteContent, tag_ids: noteTags.map(t => t.id), color: noteColor } },
+          { id: currentNoteId, data: { title: noteTitle, content: noteContent, tag_ids: noteTags.map(t => t.id), color: noteColor } },
           {
             onSuccess: () => {
               setSaveState('idle');
@@ -154,8 +183,19 @@ const NotesPage = () => {
         createNote.mutate(
           { title: noteTitle, content: noteContent, tag_ids: noteTags.map(t => t.id), color: noteColor },
           {
-            onSuccess: (newNote) => {
+            onSuccess: (response) => {
               // Switch to editing mode with the new note ID
+              // IMPORTANT: Set ref BEFORE clearing isCreatingRef to prevent race conditions
+              const newNote = response.data;
+
+              if (!newNote?.id) {
+                isCreatingRef.current = false;
+                setSaveState('dirty');
+                toast.error('Failed to create note: no ID returned');
+                return;
+              }
+
+              editingNoteIdRef.current = newNote.id;
               setEditingNoteId(newNote.id);
               isCreatingRef.current = false;
 
@@ -209,9 +249,10 @@ const NotesPage = () => {
   const handleOpenNoteDialog = (noteId?: number) => {
     if (noteId) {
       // For existing notes, set ID first, dialog opens after data loads
+      editingNoteIdRef.current = noteId;
       setEditingNoteId(noteId);
       justLoadedRef.current = true;
-      loadedContentRef.current = null;
+      loadedDataRef.current = null;
     } else {
       // For new notes, clear and open immediately
       setNoteTitle('');
@@ -222,41 +263,58 @@ const NotesPage = () => {
       setShowSavedIndicator(false);
       setEditorKey(prev => prev + 1);
       justLoadedRef.current = true;
-      loadedContentRef.current = null;
+      loadedDataRef.current = null;
+      editingNoteIdRef.current = null;
       setEditingNoteId(null);
       setIsNoteDialogOpen(true);
     }
   };
 
   const handleCloseNoteDialog = () => {
-    // Prevent closing if currently saving
-    if (saveState === 'saving') {
+    // Prevent closing if currently saving or creating
+    if (saveState === 'saving' || isCreatingRef.current) {
       toast.info('Saving in progress, please wait...');
       return;
     }
 
+    // Use ref for sync access - state might be stale
+    const currentNoteId = editingNoteIdRef.current;
+
     // If creating a new note with no content, don't save it
-    if (!editingNoteId && !noteTitle.trim()) {
+    if (!currentNoteId && !noteTitle.trim()) {
       setIsNoteDialogOpen(false);
+      editingNoteIdRef.current = null;
       setEditingNoteId(null);
       setNoteTitle('');
       setNoteContent({ type: 'doc', content: [] });
       setNoteTags([]);
       setNoteColor(null);
       setSaveState('idle');
-      loadedContentRef.current = null;
+      loadedDataRef.current = null;
       return;
     }
 
-    // Save changes before closing if content changed
-    const hasChanges = editingNoteId && loadedContentRef.current &&
-      JSON.stringify(noteContent) !== loadedContentRef.current;
+    // Save changes before closing if any field changed
+    let hasChanges = false;
+    if (currentNoteId && loadedDataRef.current) {
+      const currentData = {
+        title: noteTitle,
+        content: JSON.stringify(noteContent),
+        tags: JSON.stringify(noteTags.map(t => t.id).sort()),
+        color: noteColor
+      };
+      hasChanges =
+        currentData.title !== loadedDataRef.current.title ||
+        currentData.content !== loadedDataRef.current.content ||
+        currentData.tags !== loadedDataRef.current.tags ||
+        currentData.color !== loadedDataRef.current.color;
+    }
 
-    if (hasChanges || (!editingNoteId && noteTitle.trim())) {
+    if (hasChanges || (!currentNoteId && noteTitle.trim())) {
       // Save changes
-      if (editingNoteId) {
+      if (currentNoteId) {
         updateNote.mutate(
-          { id: editingNoteId, data: { title: noteTitle, content: noteContent, tag_ids: noteTags.map(t => t.id), color: noteColor } },
+          { id: currentNoteId, data: { title: noteTitle, content: noteContent, tag_ids: noteTags.map(t => t.id), color: noteColor } },
           {
             onSettled: () => {
               // Close after save completes (success or error)
@@ -282,6 +340,7 @@ const NotesPage = () => {
 
   const closeDialog = () => {
     setIsNoteDialogOpen(false);
+    editingNoteIdRef.current = null;
     setEditingNoteId(null);
     setNoteTitle('');
     setNoteContent({ type: 'doc', content: [] });
@@ -289,7 +348,7 @@ const NotesPage = () => {
     setNoteColor(null);
     setSaveState('idle');
     setShowSavedIndicator(false);
-    loadedContentRef.current = null;
+    loadedDataRef.current = null;
     isCreatingRef.current = false;
     pendingChangesRef.current = null;
   };

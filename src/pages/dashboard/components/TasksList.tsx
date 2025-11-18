@@ -1,24 +1,12 @@
 
 import React from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
-import { useUsersList } from '@/api/hooks/useUsers';
-import { CheckSquare, User, Calendar, FileText, Bell, Music, AlertCircle, UserPlus } from 'lucide-react';
+import { CheckSquare, User, Calendar, FileText, Bell, Music, AlertCircle } from 'lucide-react';
 import apiClient from '@/api/client';
 import { useNavigate } from 'react-router-dom';
-import { useUpdateTask, useTaskInbox } from '@/api/hooks/useTasks';
+import { useTaskInbox } from '@/api/hooks/useTasks';
 
 interface Task {
   id: number;
@@ -27,6 +15,7 @@ interface Task {
   priority: number;
   task_type: string;
   due_date?: string;
+  project?: number;
   song_detail?: { id: number; title: string };
   opportunity_detail?: { id: number; title: string };
   deliverable_detail?: {
@@ -63,31 +52,8 @@ interface InboxResponse {
 
 export const TasksList: React.FC = () => {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const updateTaskMutation = useUpdateTask();
-  const [openPopover, setOpenPopover] = React.useState<number | null>(null);
-  const [searchQuery, setSearchQuery] = React.useState('');
-
-  const { data: usersData } = useUsersList({ is_active: true });
-  const users = usersData?.results || [];
 
   const { data, isLoading, error } = useTaskInbox();
-
-  const handleAssignTask = async (taskId: number, userIds: number[]) => {
-    await updateTaskMutation.mutateAsync({
-      id: taskId,
-      data: { assigned_user_ids: userIds }
-    });
-    // Invalidate inbox to refresh the list
-    queryClient.invalidateQueries({ queryKey: ['tasks', 'inbox'] });
-  };
-
-  const handleToggleUser = async (taskId: number, userId: number, currentUserIds: number[]) => {
-    const newUserIds = currentUserIds.includes(userId)
-      ? currentUserIds.filter((id) => id !== userId)
-      : [...currentUserIds, userId];
-    await handleAssignTask(taskId, newUserIds);
-  };
 
   const getPriorityLabel = (priority: number) => {
     switch (priority) {
@@ -136,15 +102,9 @@ export const TasksList: React.FC = () => {
   };
 
   const handleTaskClick = (task: Task) => {
-    // Navigate to the appropriate entity based on what the task is linked to
-    if (task.song_detail) {
-      navigate(`/songs/${task.song_detail.id}`);
-    } else if (task.opportunity_detail) {
-      navigate(`/opportunities/${task.opportunity_detail.id}`);
-    } else if (task.deliverable_detail?.opportunity) {
-      navigate(`/opportunities/${task.deliverable_detail.opportunity.id}`);
-    } else if (task.contract_detail) {
-      navigate(`/contracts/${task.contract_detail.id}`);
+    // Navigate to the workboard project page with task modal open
+    if (task.project) {
+      navigate(`/workboard/${task.project}?taskId=${task.id}`);
     }
   };
 
@@ -238,7 +198,6 @@ export const TasksList: React.FC = () => {
                 {tasks.map((task) => {
                   const TypeIcon = getTypeIcon(task.task_type);
                   const isOverdue = task.due_date && new Date(task.due_date) < new Date();
-                  const assignedUserIds = task.assignments?.map(a => a.user) || task.assigned_user_ids || [];
 
                   return (
                     <div
@@ -296,85 +255,6 @@ export const TasksList: React.FC = () => {
                             </span>
                           )}
                         </div>
-                      </div>
-                      <div onClick={(e) => e.stopPropagation()} className="flex-shrink-0">
-                        <Popover open={openPopover === task.id} onOpenChange={(open) => setOpenPopover(open ? task.id : null)}>
-                          <PopoverTrigger asChild>
-                            <div
-                              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-white/40 dark:hover:bg-slate-800/40 transition-colors cursor-pointer border border-white/20"
-                            >
-                              {assignedUserIds.length > 0 ? (
-                                <div className="flex items-center gap-1">
-                                  {users.filter(u => assignedUserIds.includes(u.id)).slice(0, 2).map((user) => (
-                                    <Avatar key={user.id} className="h-5 w-5">
-                                      <AvatarFallback className="text-xs bg-indigo-500 text-white">
-                                        {(user.full_name || user.email || 'U').substring(0, 2).toUpperCase()}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                  ))}
-                                  {assignedUserIds.length > 2 && (
-                                    <span className="text-xs text-muted-foreground">+{assignedUserIds.length - 2}</span>
-                                  )}
-                                </div>
-                              ) : (
-                                <>
-                                  <UserPlus className="h-3.5 w-3.5 text-muted-foreground" />
-                                  <span className="text-xs text-muted-foreground">Assign</span>
-                                </>
-                              )}
-                            </div>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[300px] p-0" align="end" onClick={(e) => e.stopPropagation()}>
-                            <div className="p-2 border-b">
-                              <Input
-                                placeholder="Search users..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="h-8"
-                                onClick={(e) => e.stopPropagation()}
-                              />
-                            </div>
-                            <div className="max-h-[300px] overflow-y-auto p-1">
-                              {users
-                                .filter((user) =>
-                                  (user.full_name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
-                                  (user.email?.toLowerCase() || '').includes(searchQuery.toLowerCase())
-                                )
-                                .map((user) => {
-                                  const isSelected = assignedUserIds.includes(user.id);
-                                  return (
-                                    <div
-                                      key={user.id}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleToggleUser(task.id, user.id, assignedUserIds);
-                                      }}
-                                      className={cn(
-                                        'w-full flex items-center gap-2 px-2 py-2 text-sm rounded-md cursor-pointer',
-                                        'hover:bg-accent transition-colors duration-150',
-                                        isSelected && 'bg-accent/50'
-                                      )}
-                                    >
-                                      <Avatar className="h-6 w-6">
-                                        <AvatarFallback className="text-xs">
-                                          {(user.full_name || user.email || 'U').substring(0, 2).toUpperCase()}
-                                        </AvatarFallback>
-                                      </Avatar>
-                                      <div className="flex-1 text-left">
-                                        <div className="font-medium">{user.full_name || user.email}</div>
-                                        <div className="text-xs text-muted-foreground">{user.email}</div>
-                                      </div>
-                                      {isSelected && (
-                                        <div className="h-4 w-4 rounded-full bg-primary flex items-center justify-center">
-                                          <div className="h-2 w-2 rounded-full bg-primary-foreground" />
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                            </div>
-                          </PopoverContent>
-                        </Popover>
                       </div>
                     </div>
                   );

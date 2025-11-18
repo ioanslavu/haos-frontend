@@ -79,6 +79,12 @@ const SelectContent = React.forwardRef<
         className
       )}
       position={position}
+      // Prevent Select from adding pointer-events: none to body (causes issues when inside Dialog)
+      modal={false}
+      onCloseAutoFocus={(e) => {
+        // Ensure body pointer-events is restored
+        document.body.style.pointerEvents = '';
+      }}
       {...props}
     >
       <SelectScrollUpButton />

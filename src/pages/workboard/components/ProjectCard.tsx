@@ -117,10 +117,15 @@ export const ProjectCard = memo(function ProjectCard({ project, onClick }: Proje
                 <Pin className={cn("h-4 w-4 mr-2", isPinned && "fill-current")} />
                 {isPinned ? 'Unpin' : 'Pin to top'}
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleArchive} className="text-red-600">
-                {project.status === 'archived' ? 'Restore' : 'Archive'}
-              </DropdownMenuItem>
+              {/* Hide archive for projects with "general" in name */}
+              {!project.name.toLowerCase().includes('general') && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleArchive} className="text-red-600">
+                    {project.status === 'archived' ? 'Restore' : 'Archive'}
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

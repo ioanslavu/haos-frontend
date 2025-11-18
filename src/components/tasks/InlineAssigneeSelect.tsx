@@ -88,7 +88,7 @@ export function InlineAssigneeSelect({
   };
 
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen} modal={true}>
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <Button
           variant="ghost"

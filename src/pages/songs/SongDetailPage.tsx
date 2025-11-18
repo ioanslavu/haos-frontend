@@ -71,6 +71,17 @@ export default function SongDetailPage() {
   const [isLoadingTask, setIsLoadingTask] = useState(false);
   const [addTemplateDialogOpen, setAddTemplateDialogOpen] = useState(false);
 
+  // Safety cleanup: Remove pointer-events: none from body when task modal is closed
+  useEffect(() => {
+    if (!taskModalOpen) {
+      // Small delay to let animations finish
+      const timer = setTimeout(() => {
+        document.body.style.pointerEvents = '';
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [taskModalOpen]);
+
   const songId = parseInt(id || '0');
 
   // Define stage flow for navigation

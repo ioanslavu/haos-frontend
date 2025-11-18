@@ -31,7 +31,8 @@ import {
   StickyNote,
   Music,
   CheckCircle2,
-  FolderKanban
+  FolderKanban,
+  UsersRound
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -90,12 +91,14 @@ const navigation: NavigationItem[] = [
     href: '/camps',
     icon: Calendar,
     show: (user) => {
-      // Hide Camps for digital department users
+      // Hide Camps for digital and marketing department users
       const isDigital = user?.department?.name?.toLowerCase() === 'digital' ||
                         user?.department?.toLowerCase() === 'digital';
+      const isMarketing = user?.department?.name?.toLowerCase() === 'marketing' ||
+                          user?.department?.toLowerCase() === 'marketing';
       // Only show for managers and admins (level >= 300)
       const canManageCamps = (user?.role_detail?.level ?? 0) >= 300;
-      return canManageCamps && (user?.department || user?.role === 'administrator') && !isDigital;
+      return canManageCamps && (user?.department || user?.role === 'administrator') && !isDigital && !isMarketing;
     },
   },
   {
@@ -103,10 +106,12 @@ const navigation: NavigationItem[] = [
     href: '/songs',
     icon: Music2,
     show: (user) => {
-      // Hide Songs for digital department users
+      // Hide Songs for digital and marketing department users
       const isDigital = user?.department?.name?.toLowerCase() === 'digital' ||
                         user?.department?.toLowerCase() === 'digital';
-      return user?.role !== 'guest' && (user?.department || user?.role === 'administrator') && !isDigital;
+      const isMarketing = user?.department?.name?.toLowerCase() === 'marketing' ||
+                          user?.department?.toLowerCase() === 'marketing';
+      return user?.role !== 'guest' && (user?.department || user?.role === 'administrator') && !isDigital && !isMarketing;
     },
   },
   {
@@ -131,6 +136,16 @@ const navigation: NavigationItem[] = [
     href: '/notes',
     icon: StickyNote,
     show: (user) => user?.role !== 'guest',
+  },
+  {
+    name: 'Teams',
+    href: '/teams',
+    icon: UsersRound,
+    show: (user) => {
+      // Only show for managers and admins (level >= 300)
+      const canManageTeams = (user?.role_detail?.level ?? 0) >= 300;
+      return canManageTeams && (user?.department || user?.role === 'administrator');
+    },
   },
   // { name: 'Studio', href: '/studio', icon: Calendar },
 ];
@@ -206,23 +221,14 @@ const digitalNavigation: NavigationItem[] = [
 // Marketing navigation items - shown as regular nav items for marketing users
 const marketingNavigation: NavigationItem[] = [
   {
-    name: 'Marketing Overview',
-    href: '/marketing/overview',
-    icon: LayoutDashboard,
-    show: (user) => {
-      const isMarketing = user?.department?.name?.toLowerCase() === 'marketing' ||
-                         user?.department?.toLowerCase() === 'marketing';
-      return isMarketing && user?.role !== 'administrator';
-    },
-  },
-  {
-    name: 'Team',
+    name: 'Artist Assignments',
     href: '/marketing/team',
     icon: Users,
     show: (user) => {
       const isMarketing = user?.department?.name?.toLowerCase() === 'marketing' ||
                          user?.department?.toLowerCase() === 'marketing';
-      return isMarketing && user?.role !== 'administrator';
+      // Hide for marketing_employee, show only for marketing_manager
+      return isMarketing && user?.role !== 'administrator' && user?.role !== 'marketing_employee';
     },
   },
 ];
@@ -233,13 +239,23 @@ const bottomNavigation: NavigationItem[] = [
     name: 'Entities',
     href: '/entities',
     icon: Users,
-    show: (user) => user?.role !== 'guest', // All non-guests
+    show: (user) => {
+      // Hide for marketing department
+      const isMarketing = user?.department?.name?.toLowerCase() === 'marketing' ||
+                          user?.department?.toLowerCase() === 'marketing';
+      return user?.role !== 'guest' && !isMarketing;
+    },
   },
   {
     name: 'Activities',
     href: '/activities',
     icon: Activity,
-    show: (user) => user?.role !== 'guest', // All non-guests
+    show: (user) => {
+      // Hide for marketing department
+      const isMarketing = user?.department?.name?.toLowerCase() === 'marketing' ||
+                          user?.department?.toLowerCase() === 'marketing';
+      return user?.role !== 'guest' && !isMarketing;
+    },
   },
 ];
 
@@ -479,11 +495,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             );
           })()}
 
-          {/* Artist Sales Dropdown - Hide for digital users */}
+          {/* Artist Sales Dropdown - Hide for digital and marketing users */}
           {(() => {
             const isDigital = user?.department?.name?.toLowerCase() === 'digital' ||
                               user?.department?.toLowerCase() === 'digital';
-            const canSeeArtistSales = user?.role !== 'guest' && !isDigital;
+            const isMarketing = user?.department?.name?.toLowerCase() === 'marketing' ||
+                                user?.department?.toLowerCase() === 'marketing';
+            const canSeeArtistSales = user?.role !== 'guest' && !isDigital && !isMarketing;
 
             return canSeeArtistSales && (
               <li>
@@ -612,28 +630,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             </li>
           )}
 
-          {/* Task Reviews - For managers and admins only */}
-          {isAdminOrManager() && (
-            <li>
-              <NavLink
-                to="/tasks/review"
-                aria-label="Task Reviews"
-                className={({ isActive }) =>
-                  cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-semibold transition-all duration-300",
-                    "hover:scale-105",
-                    isActive
-                      ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/30"
-                      : "text-foreground hover:bg-white/20 dark:hover:bg-white/10 backdrop-blur-sm",
-                    collapsed && "justify-center px-3"
-                  )
-                }
-              >
-                <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
-                {!collapsed && <span>Task Reviews</span>}
-              </NavLink>
-            </li>
-          )}
+          {/* Task Reviews - Hidden for now */}
 
           {/* Admin section */}
           {isAdmin && (

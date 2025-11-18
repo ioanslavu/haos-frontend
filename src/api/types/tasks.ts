@@ -84,6 +84,13 @@ export interface TaskUserDetail {
   full_name: string;
 }
 
+export interface TaskTeamDetail {
+  id: number;
+  name: string;
+  department: number;
+  member_count: number;
+}
+
 export type TaskAssignmentRole = 'assignee' | 'reviewer' | 'observer';
 
 export interface TaskAssignment {
@@ -196,6 +203,8 @@ export interface Task {
   assignments?: TaskAssignment[];
   assigned_to_users?: number[];  // Helper: array of user IDs
   assigned_to_users_detail?: TaskUserDetail[];  // Helper: array of user objects
+  assigned_team?: number;
+  assigned_team_detail?: TaskTeamDetail;
   created_by?: number;
   created_by_detail?: TaskUserDetail;
   department?: number;
@@ -249,6 +258,7 @@ export interface TaskCreateInput {
   entity?: number;
   contract?: number;
   assigned_user_ids?: number[];
+  assigned_team_id?: number | null;
   department?: number;
   due_date?: string;
   reminder_date?: string;

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useQuery } from '@tanstack/react-query';
 import {
   Dialog,
   DialogContent,
@@ -29,22 +30,13 @@ import { CalendarIcon, FileCode2, Sparkles, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useCreateProject, useProjectTemplates, useCreateProjectFromTemplate } from '@/api/hooks/useProjects';
+import apiClient from '@/api/client';
 import {
   PROJECT_TYPE_CONFIG,
   type ProjectType,
   type ProjectCreatePayload,
 } from '@/types/projects';
 import { useAuthStore } from '@/stores/authStore';
-
-// Department options - matches backend accounts.Department model
-const DEPARTMENT_OPTIONS = [
-  { id: 1, name: 'Digital', icon: '🌐' },
-  { id: 2, name: 'Sales', icon: '💼' },
-  { id: 3, name: 'Publishing', icon: '📝' },
-  { id: 4, name: 'Label', icon: '🎵' },
-  { id: 5, name: 'Marketing', icon: '📢' },
-  { id: 6, name: 'Operations', icon: '⚙️' },
-];
 
 interface CreateProjectDialogProps {
   isOpen: boolean;
@@ -59,13 +51,30 @@ export function CreateProjectDialog({ isOpen, onClose }: CreateProjectDialogProp
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
 
-  const user = useAuthStore((state) => state.user);
+  const { user, isAdmin: isAdminFn } = useAuthStore();
+  const isAdmin = isAdminFn();
   const createProject = useCreateProject();
   const createFromTemplate = useCreateProjectFromTemplate();
   const { data: templates } = useProjectTemplates({ is_active: true });
 
-  // Get user's department as default, fallback to 1
-  const defaultDepartment = user?.profile?.department || 1;
+  // Fetch departments from API (for admin users)
+  const { data: departmentsData } = useQuery({
+    queryKey: ['departments'],
+    queryFn: async () => {
+      const response = await apiClient.get('/api/v1/departments/');
+      return response.data;
+    },
+    enabled: isAdmin,
+  });
+
+  // Map departments to {id, name} format
+  const departments = departmentsData
+    ? (Array.isArray(departmentsData) ? departmentsData : departmentsData.results || [])
+        .map((d: any) => ({ id: d.id, name: d.name }))
+    : [];
+
+  // Get user's department as default
+  const defaultDepartment = user?.profile?.department || (departments[0]?.id || undefined);
 
   const {
     register,
@@ -95,16 +104,27 @@ export function CreateProjectDialog({ isOpen, onClose }: CreateProjectDialogProp
           data: {
             name: data.name,
             description: data.description,
-            department_id: data.department,
+            // Only send department if admin selected one
+            department_id: isAdmin ? data.department : undefined,
             start_date: startDate ? format(startDate, 'yyyy-MM-dd') : undefined,
           },
         });
       } else {
-        await createProject.mutateAsync({
-          ...data,
+        // Build payload - only include department for admins
+        const payload: any = {
+          name: data.name,
+          description: data.description,
+          project_type: data.project_type,
           start_date: startDate ? format(startDate, 'yyyy-MM-dd') : undefined,
           end_date: endDate ? format(endDate, 'yyyy-MM-dd') : undefined,
-        });
+        };
+
+        // Only include department if admin
+        if (isAdmin && data.department) {
+          payload.department = data.department;
+        }
+
+        await createProject.mutateAsync(payload);
       }
 
       reset();
@@ -137,6 +157,7 @@ export function CreateProjectDialog({ isOpen, onClose }: CreateProjectDialogProp
 
         {/* Create Mode Toggle */}
         <Tabs value={createMode} onValueChange={(v) => setCreateMode(v as CreateMode)}>
+          {/* Template mode hidden for now
           <TabsList className="grid w-full grid-cols-2 rounded-xl">
             <TabsTrigger value="blank" className="rounded-lg">
               <Sparkles className="h-4 w-4 mr-2" />
@@ -147,9 +168,10 @@ export function CreateProjectDialog({ isOpen, onClose }: CreateProjectDialogProp
               From Template
             </TabsTrigger>
           </TabsList>
+          */}
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-4">
-            {/* Template Selection */}
+            {/* Template Selection - hidden for now
             <TabsContent value="template" className="mt-0 space-y-4">
               <div className="space-y-2">
                 <Label>Template</Label>
@@ -176,6 +198,7 @@ export function CreateProjectDialog({ isOpen, onClose }: CreateProjectDialogProp
                 </Select>
               </div>
             </TabsContent>
+            */}
 
             {/* Common Fields */}
             <div className="space-y-2">
@@ -202,56 +225,53 @@ export function CreateProjectDialog({ isOpen, onClose }: CreateProjectDialogProp
               />
             </div>
 
-            {/* Project Type (only for blank) */}
-            <TabsContent value="blank" className="mt-0 space-y-4">
-              <div className="space-y-2">
-                <Label>Project Type</Label>
-                <Select
-                  value={selectedType}
-                  onValueChange={(v) => setValue('project_type', v as ProjectType)}
-                >
-                  <SelectTrigger className="rounded-xl">
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl">
-                    {Object.entries(PROJECT_TYPE_CONFIG).map(([key, config]) => (
-                      <SelectItem key={key} value={key}>
-                        <div className="flex items-center gap-2">
-                          <span>{config.icon}</span>
-                          <span>{config.label}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </TabsContent>
-
-            {/* Department Selector */}
+            {/* Project Type */}
             <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Building2 className="h-4 w-4" />
-                Department
-              </Label>
+              <Label>Project Type</Label>
               <Select
-                value={selectedDepartment?.toString()}
-                onValueChange={(v) => setValue('department', parseInt(v))}
+                value={selectedType}
+                onValueChange={(v) => setValue('project_type', v as ProjectType)}
               >
                 <SelectTrigger className="rounded-xl">
-                  <SelectValue placeholder="Select department" />
+                  <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl">
-                  {DEPARTMENT_OPTIONS.map((dept) => (
-                    <SelectItem key={dept.id} value={dept.id.toString()}>
+                  {Object.entries(PROJECT_TYPE_CONFIG).map(([key, config]) => (
+                    <SelectItem key={key} value={key}>
                       <div className="flex items-center gap-2">
-                        <span>{dept.icon}</span>
-                        <span>{dept.name}</span>
+                        <span>{config.icon}</span>
+                        <span>{config.label}</span>
                       </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Department Selector - Admin only */}
+            {isAdmin && departments.length > 0 && (
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  Department
+                </Label>
+                <Select
+                  value={selectedDepartment?.toString()}
+                  onValueChange={(v) => setValue('department', parseInt(v))}
+                >
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue placeholder="Select department" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    {departments.map((dept) => (
+                      <SelectItem key={dept.id} value={dept.id.toString()}>
+                        {dept.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* Date Pickers */}
             <div className="grid grid-cols-2 gap-4">

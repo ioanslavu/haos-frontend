@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Music, TrendingUp, Loader2, CheckCircle2, Clock, Mic, Briefcase, Scale, DollarSign, Settings } from 'lucide-react';
+import { Music, TrendingUp, Loader2, CheckCircle2, Clock, Mic, Briefcase, Scale, DollarSign, Settings, Megaphone } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,9 +15,9 @@ import { useCreateDepartmentRequest, useDepartmentRequests, useCancelDepartmentR
 import { useAuthStore } from '@/stores/authStore';
 import { cn } from '@/lib/utils';
 
-type DepartmentType = 'digital' | 'sales' | 'publishing' | 'legal' | 'finance' | 'operations';
+type DepartmentType = 'digital' | 'sales' | 'publishing' | 'marketing' | 'legal' | 'finance' | 'operations';
 
-const AVAILABLE_DEPARTMENTS: DepartmentType[] = ['digital', 'sales', 'publishing'];
+const AVAILABLE_DEPARTMENTS: DepartmentType[] = ['digital', 'sales', 'publishing', 'marketing'];
 const HIDDEN_DEPARTMENTS: DepartmentType[] = ['legal', 'finance', 'operations']; // Prepared for future
 
 export default function DepartmentSelection() {
@@ -155,7 +155,7 @@ export default function DepartmentSelection() {
         <p className="text-center text-xs text-muted-foreground">Step 2 of 2</p>
 
         {/* Department Cards */}
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Digital Department */}
           <Card
             className={cn(
@@ -262,6 +262,43 @@ export default function DepartmentSelection() {
                 <p className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-purple-500" />
                   Production Coordination
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Marketing Department */}
+          <Card
+            className={cn(
+              'group relative overflow-hidden backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl transition-all duration-300 cursor-pointer hover:shadow-2xl hover:scale-[1.02] rounded-3xl'
+            )}
+            onClick={() => handleDepartmentSelect('marketing')}
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-amber-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-3xl" />
+
+            <CardHeader className="relative space-y-4">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500/20 to-amber-500/20 backdrop-blur-sm group-hover:scale-110 transition-transform shadow-lg">
+                <Megaphone className="h-8 w-8 text-orange-600 dark:text-orange-400" />
+              </div>
+              <CardTitle className="text-2xl font-bold">Marketing</CardTitle>
+              <CardDescription className="text-base">
+                Brand strategy, advertising campaigns, PR, and audience engagement
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="relative space-y-4">
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-orange-500" />
+                  Brand Strategy & Identity
+                </p>
+                <p className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-orange-500" />
+                  Advertising Campaigns
+                </p>
+                <p className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-orange-500" />
+                  PR & Media Relations
                 </p>
               </div>
             </CardContent>

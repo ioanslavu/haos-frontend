@@ -17,6 +17,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/api/client';
@@ -60,11 +61,12 @@ import { toast } from 'sonner';
 import { InlineStatusBadge } from './InlineStatusBadge';
 import { InlineDatePicker } from './InlineDatePicker';
 import { InlineAssigneeSelect } from './InlineAssigneeSelect';
+import { InlineTeamSelect } from './InlineTeamSelect';
 import { InlinePrioritySelect } from './InlinePrioritySelect';
 import { InlineDepartmentSelect } from './InlineDepartmentSelect';
 import { InlineDurationSelect } from './InlineDurationSelect';
 import { TaskRichTextEditor } from './TaskRichTextEditor';
-import { InlineCustomFieldsManager } from './InlineCustomFieldsManager';
+import { InlineCustomFieldsManager, InlineCustomFieldsManagerHandle } from './InlineCustomFieldsManager';
 import { EntitySearchCombobox } from '@/components/entities/EntitySearchCombobox';
 import { AddEntityModal } from '@/components/entities/AddEntityModal';
 import { SongSearchCombobox } from '@/components/songs/SongSearchCombobox';
@@ -80,9 +82,10 @@ interface TaskDetailPanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   createMode?: boolean; // New prop to indicate create mode
+  projectId?: number; // Project ID for creating tasks in a specific project
 }
 
-export function TaskDetailPanel({ task, open, onOpenChange, createMode = false }: TaskDetailPanelProps) {
+export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, projectId }: TaskDetailPanelProps) {
   const navigate = useNavigate();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [localTitle, setLocalTitle] = useState('');
@@ -91,6 +94,7 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false }
   const [localPriority, setLocalPriority] = useState<number>(2);
   const [localDueDate, setLocalDueDate] = useState<string | null>(null);
   const [localAssignees, setLocalAssignees] = useState<number[]>([]);
+  const [localTeam, setLocalTeam] = useState<number | null>(null);
   const [localDepartment, setLocalDepartment] = useState<number | null>(null);
   const [localEstimatedHours, setLocalEstimatedHours] = useState<number | null>(null);
   const [localEntity, setLocalEntity] = useState<number | null>(null);
@@ -108,6 +112,7 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false }
   const [localCampaign, setLocalCampaign] = useState<number | null>(null);
   const [showCampaignSearch, setShowCampaignSearch] = useState(false);
   const [showCreateCampaignDialog, setShowCreateCampaignDialog] = useState(false);
+  const [localProject, setLocalProject] = useState<number | null>(projectId || null);
   const [showAddRelatedItemMenu, setShowAddRelatedItemMenu] = useState(false);
   const [visibleRelatedFields, setVisibleRelatedFields] = useState<Set<string>>(new Set());
   const [saveState, setSaveState] = useState<'idle' | 'dirty' | 'saving' | 'creating'>('idle');
@@ -115,6 +120,7 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false }
   const [createdTaskId, setCreatedTaskId] = useState<number | null>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout>();
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const customFieldsRef = useRef<InlineCustomFieldsManagerHandle>(null);
   const isCreateMode = createMode && !task && !createdTaskId;
 
   const deleteTask = useDeleteTask();
@@ -147,36 +153,21 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false }
     !!localSong && !task?.song_detail
   );
 
-  // Fetch all tasks to extract unique departments with IDs (for admin users)
-  const { data: tasksData } = useQuery({
-    queryKey: ['tasks-for-departments'],
+  // Fetch departments from accounts API (for admin users)
+  const { data: departmentsData } = useQuery({
+    queryKey: ['departments'],
     queryFn: async () => {
-      const response = await apiClient.get('/api/v1/tasks/', {
-        params: { limit: 1000 } // Get enough to extract all departments
-      });
+      const response = await apiClient.get('/api/v1/departments/');
       return response.data;
     },
     enabled: isAdmin, // Only fetch if user is admin
   });
 
-  // Extract unique departments from tasks (as {id: number, name: string})
-  const departments = tasksData?.results
-    ? Array.from(
-        new Map(
-          tasksData.results
-            .filter((t: any) => t.department && t.department_name)
-            .map((t: any) => [t.department, { id: t.department, name: t.department_name }])
-        ).values()
-      )
+  // Map departments to {id, name} format
+  const departments = departmentsData
+    ? (Array.isArray(departmentsData) ? departmentsData : departmentsData.results || [])
+        .map((d: any) => ({ id: d.id, name: d.name }))
     : [];
-
-  // Debug: Log departments data
-  useEffect(() => {
-    if (isAdmin && tasksData) {
-      console.log('Tasks data:', tasksData);
-      console.log('Extracted departments:', departments);
-    }
-  }, [tasksData, departments, isAdmin]);
 
   // Focus title input in create mode
   useEffect(() => {
@@ -197,6 +188,7 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false }
         setLocalPriority(task.priority || 2);
         setLocalDueDate(task.due_date || null);
         setLocalAssignees(task.assigned_to_users_detail?.map(u => u.id) || []);
+        setLocalTeam(task.assigned_team || null);
         setLocalDepartment(task.department || null);
         setLocalEstimatedHours(task.estimated_hours || null);
         setLocalEntity(task.entity || null);
@@ -247,6 +239,7 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false }
         setLocalPriority(2);
         setLocalDueDate(null);
         setLocalAssignees(user?.id ? [Number(user.id)] : []); // Auto-assign current user
+        setLocalTeam(null);
         setLocalDepartment(null); // Admin users need to select department manually
         setLocalEstimatedHours(null);
         setLocalEntity(null);
@@ -306,6 +299,7 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false }
               due_date: localDueDate || undefined,
               assigned_user_ids: localAssignees.length > 0 ? localAssignees : undefined,
               department: localDepartment || undefined,
+              project: localProject || projectId || undefined,
             });
             setCreatedTaskId(newTask.id);
             setSaveState('idle');
@@ -344,17 +338,35 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false }
         clearTimeout(debounceTimerRef.current);
       }
     };
-  }, [localTitle, localDescription, localNotes, localPriority, localDueDate, localDepartment, localAssignees, task, createdTaskId, open, isCreateMode]);
+  }, [localTitle, localDescription, localNotes, localPriority, localDueDate, localDepartment, localAssignees, task, createdTaskId, open, isCreateMode, projectId, localProject]);
 
   // Handle modal close with autosave
-  const handleClose = () => {
+  const handleClose = async (newOpen?: boolean) => {
+    // If opening, just pass through
+    if (newOpen === true) {
+      onOpenChange(true);
+      return;
+    }
+
+    // Blur any active element to trigger save handlers (like onBlur in custom fields)
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+
+    // Small delay to let blur handlers complete
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    // Flush any pending custom field changes
+    if (customFieldsRef.current?.hasPendingChanges()) {
+      await customFieldsRef.current.flushPendingChanges();
+    }
+
     // If there's a pending save, trigger it immediately
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
 
-      // Only auto-save if in create mode and we have a title
+      // Create mode - create new task
       if (isCreateMode && localTitle.trim() && !createdTaskId) {
-        // Trigger create immediately
         const payload = {
           title: localTitle,
           description: localDescription || undefined,
@@ -367,22 +379,48 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false }
           entity: localEntity || undefined,
           song: localSong || undefined,
           campaign: localCampaign || undefined,
+          project: localProject || projectId || undefined,
         };
 
         createTask.mutate(payload, {
           onSuccess: (response) => {
             setCreatedTaskId(response.id);
-            // Close after successful save
+          },
+          onSettled: () => {
+            // Close on both success and error
             onOpenChange(false);
           },
         });
-      } else {
-        // Just close if not in create mode or no pending changes
-        onOpenChange(false);
+        return; // Don't close yet, wait for mutation
       }
-    } else {
-      onOpenChange(false);
+
+      // Edit mode - update existing task
+      const taskId = task?.id || createdTaskId;
+      if (taskId && localTitle.trim()) {
+        const payload: any = {
+          title: localTitle,
+          description: localDescription || '',
+          notes: localNotes || null,
+          priority: localPriority,
+          due_date: localDueDate || null,
+          assigned_user_ids: localAssignees,
+          department: localDepartment || null,
+          estimated_hours: localEstimatedHours || null,
+        };
+
+        updateTask.mutate(
+          { id: taskId, data: payload },
+          {
+            onSettled: () => {
+              onOpenChange(false);
+            },
+          }
+        );
+        return; // Don't close yet, wait for mutation
+      }
     }
+
+    onOpenChange(false);
   };
 
   // Keyboard shortcuts
@@ -489,15 +527,18 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false }
             </div>
 
             {/* Description */}
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider pl-1">
                 Description
               </label>
-              <TaskRichTextEditor
-                content={localDescription}
-                onChange={setLocalDescription}
+              <textarea
+                value={localDescription}
+                onChange={(e) => setLocalDescription(e.target.value)}
                 placeholder="Add a description..."
-                minimal
+                rows={3}
+                className="w-full text-sm bg-transparent px-1 py-2 placeholder:text-muted-foreground/30 resize-none"
+                style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
+                onFocus={(e) => e.target.style.outline = 'none'}
               />
             </div>
 
@@ -542,10 +583,32 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false }
                       onSave={async (value) => {
                         setLocalAssignees(value);
                         if (!isCreateMode && (task || createdTaskId)) {
-                          await handleUpdateField('assigned_to_users', value);
+                          await handleUpdateField('assigned_user_ids', value);
                         }
                       }}
                       placeholder="Add assignees..."
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+
+                {/* Team */}
+                <div className="flex items-start gap-3 group">
+                  <div className="flex items-center gap-2 w-32 text-sm text-muted-foreground">
+                    <Users className="h-4 w-4" />
+                    <span>Team</span>
+                  </div>
+                  <div className="flex-1">
+                    <InlineTeamSelect
+                      value={localTeam}
+                      teamDetail={task?.assigned_team_detail}
+                      onSave={async (value) => {
+                        setLocalTeam(value);
+                        if (!isCreateMode && (task || createdTaskId)) {
+                          await handleUpdateField('assigned_team_id', value);
+                        }
+                      }}
+                      placeholder="Add team..."
                       className="w-full"
                     />
                   </div>
@@ -570,7 +633,7 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false }
                         }}
                         placeholder="Select department..."
                         className="w-full"
-                        isLoading={!tasksData && isAdmin}
+                        isLoading={!departmentsData && isAdmin}
                       />
                       {!localDepartment && (
                         <p className="text-xs text-amber-600 dark:text-amber-500 mt-1 flex items-center gap-1">
@@ -599,7 +662,7 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false }
                       placeholder="Add due date..."
                       className="w-full"
                     />
-                    {task?.is_overdue && task?.status !== 'done' && (
+                    {localDueDate && new Date(localDueDate) < new Date(new Date().toDateString()) && task?.status !== 'done' && (
                       <Badge variant="destructive" className="text-xs mt-2">
                         Overdue
                       </Badge>
@@ -666,7 +729,7 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false }
 
                 {/* Custom Fields - Inline with properties */}
                 {(task?.id || createdTaskId) && (
-                  <InlineCustomFieldsManager taskId={task?.id || createdTaskId!} />
+                  <InlineCustomFieldsManager ref={customFieldsRef} taskId={task?.id || createdTaskId!} />
                 )}
 
                 {/* Follow-up Reminder */}
@@ -767,7 +830,10 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false }
                         Song
                       </DropdownMenuItem>
                     )}
-                    {!visibleRelatedFields.has('campaign') && !localCampaign && (
+                    {/* Hide Campaign for marketing department users */}
+                    {!visibleRelatedFields.has('campaign') && !localCampaign &&
+                     !(user?.department?.name?.toLowerCase() === 'marketing' ||
+                       (user?.department as any)?.toLowerCase?.() === 'marketing') && (
                       <DropdownMenuItem
                         onClick={() => {
                           setVisibleRelatedFields(new Set([...visibleRelatedFields, 'campaign']));

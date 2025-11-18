@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, useImperativeHandle, forwardRef, useCallback } from 'react';
 import { Plus, Type, Hash, List, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { InlineCustomField } from './InlineCustomField';
-import type { CustomFieldType, CreateCustomFieldDto } from '@/api/types/customFields';
+import type { CustomFieldType, CreateCustomFieldDto, UpdateCustomFieldDto } from '@/api/types/customFields';
 import {
   useTaskCustomFields,
   useCreateCustomField,
@@ -20,12 +20,21 @@ interface InlineCustomFieldsManagerProps {
   taskId: number;
 }
 
-export function InlineCustomFieldsManager({ taskId }: InlineCustomFieldsManagerProps) {
+export interface InlineCustomFieldsManagerHandle {
+  flushPendingChanges: () => Promise<void>;
+  hasPendingChanges: () => boolean;
+}
+
+export const InlineCustomFieldsManager = forwardRef<InlineCustomFieldsManagerHandle, InlineCustomFieldsManagerProps>(
+  ({ taskId }, ref) => {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [selectedType, setSelectedType] = useState<CustomFieldType | null>(null);
   const [fieldName, setFieldName] = useState('');
   const [selectOptions, setSelectOptions] = useState<string[]>([]);
   const [newOption, setNewOption] = useState('');
+
+  // Track pending changes for all fields
+  const pendingChangesRef = useRef<Map<number, string | number>>(new Map());
 
   const { data: fieldsData, isLoading, error } = useTaskCustomFields(taskId);
   const createMutation = useCreateCustomField();
@@ -38,6 +47,40 @@ export function InlineCustomFieldsManager({ taskId }: InlineCustomFieldsManagerP
     : fieldsData?.results
     ? fieldsData.results
     : [];
+
+  // Handle pending change from child fields
+  const handlePendingChange = useCallback((fieldId: number, value: string | number | null) => {
+    if (value === null) {
+      pendingChangesRef.current.delete(fieldId);
+    } else {
+      pendingChangesRef.current.set(fieldId, value);
+    }
+  }, []);
+
+  // Expose methods to parent via ref
+  useImperativeHandle(ref, () => ({
+    hasPendingChanges: () => pendingChangesRef.current.size > 0,
+    flushPendingChanges: async () => {
+      const pending = Array.from(pendingChangesRef.current.entries());
+      if (pending.length === 0) return;
+
+      // Save all pending changes
+      const promises = pending.map(([fieldId, value]) => {
+        return new Promise<void>((resolve) => {
+          updateMutation.mutate(
+            { id: fieldId, data: { value }, taskId },
+            { onSettled: () => resolve() }
+          );
+        });
+      });
+
+      // Clear pending changes
+      pendingChangesRef.current.clear();
+
+      // Wait for all to complete
+      await Promise.all(promises);
+    },
+  }), [updateMutation, taskId]);
 
   const propertyTypes: Array<{
     type: CustomFieldType;
@@ -56,11 +99,17 @@ export function InlineCustomFieldsManager({ taskId }: InlineCustomFieldsManagerP
   const handleCreate = () => {
     if (!selectedType || !fieldName.trim()) return;
 
+    // Auto-add any pending option that wasn't explicitly added
+    let finalOptions = selectOptions;
+    if (selectedType === 'single_select' && newOption.trim() && !selectOptions.includes(newOption.trim())) {
+      finalOptions = [...selectOptions, newOption.trim()];
+    }
+
     const data: CreateCustomFieldDto = {
       task: taskId,
       field_name: fieldName.trim(),
       field_type: selectedType,
-      select_options: selectedType === 'single_select' ? selectOptions : undefined,
+      select_options: selectedType === 'single_select' ? finalOptions : undefined,
     };
 
     createMutation.mutate(
@@ -104,9 +153,14 @@ export function InlineCustomFieldsManager({ taskId }: InlineCustomFieldsManagerP
         <InlineCustomField
           key={field.id}
           field={field}
-          onUpdate={(data) => updateMutation.mutate({ id: field.id, data, taskId })}
-          onUpdateName={(name) => updateMutation.mutate({ id: field.id, data: { field_name: name }, taskId })}
+          onUpdate={(data) => {
+            updateMutation.mutate({ id: field.id, data, taskId });
+          }}
+          onUpdateName={(name) => {
+            updateMutation.mutate({ id: field.id, data: { field_name: name }, taskId });
+          }}
           onDelete={() => deleteMutation.mutate({ id: field.id, taskId })}
+          onPendingChange={handlePendingChange}
         />
       ))}
 
@@ -221,4 +275,6 @@ export function InlineCustomFieldsManager({ taskId }: InlineCustomFieldsManagerP
       )}
     </>
   );
-}
+});
+
+InlineCustomFieldsManager.displayName = 'InlineCustomFieldsManager';

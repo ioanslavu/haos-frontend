@@ -208,7 +208,7 @@ export default function TaskManagement() {
   const navigate = useNavigate();
   const currentUser = useAuthStore((state) => state.user)
   const [viewMode, setViewMode] = useState<'kanban' | 'list' | 'calendar'>('kanban')
-  const [listDensity, setListDensity] = useState<'comfortable' | 'compact'>('comfortable')
+  const [listDensity, setListDensity] = useState<'comfortable' | 'compact'>('compact')
   const [searchQuery, setSearchQuery] = useState('')
   const [filterPriority, setFilterPriority] = useState<string>('all')
   const [filterType, setFilterType] = useState<string>('all')
@@ -511,14 +511,6 @@ export default function TaskManagement() {
                   )}
                 </div>
               </div>
-              <Button
-                onClick={() => setTaskCreateOpen(true)}
-                size="default"
-                className="rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                New Task
-              </Button>
             </div>
 
             {/* Filters Row */}

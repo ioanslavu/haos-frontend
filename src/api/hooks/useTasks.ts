@@ -155,6 +155,8 @@ export const useCreateTask = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['project-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
       toast.success('Task created successfully');
     },
     onError: (error: any) => {
@@ -228,8 +230,10 @@ export const useUpdateTask = () => {
       );
     },
     onSettled: () => {
-      // Only invalidate stats since counts may have changed
+      // Invalidate related queries
       queryClient.invalidateQueries({ queryKey: ['tasks', 'stats'] });
+      queryClient.invalidateQueries({ queryKey: ['project-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
     },
   });
 };
@@ -240,30 +244,13 @@ export const useUpdateTaskStatus = () => {
 
   return useMutation({
     mutationFn: async ({ id, status }: { id: number; status: string }) => {
-      const response = await apiClient.post<Task>(
-        `${TASKS_BASE_URL}/${id}/update-status/`,
+      const response = await apiClient.patch<Task>(
+        `${TASKS_BASE_URL}/${id}/`,
         { status }
       );
       return response.data;
     },
-    onMutate: async ({ id, status }) => {
-      await queryClient.cancelQueries({ queryKey: ['tasks', id] });
-      const previousTask = queryClient.getQueryData<Task>(['tasks', id]);
-
-      if (previousTask) {
-        queryClient.setQueryData<Task>(['tasks', id], {
-          ...previousTask,
-          status: status as Task['status'],
-          updated_at: new Date().toISOString(),
-        });
-      }
-
-      return { previousTask };
-    },
-    onError: (error: any, { id }, context) => {
-      if (context?.previousTask) {
-        queryClient.setQueryData(['tasks', id], context.previousTask);
-      }
+    onError: (error: any) => {
       toast.error(error.response?.data?.detail || 'Failed to update task status');
     },
     onSuccess: (data) => {
@@ -459,8 +446,46 @@ export const useTaskInbox = () => {
   return useQuery({
     queryKey: ['tasks', 'inbox'],
     queryFn: async () => {
-      const response = await apiClient.get(`${TASKS_BASE_URL}/inbox/`);
-      return response.data;
+      // Fetch tasks and notifications in parallel
+      const [tasksResponse, notificationsResponse] = await Promise.all([
+        apiClient.get(`${TASKS_BASE_URL}/my_tasks/`),
+        apiClient.get('/api/v1/notifications/')
+      ]);
+
+      const tasks = Array.isArray(tasksResponse.data)
+        ? tasksResponse.data
+        : tasksResponse.data.results || [];
+
+      const notifications = Array.isArray(notificationsResponse.data)
+        ? notificationsResponse.data
+        : notificationsResponse.data.results || [];
+
+      // Filter to only unread notifications
+      const unreadNotifications = notifications.filter((n: any) => !n.is_read);
+
+      // Calculate summary
+      const now = new Date();
+      const activeTasks = tasks.filter((t: any) =>
+        ['todo', 'in_progress', 'blocked', 'review'].includes(t.status)
+      );
+      const blockedTasks = tasks.filter((t: any) => t.status === 'blocked');
+      const overdueTasks = tasks.filter((t: any) =>
+        t.due_date &&
+        new Date(t.due_date) < now &&
+        ['todo', 'in_progress', 'blocked', 'review'].includes(t.status)
+      );
+
+      return {
+        tasks: activeTasks,
+        notifications: unreadNotifications,
+        summary: {
+          total_tasks: tasks.length,
+          active_tasks: activeTasks.length,
+          blocked_tasks: blockedTasks.length,
+          unread_notifications: unreadNotifications.length,
+          overdue_tasks: overdueTasks.length
+        }
+      };
     },
     refetchInterval: 60000, // Refresh every minute
   });

@@ -40,6 +40,7 @@ const TemplateDetail = lazy(() => import("./pages/TemplateDetail"));
 const ImportTemplate = lazy(() => import("./pages/ImportTemplate"));
 const TaskManagement = lazy(() => import("./pages/TaskManagement"));
 const WorkboardPage = lazy(() => import("./pages/workboard"));
+const ProjectDetailPage = lazy(() => import("./pages/workboard/ProjectDetailPage"));
 
 // Digital pages (lazy loaded)
 const DigitalOverview = lazy(() => import("./pages/digital/OverviewPage"));
@@ -74,6 +75,9 @@ const ActivitiesPage = lazy(() => import("./pages/activities/ActivitiesPage"));
 // Camps pages
 const CampsList = lazy(() => import("./pages/camps/CampsList"));
 const CampDetail = lazy(() => import("./pages/camps/CampDetail"));
+
+// Teams pages
+const TeamsPage = lazy(() => import("./pages/teams/TeamsPage"));
 
 // Opportunities pages (unified artist sales system)
 const OpportunitiesKanban = lazy(() => import("./pages/opportunities/OpportunitiesKanban"));
@@ -178,6 +182,13 @@ const App = () => (
               </ProtectedRoute>
             } />
 
+            {/* Teams route */}
+            <Route path="/teams" element={
+              <ProtectedRoute>
+                <TeamsPage />
+              </ProtectedRoute>
+            } />
+
             {/* Opportunities routes (unified artist sales system) */}
             <Route path="/opportunities" element={
               <ProtectedRoute>
@@ -238,6 +249,11 @@ const App = () => (
             <Route path="/workboard" element={
               <ProtectedRoute>
                 <WorkboardPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/workboard/:id" element={
+              <ProtectedRoute>
+                <ProjectDetailPage />
               </ProtectedRoute>
             } />
             {/* Song Workflow routes */}

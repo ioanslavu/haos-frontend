@@ -8,6 +8,7 @@ export type ProjectType =
   | 'contract'
   | 'distribution_deal'
   | 'ops'
+  | 'recurring'
   | 'custom';
 
 export type ProjectStatus = 'active' | 'on_hold' | 'completed' | 'archived';
@@ -36,6 +37,7 @@ export const PROJECT_TYPE_CONFIG: Record<ProjectType, { label: string; icon: str
   contract: { label: 'Contract', icon: '📝', color: 'bg-red-500' },
   distribution_deal: { label: 'Distribution', icon: '🌐', color: 'bg-teal-500' },
   ops: { label: 'Operations', icon: '⚙️', color: 'bg-gray-500' },
+  recurring: { label: 'Recurring Tasks', icon: '🔄', color: 'bg-indigo-500' },
   custom: { label: 'Custom', icon: '📋', color: 'bg-pink-500' },
 };
 
@@ -101,6 +103,7 @@ export interface Project {
   task_count: number;
   completed_task_count: number;
   completion_percentage: number;
+  is_recurring_project: boolean;
   created_at: string;
   updated_at: string;
   // Note: metadata is only in detail view, but we include for pinning support
@@ -148,14 +151,27 @@ export interface ProjectTask {
   status_display: string;
   priority: TaskPriority;
   priority_display: string;
+  task_type: string;
+  task_type_display: string;
   project: number;
   project_name: string;
   department: number;
   due_date: string | null;
   assigned_to: UserMinimal | null;
+  assigned_to_users_detail: UserMinimal[];
+  assigned_team: number | null;
+  assigned_team_detail: {
+    id: number;
+    name: string;
+    department: number;
+    member_count: number;
+  } | null;
   created_by: UserMinimal;
+  reviewed_by: UserMinimal | null;
   parent_task: number | null;
   is_overdue: boolean;
+  notes: string | null;
+  estimated_hours?: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -221,14 +221,14 @@ const TaskRow = memo(({
       </TableCell>
 
       {/* Type Badge */}
-      <TableCell className="py-1.5 w-20" onClick={(e) => e.stopPropagation()}>
+      <TableCell className="py-1.5" onClick={(e) => e.stopPropagation()}>
         <Badge variant="outline" className="text-[10px] font-normal border-border/60 bg-background/50 px-1.5 py-0 whitespace-nowrap">
           {TASK_TYPE_LABELS[task.task_type]}
         </Badge>
       </TableCell>
 
       {/* Priority - Inline Editable */}
-      <TableCell className="py-1.5 w-20" onClick={(e) => e.stopPropagation()}>
+      <TableCell className="py-1.5" onClick={(e) => e.stopPropagation()}>
         <InlinePrioritySelect
           value={task.priority}
           onSave={(priority) => onPriorityUpdate(task.id, priority)}
@@ -237,7 +237,7 @@ const TaskRow = memo(({
       </TableCell>
 
       {/* Status - Inline Editable */}
-      <TableCell className="py-1.5 w-24" onClick={(e) => e.stopPropagation()}>
+      <TableCell className="py-1.5" onClick={(e) => e.stopPropagation()}>
         <InlineStatusBadge
           value={task.status}
           onSave={(status) => onStatusUpdate(task.id, status)}
@@ -247,7 +247,7 @@ const TaskRow = memo(({
       </TableCell>
 
       {/* Assigned - Inline Editable */}
-      <TableCell className="py-1.5 w-32" onClick={(e) => e.stopPropagation()}>
+      <TableCell className="py-1.5" onClick={(e) => e.stopPropagation()}>
         <InlineAssigneeSelect
           value={task.assigned_to_users || []}
           onSave={(users) => onAssigneeUpdate(task.id, users)}
@@ -258,7 +258,7 @@ const TaskRow = memo(({
       </TableCell>
 
       {/* Due Date - Inline Editable */}
-      <TableCell className="py-1.5 w-28" onClick={(e) => e.stopPropagation()}>
+      <TableCell className="py-1.5" onClick={(e) => e.stopPropagation()}>
         <InlineDatePicker
           value={task.due_date}
           onSave={(date) => onDateUpdate(task.id, date)}
@@ -605,12 +605,12 @@ export function StatusGroupedCompactTable({
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               <TableHead className="w-8 py-2"></TableHead>
-              <TableHead className="font-semibold py-2 text-xs min-w-[200px]">Task</TableHead>
-              <TableHead className="font-semibold w-20 py-2 text-xs">Type</TableHead>
-              <TableHead className="font-semibold w-20 py-2 text-xs">Priority</TableHead>
-              <TableHead className="font-semibold w-24 py-2 text-xs">Status</TableHead>
-              <TableHead className="font-semibold w-32 py-2 text-xs">Assigned</TableHead>
-              <TableHead className="font-semibold w-28 py-2 text-xs">Due</TableHead>
+              <TableHead className="font-semibold py-2 text-xs">Task</TableHead>
+              <TableHead className="font-semibold py-2 text-xs">Type</TableHead>
+              <TableHead className="font-semibold py-2 text-xs">Priority</TableHead>
+              <TableHead className="font-semibold py-2 text-xs">Status</TableHead>
+              <TableHead className="font-semibold py-2 text-xs">Assigned</TableHead>
+              <TableHead className="font-semibold py-2 text-xs">Due</TableHead>
             </TableRow>
           </TableHeader>
         </Table>

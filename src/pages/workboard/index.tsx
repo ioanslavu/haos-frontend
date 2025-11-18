@@ -100,12 +100,14 @@ export default function WorkboardPage() {
 
     const departmentProjects = filteredProjects.filter(p => departmentTypes.includes(p.project_type));
     const otherProjects = filteredProjects.filter(p => otherTypes.includes(p.project_type));
+    const recurringProjects = filteredProjects.filter(p => p.project_type === 'recurring');
     const pinnedProjects = filteredProjects.filter(p => p.metadata?.pinned);
 
     return {
       pinned: pinnedProjects,
       department: departmentProjects,
       other: otherProjects,
+      recurring: recurringProjects,
     };
   }, [filteredProjects]);
 
@@ -151,15 +153,6 @@ export default function WorkboardPage() {
               </div>
 
               <div className="flex items-center gap-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsRecurringOpen(true)}
-                  className="rounded-xl border-white/20 bg-white/5 backdrop-blur-sm hover:bg-white/10"
-                >
-                  <Repeat className="h-4 w-4 mr-2" />
-                  Recurring
-                </Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -358,6 +351,17 @@ export default function WorkboardPage() {
                     title="Operations & General"
                     icon="⚙️"
                     projects={groupedProjects.other}
+                    viewMode={viewMode}
+                    onProjectClick={handleProjectClick}
+                  />
+                )}
+
+                {/* Recurring Tasks Projects */}
+                {groupedProjects.recurring.length > 0 && (
+                  <ProjectSection
+                    title="Recurring Tasks"
+                    icon="🔄"
+                    projects={groupedProjects.recurring}
                     viewMode={viewMode}
                     onProjectClick={handleProjectClick}
                   />

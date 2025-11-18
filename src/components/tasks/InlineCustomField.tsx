@@ -26,20 +26,28 @@ interface InlineCustomFieldProps {
   onUpdate: (data: UpdateCustomFieldDto) => void;
   onDelete: () => void;
   onUpdateName: (name: string) => void;
+  onPendingChange?: (fieldId: number, value: string | number | null) => void;
 }
 
-export function InlineCustomField({ field, onUpdate, onDelete, onUpdateName }: InlineCustomFieldProps) {
+export function InlineCustomField({ field, onUpdate, onDelete, onUpdateName, onPendingChange }: InlineCustomFieldProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(field.field_name);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [localValue, setLocalValue] = useState<string | number>(field.display_value || '');
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
+  const lastSyncedValueRef = useRef<string | number | undefined>(field.display_value);
 
-  // Sync local value when field updates from server
+  // Sync local value when field updates from server (only if actually changed)
   useEffect(() => {
-    setLocalValue(field.display_value || '');
-  }, [field.display_value]);
+    // Only sync if the server value actually changed (not on initial mount or re-renders)
+    if (field.display_value !== lastSyncedValueRef.current) {
+      lastSyncedValueRef.current = field.display_value;
+      setLocalValue(field.display_value || '');
+      // Clear pending at parent since server has the latest value
+      onPendingChange?.(field.id, null);
+    }
+  }, [field.display_value, field.id, onPendingChange]);
 
   const handleSaveName = () => {
     if (nameValue.trim() && nameValue !== field.field_name) {
@@ -51,6 +59,8 @@ export function InlineCustomField({ field, onUpdate, onDelete, onUpdateName }: I
   const handleValueChange = (value: string | number) => {
     // Update local state immediately
     setLocalValue(value);
+    // Report pending change to parent for save-on-close
+    onPendingChange?.(field.id, value);
 
     // Debounce the API call
     if (saveTimeoutRef.current) {
@@ -59,15 +69,34 @@ export function InlineCustomField({ field, onUpdate, onDelete, onUpdateName }: I
 
     saveTimeoutRef.current = setTimeout(() => {
       onUpdate({ value });
+      // Clear pending at parent after save
+      onPendingChange?.(field.id, null);
     }, 500); // 500ms debounce
   };
 
-  // Cleanup timeout on unmount
+  // Save immediately when field loses focus
+  const handleBlur = () => {
+    // If there's a pending debounce, cancel it and save immediately
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = undefined;
+    }
+
+    // Check if value changed from server value
+    if (localValue !== lastSyncedValueRef.current) {
+      onUpdate({ value: localValue });
+      onPendingChange?.(field.id, null);
+    }
+  };
+
+  // Cleanup and save on unmount
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
+      // Note: Can't reliably save on unmount as React context is torn down
+      // The onBlur handler will save when focus leaves the input
     };
   }, []);
 
@@ -131,6 +160,7 @@ export function InlineCustomField({ field, onUpdate, onDelete, onUpdateName }: I
               type="text"
               value={localValue || ''}
               onChange={(e) => handleValueChange(e.target.value)}
+              onBlur={handleBlur}
               placeholder="Empty"
               className="h-7 text-sm border-none bg-transparent hover:bg-muted/30 focus:bg-background focus:border-input"
             />
@@ -141,6 +171,7 @@ export function InlineCustomField({ field, onUpdate, onDelete, onUpdateName }: I
               type="number"
               value={localValue || ''}
               onChange={(e) => handleValueChange(e.target.value)}
+              onBlur={handleBlur}
               placeholder="Empty"
               className="h-7 text-sm border-none bg-transparent hover:bg-muted/30 focus:bg-background focus:border-input"
             />

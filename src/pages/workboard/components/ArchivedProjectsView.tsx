@@ -91,9 +91,18 @@ export function ArchivedProjectsView({
 
       {/* Project List */}
       {filteredProjects.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <Archive className="h-12 w-12 mx-auto mb-3 opacity-50" />
-          <p>{searchTerm ? 'No archived projects match your search' : 'No archived projects'}</p>
+        <div className="text-center py-16 text-muted-foreground">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-gray-500/10 to-slate-500/10 mb-4">
+            <Archive className="h-8 w-8 text-gray-400" />
+          </div>
+          <h3 className="text-lg font-semibold mb-2 text-foreground">
+            {searchTerm ? 'No matches found' : 'Archive is empty'}
+          </h3>
+          <p className="text-sm max-w-sm mx-auto">
+            {searchTerm
+              ? 'No archived projects match your search. Try a different keyword.'
+              : 'Projects you archive will appear here. You can restore them anytime or delete them permanently.'}
+          </p>
         </div>
       ) : (
         <div className="space-y-2">

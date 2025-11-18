@@ -11,10 +11,11 @@ export const useTaskCustomFields = (taskId: number | undefined) => {
     queryKey: ['tasks', taskId, 'customFields'],
     queryFn: async () => {
       if (!taskId) throw new Error('Task ID is required');
-      const response = await apiClient.get<TaskCustomField[]>(
+      const response = await apiClient.get<TaskCustomField[] | { results: TaskCustomField[] }>(
         `${CUSTOM_FIELDS_BASE_URL}/tasks/${taskId}/custom-fields/`
       );
-      return response.data;
+      // Handle both array and paginated responses
+      return Array.isArray(response.data) ? response.data : response.data.results;
     },
     enabled: !!taskId,
     staleTime: 30 * 1000, // Data considered fresh for 30 seconds
@@ -33,15 +34,9 @@ export const useCreateCustomField = () => {
       );
       return response.data;
     },
-    onSuccess: (newField) => {
-      // Add the new field to cache directly
-      queryClient.setQueryData<TaskCustomField[]>(
-        ['tasks', newField.task, 'customFields'],
-        (oldData) => {
-          if (!oldData) return [newField];
-          return [...oldData, newField];
-        }
-      );
+    onSuccess: (newField, { taskId }) => {
+      // Invalidate and refetch to ensure UI is in sync
+      queryClient.invalidateQueries({ queryKey: ['tasks', taskId, 'customFields'] });
       toast.success('Custom field added');
     },
     onError: (error: any) => {
@@ -66,13 +61,18 @@ export const useUpdateCustomField = () => {
       return response.data;
     },
     onMutate: async ({ id, data, taskId }) => {
-      if (!taskId) return {};
+      if (!taskId) {
+        return {};
+      }
 
       // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['tasks', taskId, 'customFields'] });
 
       // Snapshot previous value
-      const previousFields = queryClient.getQueryData<TaskCustomField[]>(['tasks', taskId, 'customFields']);
+      const previousData = queryClient.getQueryData<TaskCustomField[] | { results: TaskCustomField[] }>(['tasks', taskId, 'customFields']);
+
+      // Handle both array and paginated response formats
+      const previousFields = Array.isArray(previousData) ? previousData : previousData?.results;
 
       // Optimistically update the cache
       if (previousFields) {
@@ -144,7 +144,9 @@ export const useDeleteCustomField = () => {
       const errorMessage = error?.response?.data?.error || 'Failed to delete custom field';
       toast.error(errorMessage);
     },
-    onSuccess: () => {
+    onSuccess: (_, { taskId }) => {
+      // Invalidate to ensure cache is clean
+      queryClient.invalidateQueries({ queryKey: ['tasks', taskId, 'customFields'] });
       toast.success('Custom field deleted');
     },
   });

@@ -381,7 +381,7 @@ export const useAuthStore = create<AuthState>()(
         isAdminOrManager: () => {
           const { user } = get();
           if (!user?.role) return false;
-          return ['administrator', 'digital_manager', 'sales_manager'].includes(user.role);
+          return ['administrator', 'digital_manager', 'sales_manager', 'marketing_manager', 'publishing_manager'].includes(user.role);
         },
       }),
       {
