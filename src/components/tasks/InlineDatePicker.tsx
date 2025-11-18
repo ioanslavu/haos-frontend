@@ -82,7 +82,7 @@ export function InlineDatePicker({
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0 z-[60]" align="start">
+      <PopoverContent className="w-auto p-0 bg-background border-border" align="start">
         <Calendar
           mode="single"
           selected={value ? new Date(value) : undefined}

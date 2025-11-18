@@ -39,6 +39,7 @@ const Templates = lazy(() => import("./pages/Templates"));
 const TemplateDetail = lazy(() => import("./pages/TemplateDetail"));
 const ImportTemplate = lazy(() => import("./pages/ImportTemplate"));
 const TaskManagement = lazy(() => import("./pages/TaskManagement"));
+const WorkboardPage = lazy(() => import("./pages/workboard"));
 
 // Digital pages (lazy loaded)
 const DigitalOverview = lazy(() => import("./pages/digital/OverviewPage"));
@@ -83,6 +84,11 @@ const UsageTermsAdmin = lazy(() => import("./pages/opportunities/UsageTermsAdmin
 
 // Admin pages
 const EntityRequestsPage = lazy(() => import("./pages/admin/EntityRequestsPage"));
+const ChecklistTemplatesPage = lazy(() => import("./pages/admin/ChecklistTemplatesPage"));
+const ChecklistTemplateEditor = lazy(() => import("./pages/admin/ChecklistTemplateEditor"));
+
+// Task pages
+const TaskReviewDashboard = lazy(() => import("./pages/tasks/TaskReviewDashboard"));
 
 // Song Workflow pages
 const SongListPage = lazy(() => import("./pages/songs/SongListPage"));
@@ -95,6 +101,9 @@ const SongWorkDetail = lazy(() => import("./pages/songs/SongWorkDetail"));
 
 // Notes pages
 const NotesPage = lazy(() => import("./pages/notes/Index"));
+
+// Marketing pages
+const MarketingTeam = lazy(() => import("./pages/marketing/MarketingTeam"));
 
 const App = () => (
   <ErrorBoundary>
@@ -226,6 +235,11 @@ const App = () => (
                 <TaskManagement />
               </ProtectedRoute>
             } />
+            <Route path="/workboard" element={
+              <ProtectedRoute>
+                <WorkboardPage />
+              </ProtectedRoute>
+            } />
             {/* Song Workflow routes */}
             <Route path="/songs" element={
               <ProtectedRoute>
@@ -330,6 +344,12 @@ const App = () => (
                 <DigitalReporting />
               </ProtectedRoute>
             } />
+            {/* Marketing routes */}
+            <Route path="/marketing/team" element={
+              <ProtectedRoute>
+                <MarketingTeam />
+              </ProtectedRoute>
+            } />
             <Route path="/notes" element={
               <ProtectedRoute>
                 <NotesPage />
@@ -380,11 +400,14 @@ const App = () => (
             <Route element={<AdminRoute />}>
               <Route path="/users/management" element={<UsersManagement />} />
               <Route path="/admin/entity-requests" element={<EntityRequestsPage />} />
+              <Route path="/admin/checklist-templates" element={<ChecklistTemplatesPage />} />
+              <Route path="/admin/checklist-templates/:id" element={<ChecklistTemplateEditor />} />
             </Route>
 
             {/* Department Requests - Admin and Manager only */}
             <Route element={<ManagerRoute />}>
               <Route path="/department-requests" element={<DepartmentRequests />} />
+              <Route path="/tasks/review" element={<TaskReviewDashboard />} />
             </Route>
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

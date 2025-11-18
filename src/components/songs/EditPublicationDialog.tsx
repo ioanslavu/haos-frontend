@@ -110,7 +110,7 @@ export function EditPublicationDialog({
         notes: data.notes || undefined,
       };
 
-      return await apiClient.patch(`/api/v1/distribution/publications/${publication.id}/`, payload);
+      return await apiClient.patch(`/api/v1/publications/${publication.id}/`, payload);
     },
     onSuccess: () => {
       toast({

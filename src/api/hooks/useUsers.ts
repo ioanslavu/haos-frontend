@@ -12,6 +12,7 @@ export interface UserListParams {
   role?: string;
   is_active?: boolean;
   is_locked?: boolean;
+  search?: string; // For @mentions search
 }
 
 export interface UserListResponse {

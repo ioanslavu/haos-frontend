@@ -98,7 +98,7 @@ export function AddPlatformDialog({
         notes: data.notes || undefined,
       };
 
-      return await apiClient.post('/api/v1/distribution/publications/', payload);
+      return await apiClient.post('/api/v1/publications/', payload);
     },
     onSuccess: () => {
       toast({

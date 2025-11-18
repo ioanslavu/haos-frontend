@@ -18,6 +18,8 @@ import {
 } from '@/components/ui/select';
 import { Task, TASK_STATUS_LABELS, TASK_PRIORITY_LABELS, TASK_TAG_LABELS, TASK_TYPE_LABELS, TASK_STATUS_COLORS, TASK_PRIORITY_COLORS, TASK_TAG_COLORS } from '@/api/types/tasks';
 import { useDeleteTask, useUpdateTaskStatus } from '@/api/hooks/useTasks';
+import { TaskNotesRenderer } from './TaskNotesRenderer';
+import { useTaskCustomFields } from '@/api/hooks/useCustomFields';
 import {
   Calendar,
   Clock,
@@ -57,6 +59,13 @@ export function TaskViewSheet({ task, open, onOpenChange, onEdit }: TaskViewShee
   const deleteTask = useDeleteTask();
   const updateTaskStatus = useUpdateTaskStatus();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const { data: customFieldsData } = useTaskCustomFields(task?.id);
+  // Handle both array and paginated responses from API
+  const customFields = Array.isArray(customFieldsData)
+    ? customFieldsData
+    : customFieldsData?.results
+    ? customFieldsData.results
+    : [];
 
   if (!task) return null;
 
@@ -291,13 +300,36 @@ export function TaskViewSheet({ task, open, onOpenChange, onEdit }: TaskViewShee
               </>
             )}
 
+            {/* Custom Fields */}
+            {customFields.length > 0 && (
+              <>
+                <Separator />
+                <div>
+                  <h4 className="text-sm font-semibold mb-3">Custom Properties</h4>
+                  <div className="space-y-2">
+                    {customFields.map((field) => (
+                      <div key={field.id} className="grid grid-cols-[140px_1fr] gap-4 text-sm">
+                        <span className="text-muted-foreground">{field.field_name}</span>
+                        <span className="font-medium">
+                          {field.display_value || <span className="text-muted-foreground italic">Empty</span>}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
             {/* Notes */}
             {task.notes && (
               <>
                 <Separator />
                 <div>
                   <h4 className="text-sm font-semibold mb-2">Notes</h4>
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{task.notes}</p>
+                  <TaskNotesRenderer
+                    content={task.notes}
+                    className="text-sm text-muted-foreground"
+                  />
                 </div>
               </>
             )}

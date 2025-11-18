@@ -113,6 +113,15 @@ export interface SongChecklistItem {
   assigned_to_name?: string | null;
   is_blocker: boolean;
   depends_on?: number | null;
+  template_item_detail?: {
+    id: number;
+    has_task_inputs: boolean;
+    requires_review: boolean;
+    quantity: number;
+    task_count: number;
+    completed_count: number;
+    pending_review_count: number;
+  } | null;
 }
 
 export interface SongStageTransition {

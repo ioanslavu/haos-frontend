@@ -38,10 +38,10 @@ export const duplicateCamp = (id: number) => {
 };
 
 export const exportCampPDF = (id: number) => {
-  return apiClient.post(`${CAMPS_BASE}/${id}/export_pdf/`, {}, { responseType: 'blob' });
+  return apiClient.post(`${CAMPS_BASE}/${id}/export-pdf/`, {}, { responseType: 'blob' });
 };
 
 // Creative artists (for studio artist selection)
 export const fetchCreativeArtists = (params?: { search?: string }) => {
-  return apiClient.get<Artist[]>('/api/v1/identity/entities/creative/', { params });
+  return apiClient.get<Artist[]>('/api/v1/entities/creative/', { params });
 };

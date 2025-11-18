@@ -155,7 +155,7 @@ export function InlineDurationSelect({
           <span className="text-xs">{value ? formatDuration(value) : placeholder}</span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[240px] p-2 z-[60]" align="start">
+      <PopoverContent className="w-[240px] p-2 bg-background border-border" align="start">
         <div className="space-y-1">
           <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
             Estimated Duration
@@ -226,7 +226,7 @@ export function InlineDurationSelect({
                       <SelectTrigger className="h-9">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="z-[9999]">
                         <SelectItem value="0">0</SelectItem>
                         <SelectItem value="15">15</SelectItem>
                         <SelectItem value="30">30</SelectItem>

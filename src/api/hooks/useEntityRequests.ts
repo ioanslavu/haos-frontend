@@ -10,7 +10,7 @@ import {
 import { toast } from 'sonner';
 
 // API endpoints
-const ENTITY_REQUESTS_BASE_URL = '/api/v1/crm/entity-change-requests';
+const ENTITY_REQUESTS_BASE_URL = '/api/v1/entities/change-requests';
 
 // Fetch entity change requests with filters
 export const useEntityRequests = (params?: {

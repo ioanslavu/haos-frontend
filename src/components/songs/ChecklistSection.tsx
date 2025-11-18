@@ -39,6 +39,7 @@ interface ChecklistSectionProps {
   onToggle?: (itemId: number) => void;
   onAssign?: (itemId: number) => void;
   onUpdateAssetUrl?: (itemId: number, assetUrl: string) => void;
+  onOpenTaskModal?: (itemId: number) => void;
   onValidateAll?: () => void;
   onCompleteStage?: () => void;
   onSendToMarketing?: () => void;
@@ -57,6 +58,7 @@ export const ChecklistSection = ({
   onToggle,
   onAssign,
   onUpdateAssetUrl,
+  onOpenTaskModal,
   onValidateAll,
   onCompleteStage,
   onSendToMarketing,
@@ -190,6 +192,7 @@ export const ChecklistSection = ({
                           onToggle={onToggle}
                           onAssign={onAssign}
                           onUpdateAssetUrl={onUpdateAssetUrl}
+                          onOpenTaskModal={onOpenTaskModal}
                           disabled={disabled}
                         />
                       ))}
@@ -225,6 +228,7 @@ export const ChecklistSection = ({
                       onToggle={onToggle}
                       onAssign={onAssign}
                       onUpdateAssetUrl={onUpdateAssetUrl}
+                      onOpenTaskModal={onOpenTaskModal}
                       disabled={disabled}
                     />
                   ))}
@@ -305,6 +309,7 @@ export const ChecklistSection = ({
                                 onToggle={onToggle}
                                 onAssign={onAssign}
                                 onUpdateAssetUrl={onUpdateAssetUrl}
+                                onOpenTaskModal={onOpenTaskModal}
                                 disabled={disabled}
                               />
                             ))}

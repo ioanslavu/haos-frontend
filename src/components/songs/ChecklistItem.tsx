@@ -3,7 +3,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { CheckCircle2, HelpCircle, UserPlus, Link as LinkIcon, Check } from 'lucide-react';
+import { CheckCircle2, HelpCircle, UserPlus, Link as LinkIcon, Check, FileEdit, Eye } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -18,6 +18,7 @@ interface ChecklistItemProps {
   onToggle?: (itemId: number) => void;
   onAssign?: (itemId: number) => void;
   onUpdateAssetUrl?: (itemId: number, assetUrl: string) => void;
+  onOpenTaskModal?: (itemId: number) => void;
   disabled?: boolean;
 }
 
@@ -27,6 +28,7 @@ export const ChecklistItem = ({
   onToggle,
   onAssign,
   onUpdateAssetUrl,
+  onOpenTaskModal,
   disabled = false
 }: ChecklistItemProps) => {
   const [assetUrl, setAssetUrl] = useState(item.asset_url || '');
@@ -34,9 +36,20 @@ export const ChecklistItem = ({
 
   // Check if item is manual based on validation_type
   const isManual = item.validation_type === 'manual';
+  const hasTaskInputs = item.template_item_detail?.has_task_inputs || false;
+  const needsQuantityTasks = (item.template_item_detail?.quantity || 0) > 1;
 
   const handleToggle = () => {
-    if (!disabled && isManual && onToggle) {
+    if (disabled) return;
+
+    // If item has task inputs or needs multiple instances, open task modal
+    if ((hasTaskInputs || needsQuantityTasks) && onOpenTaskModal) {
+      onOpenTaskModal(item.id);
+      return;
+    }
+
+    // Otherwise, simple checkbox toggle
+    if (isManual && onToggle) {
       onToggle(item.id);
     }
   };
@@ -108,6 +121,42 @@ export const ChecklistItem = ({
           {!isManual && (
             <Badge variant="outline" className="text-xs">
               Auto
+            </Badge>
+          )}
+          {item.template_item_detail?.has_task_inputs && (
+            <Tooltip>
+              <TooltipTrigger onClick={(e) => e.stopPropagation()}>
+                <Badge variant="outline" className="text-xs bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300">
+                  <FileEdit className="h-3 w-3 mr-1" />
+                  Inputs Required
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="max-w-xs">This task requires filling in additional information</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+          {item.template_item_detail?.requires_review && (
+            <Tooltip>
+              <TooltipTrigger onClick={(e) => e.stopPropagation()}>
+                <Badge variant="outline" className="text-xs bg-orange-50 dark:bg-orange-950 border-orange-200 dark:border-orange-800 text-orange-700 dark:text-orange-300">
+                  <Eye className="h-3 w-3 mr-1" />
+                  Requires Review
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="max-w-xs">Completion requires manager approval</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+          {item.template_item_detail?.quantity && item.template_item_detail.quantity > 1 && (
+            <Badge variant="outline" className="text-xs bg-purple-50 dark:bg-purple-950 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300">
+              {item.template_item_detail.completed_count}/{item.template_item_detail.quantity} completed
+            </Badge>
+          )}
+          {item.template_item_detail?.pending_review_count > 0 && (
+            <Badge variant="outline" className="text-xs bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300">
+              {item.template_item_detail.pending_review_count} pending review
             </Badge>
           )}
           {item.help_text && (
@@ -189,19 +238,38 @@ export const ChecklistItem = ({
         )}
       </div>
 
-      {onAssign && songId && !item.is_complete && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleAssignClick}
-          className="ml-auto flex-shrink-0"
-        >
-          <UserPlus className="h-4 w-4" />
-          <span className="ml-1 text-xs">
-            {item.assigned_to_name ? 'Reassign' : 'Assign'}
-          </span>
-        </Button>
-      )}
+      <div className="flex items-center gap-2 ml-auto flex-shrink-0">
+        {/* Complete Task button for items with inputs or quantity requirements */}
+        {(hasTaskInputs || needsQuantityTasks) && onOpenTaskModal && !item.is_complete && (
+          <Button
+            variant="default"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenTaskModal(item.id);
+            }}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            <FileEdit className="h-4 w-4" />
+            <span className="ml-1 text-xs">
+              {needsQuantityTasks ? 'Add Instance' : 'Complete Task'}
+            </span>
+          </Button>
+        )}
+
+        {onAssign && songId && !item.is_complete && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleAssignClick}
+          >
+            <UserPlus className="h-4 w-4" />
+            <span className="ml-1 text-xs">
+              {item.assigned_to_name ? 'Reassign' : 'Assign'}
+            </span>
+          </Button>
+        )}
+      </div>
     </div>
   );
 };

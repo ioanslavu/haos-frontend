@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -18,7 +18,7 @@ import { useUsersList } from '@/api/hooks/useUsers';
 import { CheckSquare, User, Calendar, FileText, Bell, Music, AlertCircle, UserPlus } from 'lucide-react';
 import apiClient from '@/api/client';
 import { useNavigate } from 'react-router-dom';
-import { useUpdateTask } from '@/api/hooks/useTasks';
+import { useUpdateTask, useTaskInbox } from '@/api/hooks/useTasks';
 
 interface Task {
   id: number;
@@ -71,14 +71,7 @@ export const TasksList: React.FC = () => {
   const { data: usersData } = useUsersList({ is_active: true });
   const users = usersData?.results || [];
 
-  const { data, isLoading, error } = useQuery<InboxResponse>({
-    queryKey: ['inbox'],
-    queryFn: async () => {
-      const response = await apiClient.get('/api/v1/crm/tasks/inbox/');
-      return response.data;
-    },
-    refetchInterval: 60000, // Refresh every minute
-  });
+  const { data, isLoading, error } = useTaskInbox();
 
   const handleAssignTask = async (taskId: number, userIds: number[]) => {
     await updateTaskMutation.mutateAsync({
@@ -86,7 +79,7 @@ export const TasksList: React.FC = () => {
       data: { assigned_user_ids: userIds }
     });
     // Invalidate inbox to refresh the list
-    queryClient.invalidateQueries({ queryKey: ['inbox'] });
+    queryClient.invalidateQueries({ queryKey: ['tasks', 'inbox'] });
   };
 
   const handleToggleUser = async (taskId: number, userId: number, currentUserIds: number[]) => {
@@ -158,7 +151,7 @@ export const TasksList: React.FC = () => {
   const handleNotificationClick = async (notification: Notification) => {
     // Mark as read
     try {
-      await apiClient.patch(`/api/v1/notifications/${notification.id}/mark_read/`, { is_read: true });
+      await apiClient.patch(`/api/v1/notifications/${notification.id}/mark-read/`);
     } catch (err) {
       console.error('Failed to mark notification as read:', err);
     }

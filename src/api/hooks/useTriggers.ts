@@ -5,8 +5,8 @@ import { Task } from '../types/tasks';
 import { toast } from 'sonner';
 
 // API endpoints
-const MANUAL_TRIGGERS_URL = '/api/v1/crm/manual-triggers';
-const FLOW_TRIGGERS_URL = '/api/v1/crm/flow-triggers';
+const MANUAL_TRIGGERS_URL = '/api/v1/manual-triggers';
+const FLOW_TRIGGERS_URL = '/api/v1/flow-triggers';
 
 // Fetch manual triggers (filtered by department permission on backend)
 export const useManualTriggers = (params?: {

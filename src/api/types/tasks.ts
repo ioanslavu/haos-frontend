@@ -1,4 +1,5 @@
 // Task related types
+import type { TaskCustomField } from './customFields';
 
 export type TaskStatus = 'todo' | 'in_progress' | 'blocked' | 'review' | 'done' | 'cancelled';
 
@@ -216,9 +217,17 @@ export interface Task {
   estimated_hours?: number;
   actual_hours?: number;
 
-  // Metadata
-  metadata?: Record<string, any>;
-  notes?: string;
+  // Notes (TipTap JSON format)
+  notes?: any;
+  mentioned_users_detail?: {
+    id: number;
+    email: string;
+    username: string;
+    full_name: string;
+  }[];
+
+  // Custom fields
+  custom_fields?: TaskCustomField[];
 
   // Computed fields
   is_overdue: boolean;
@@ -246,8 +255,7 @@ export interface TaskCreateInput {
   parent_task?: number;
   blocks_tasks?: number[];
   estimated_hours?: number;
-  metadata?: Record<string, any>;
-  notes?: string;
+  notes?: any; // Changed from string to any (TipTap JSON)
 }
 
 export interface TaskUpdateInput extends Partial<TaskCreateInput> {

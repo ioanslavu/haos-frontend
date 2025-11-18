@@ -44,6 +44,13 @@ const NotesPage = () => {
   const [editorKey, setEditorKey] = useState(0);
   const justLoadedRef = useRef(false);
   const loadedContentRef = useRef<any>(null); // Track original loaded content to detect real changes
+  const isCreatingRef = useRef(false); // Track if a creation request is in-flight
+  const pendingChangesRef = useRef<{
+    title: string;
+    content: any;
+    tags: Tag[];
+    color: string | null;
+  } | null>(null); // Buffer changes made during creation
 
   const { data: noteDetail, isLoading: isLoadingDetail } = useNoteDetail(editingNoteId || 0);
 
@@ -129,18 +136,65 @@ const NotesPage = () => {
           }
         );
       } else {
-        // Create new note
+        // Create new note - but prevent duplicate creations
+        if (isCreatingRef.current) {
+          // Creation already in progress - buffer the current changes
+          pendingChangesRef.current = {
+            title: noteTitle,
+            content: noteContent,
+            tags: noteTags,
+            color: noteColor
+          };
+          return;
+        }
+
+        // Mark creation as in-progress
+        isCreatingRef.current = true;
+
         createNote.mutate(
           { title: noteTitle, content: noteContent, tag_ids: noteTags.map(t => t.id), color: noteColor },
           {
             onSuccess: (newNote) => {
               // Switch to editing mode with the new note ID
               setEditingNoteId(newNote.id);
-              setSaveState('idle');
-              setShowSavedIndicator(true);
-              setTimeout(() => setShowSavedIndicator(false), 2000);
+              isCreatingRef.current = false;
+
+              // Check if there are pending changes to flush
+              if (pendingChangesRef.current) {
+                const pending = pendingChangesRef.current;
+                pendingChangesRef.current = null;
+
+                // Immediately update with buffered changes
+                updateNote.mutate(
+                  {
+                    id: newNote.id,
+                    data: {
+                      title: pending.title,
+                      content: pending.content,
+                      tag_ids: pending.tags.map(t => t.id),
+                      color: pending.color
+                    }
+                  },
+                  {
+                    onSuccess: () => {
+                      setSaveState('idle');
+                      setShowSavedIndicator(true);
+                      setTimeout(() => setShowSavedIndicator(false), 2000);
+                    },
+                    onError: () => {
+                      setSaveState('dirty');
+                      toast.error('Failed to save note');
+                    }
+                  }
+                );
+              } else {
+                setSaveState('idle');
+                setShowSavedIndicator(true);
+                setTimeout(() => setShowSavedIndicator(false), 2000);
+              }
             },
             onError: () => {
+              isCreatingRef.current = false;
               setSaveState('dirty');
               toast.error('Failed to create note');
             }
@@ -236,6 +290,8 @@ const NotesPage = () => {
     setSaveState('idle');
     setShowSavedIndicator(false);
     loadedContentRef.current = null;
+    isCreatingRef.current = false;
+    pendingChangesRef.current = null;
   };
 
   return (

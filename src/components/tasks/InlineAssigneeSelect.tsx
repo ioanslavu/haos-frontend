@@ -132,13 +132,20 @@ export function InlineAssigneeSelect({
                       </AvatarFallback>
                     </Avatar>
                     <span className="text-xs">{user.full_name || user.email}</span>
-                    <button
-                      type="button"
+                    <div
+                      role="button"
+                      tabIndex={0}
                       onClick={(e) => handleRemoveUser(user.id, e)}
-                      className="h-4 w-4 hover:bg-background rounded-sm flex items-center justify-center"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleRemoveUser(user.id, e as any);
+                        }
+                      }}
+                      className="h-4 w-4 hover:bg-background rounded-sm flex items-center justify-center cursor-pointer"
                     >
                       <X className="h-3 w-3" />
-                    </button>
+                    </div>
                   </div>
                 ))}
                 <Plus className="h-3 w-3 text-muted-foreground" />
@@ -152,7 +159,7 @@ export function InlineAssigneeSelect({
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[300px] p-0 z-[60]" align="start">
+      <PopoverContent className="w-[300px] p-0 bg-background border-border" align="start">
         <div className="p-2 border-b">
           <Input
             placeholder="Search users..."

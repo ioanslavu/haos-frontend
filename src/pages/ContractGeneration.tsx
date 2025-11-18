@@ -122,7 +122,7 @@ export default function ContractGeneration() {
 
   const loadEntity = async (id: string) => {
     try {
-      const response = await apiClient.get(`/api/v1/identity/entities/${id}/`)
+      const response = await apiClient.get(`/api/v1/entities/${id}/`)
       setEntity(response.data)
     } catch (error) {
       console.error('Failed to load entity:', error)
@@ -144,7 +144,7 @@ export default function ContractGeneration() {
     if (!entityId) return
 
     try {
-      const response = await apiClient.get('/api/v1/contracts/load_draft/', {
+      const response = await apiClient.get('/api/v1/contracts/load-draft/', {
         params: { entity_id: entityId }
       })
 
@@ -170,7 +170,7 @@ export default function ContractGeneration() {
 
     setSaving(true)
     try {
-      await apiClient.post('/api/v1/contracts/save_draft/', {
+      await apiClient.post('/api/v1/contracts/save-draft/', {
         entity_id: entityId,
         draft_data: {
           contract_terms: contractTerms,
@@ -229,7 +229,7 @@ export default function ContractGeneration() {
 
     setPreviewing(true)
     try {
-      const response = await apiClient.post('/api/v1/contracts/preview_generation/', {
+      const response = await apiClient.post('/api/v1/contracts/preview-generation/', {
         entity_id: entityId,
         template_id: selectedTemplate,
         contract_terms: {
@@ -283,7 +283,7 @@ export default function ContractGeneration() {
         commission_structure: buildCommissionStructure()
       }
 
-      const response = await apiClient.post('/api/v1/contracts/generate_with_terms/', {
+      const response = await apiClient.post('/api/v1/contracts/generate-with-terms/', {
         entity_id: parseInt(entityId),
         template_id: parseInt(selectedTemplate),
         contract_terms: formattedContractTerms

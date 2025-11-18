@@ -4,7 +4,7 @@ import { Activity, ActivityCreateInput, ActivityUpdateInput } from '../types/act
 import { toast } from 'sonner';
 
 // API endpoints
-const ACTIVITIES_BASE_URL = '/api/v1/crm/activities';
+const ACTIVITIES_BASE_URL = '/api/v1/activities';
 
 // Paginated response type
 export interface PaginatedActivitiesResponse {
@@ -158,7 +158,7 @@ export const useCreateFollowUpTask = () => {
   return useMutation({
     mutationFn: async (activityId: number) => {
       const response = await apiClient.post(
-        `${ACTIVITIES_BASE_URL}/${activityId}/create_follow_up_task/`
+        `${ACTIVITIES_BASE_URL}/${activityId}/create-follow-up-task/`
       );
       return response.data;
     },

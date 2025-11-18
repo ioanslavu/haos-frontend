@@ -62,7 +62,7 @@ export function InlineStatusBadge({
   };
 
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
+    <Popover open={isOpen} onOpenChange={setIsOpen} modal={true}>
       <PopoverTrigger asChild>
         <Badge
           variant={colors[value] as any || 'secondary'}
@@ -77,7 +77,7 @@ export function InlineStatusBadge({
           {labels[value]}
         </Badge>
       </PopoverTrigger>
-      <PopoverContent className="w-[200px] p-2" align="start">
+      <PopoverContent className="w-[200px] p-2 bg-background border-border" align="start">
         <div className="space-y-1">
           {Object.entries(labels).map(([key, label]) => {
             const ItemIcon = STATUS_ICONS[key] || Clock;

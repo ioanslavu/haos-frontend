@@ -66,7 +66,7 @@ export function InlinePrioritySelect({
           <span className="text-xs">{currentPriority.label}</span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[200px] p-1 z-[60]" align="start">
+      <PopoverContent className="w-[200px] p-1 bg-background border-border" align="start">
         <div className="space-y-0.5">
           <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
             Set Priority

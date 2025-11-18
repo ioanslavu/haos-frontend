@@ -98,7 +98,7 @@ export function InlineDepartmentSelect({
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[300px] p-0 z-[60]" align="start">
+      <PopoverContent className="w-[300px] p-0 bg-background border-border" align="start">
         <div className="p-2 border-b">
           <Input
             placeholder="Search departments..."

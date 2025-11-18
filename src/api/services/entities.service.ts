@@ -233,12 +233,12 @@ export interface EntityStats {
 }
 
 class EntitiesService {
-  private readonly BASE_PATH = '/api/v1/identity';
+  private readonly BASE_PATH = '/api/v1/entities';
 
   // List all entities (paginated)
   async getEntities(params?: EntitySearchParams): Promise<PaginatedResponse<EntityListItem>> {
     const { data } = await apiClient.get<PaginatedResponse<EntityListItem>>(
-      `${this.BASE_PATH}/entities/`,
+      `${this.BASE_PATH}/`,
       { params }
     );
     return data;
@@ -247,7 +247,7 @@ class EntitiesService {
   // Search entities (autocomplete)
   async searchEntities(query: string): Promise<EntityListItem[]> {
     const { data } = await apiClient.get<PaginatedResponse<EntityListItem>>(
-      `${this.BASE_PATH}/entities/`,
+      `${this.BASE_PATH}/`,
       {
         params: { search: query, page_size: 20 },
       }
@@ -257,14 +257,14 @@ class EntitiesService {
 
   // Get entity details
   async getEntity(id: number): Promise<Entity> {
-    const { data } = await apiClient.get<Entity>(`${this.BASE_PATH}/entities/${id}/`);
+    const { data } = await apiClient.get<Entity>(`${this.BASE_PATH}/${id}/`);
     return data;
   }
 
   // Create entity
   async createEntity(payload: CreateEntityPayload): Promise<Entity> {
     const { data } = await apiClient.post<Entity>(
-      `${this.BASE_PATH}/entities/`,
+      `${this.BASE_PATH}/`,
       payload
     );
     return data;
@@ -273,7 +273,7 @@ class EntitiesService {
   // Update entity (full update)
   async updateEntity(id: number, payload: CreateEntityPayload): Promise<Entity> {
     const { data } = await apiClient.put<Entity>(
-      `${this.BASE_PATH}/entities/${id}/`,
+      `${this.BASE_PATH}/${id}/`,
       payload
     );
     return data;
@@ -282,7 +282,7 @@ class EntitiesService {
   // Partial update entity
   async patchEntity(id: number, payload: UpdateEntityPayload): Promise<Entity> {
     const { data } = await apiClient.patch<Entity>(
-      `${this.BASE_PATH}/entities/${id}/`,
+      `${this.BASE_PATH}/${id}/`,
       payload
     );
     return data;
@@ -290,7 +290,7 @@ class EntitiesService {
 
   // Delete entity
   async deleteEntity(id: number): Promise<void> {
-    await apiClient.delete(`${this.BASE_PATH}/entities/${id}/`);
+    await apiClient.delete(`${this.BASE_PATH}/${id}/`);
   }
 
   // Upload entity image
@@ -298,7 +298,7 @@ class EntitiesService {
     const formData = new FormData();
     formData.append('image', file);
     const { data } = await apiClient.patch<Entity>(
-      `${this.BASE_PATH}/entities/${id}/`,
+      `${this.BASE_PATH}/${id}/`,
       formData,
       {
         headers: {
@@ -312,7 +312,7 @@ class EntitiesService {
   // Delete entity image
   async deleteEntityImage(id: number): Promise<Entity> {
     const { data } = await apiClient.patch<Entity>(
-      `${this.BASE_PATH}/entities/${id}/`,
+      `${this.BASE_PATH}/${id}/`,
       { image: null }
     );
     return data;
@@ -321,7 +321,7 @@ class EntitiesService {
   // Get entity placeholders for contract generation (backward compatible)
   async getEntityPlaceholders(id: number): Promise<Record<string, string>> {
     const { data } = await apiClient.get<Record<string, string>>(
-      `${this.BASE_PATH}/entities/${id}/placeholders/`
+      `${this.BASE_PATH}/${id}/placeholders/`
     );
     return data;
   }
@@ -329,7 +329,7 @@ class EntitiesService {
   // Get artists
   async getArtists(): Promise<EntityListItem[]> {
     const { data } = await apiClient.get<PaginatedResponse<EntityListItem>>(
-      `${this.BASE_PATH}/entities/artists/`
+      `${this.BASE_PATH}/artists/`
     );
     return data.results;
   }
@@ -337,7 +337,7 @@ class EntitiesService {
   // Get writers
   async getWriters(): Promise<EntityListItem[]> {
     const { data } = await apiClient.get<PaginatedResponse<EntityListItem>>(
-      `${this.BASE_PATH}/entities/writers/`
+      `${this.BASE_PATH}/writers/`
     );
     return data.results;
   }
@@ -345,7 +345,7 @@ class EntitiesService {
   // Get producers
   async getProducers(): Promise<EntityListItem[]> {
     const { data } = await apiClient.get<PaginatedResponse<EntityListItem>>(
-      `${this.BASE_PATH}/entities/producers/`
+      `${this.BASE_PATH}/producers/`
     );
     return data.results;
   }
@@ -353,7 +353,7 @@ class EntitiesService {
   // Get business entities (for both client and brand searches)
   async getBusinessEntities(params?: EntitySearchParams): Promise<PaginatedResponse<EntityListItem>> {
     const { data } = await apiClient.get<PaginatedResponse<EntityListItem>>(
-      `${this.BASE_PATH}/entities/business/`,
+      `${this.BASE_PATH}/business/`,
       { params }
     );
     return data;
@@ -361,14 +361,14 @@ class EntitiesService {
 
   // Get entity stats
   async getEntityStats(params?: EntitySearchParams): Promise<EntityStats> {
-    const { data } = await apiClient.get<EntityStats>(`${this.BASE_PATH}/entities/stats/`, { params });
+    const { data } = await apiClient.get<EntityStats>(`${this.BASE_PATH}/stats/`, { params });
     return data;
   }
 
   // Get sensitive identity
   async getSensitiveIdentity(entityId: number): Promise<SensitiveIdentity> {
     const { data } = await apiClient.get<SensitiveIdentity>(
-      `${this.BASE_PATH}/sensitive-identities/`,
+      `${this.BASE_PATH}/sensitive/`,
       { params: { entity: entityId } }
     );
     return data;
@@ -377,7 +377,7 @@ class EntitiesService {
   // Reveal CNP with audit logging
   async revealCNP(sensitiveIdentityId: number, reason: string): Promise<RevealCNPResponse> {
     const { data } = await apiClient.post<RevealCNPResponse>(
-      `${this.BASE_PATH}/sensitive-identities/${sensitiveIdentityId}/reveal_cnp/`,
+      `${this.BASE_PATH}/sensitive/${sensitiveIdentityId}/reveal/`,
       { reason }
     );
     return data;
@@ -390,7 +390,7 @@ class EntitiesService {
   ): Promise<EntityLatestShares> {
     const params = contractType ? { contract_type: contractType } : {};
     const { data } = await apiClient.get<EntityLatestShares>(
-      `${this.BASE_PATH}/entities/${entityId}/latest_contract_shares/`,
+      `${this.BASE_PATH}/${entityId}/contract-shares/`,
       { params }
     );
     return data;
@@ -413,7 +413,7 @@ class EntitiesService {
   // Social Media Account methods
   async getSocialMediaAccounts(entityId: number): Promise<SocialMediaAccount[]> {
     const { data } = await apiClient.get<SocialMediaAccount[]>(
-      `${this.BASE_PATH}/social-media-accounts/`,
+      `${this.BASE_PATH}/social/`,
       { params: { entity: entityId } }
     );
     return data;
@@ -421,7 +421,7 @@ class EntitiesService {
 
   async createSocialMediaAccount(payload: Partial<SocialMediaAccount>): Promise<SocialMediaAccount> {
     const { data } = await apiClient.post<SocialMediaAccount>(
-      `${this.BASE_PATH}/social-media-accounts/`,
+      `${this.BASE_PATH}/social/`,
       payload
     );
     return data;
@@ -429,21 +429,21 @@ class EntitiesService {
 
   async updateSocialMediaAccount(id: number, payload: Partial<SocialMediaAccount>): Promise<SocialMediaAccount> {
     const { data } = await apiClient.patch<SocialMediaAccount>(
-      `${this.BASE_PATH}/social-media-accounts/${id}/`,
+      `${this.BASE_PATH}/social/${id}/`,
       payload
     );
     return data;
   }
 
   async deleteSocialMediaAccount(id: number): Promise<void> {
-    await apiClient.delete(`${this.BASE_PATH}/social-media-accounts/${id}/`);
+    await apiClient.delete(`${this.BASE_PATH}/social/${id}/`);
   }
 
   // Contact Person methods
   async getContactPersons(entityId?: number): Promise<ContactPerson[]> {
     const params = entityId ? { entity: entityId } : {};
     const { data } = await apiClient.get<{ results: ContactPerson[] }>(
-      `${this.BASE_PATH}/contact-persons/`,
+      `${this.BASE_PATH}/contacts/`,
       { params }
     );
     return data.results || [];
@@ -451,14 +451,14 @@ class EntitiesService {
 
   async getContactPerson(id: number): Promise<ContactPerson> {
     const { data } = await apiClient.get<ContactPerson>(
-      `${this.BASE_PATH}/contact-persons/${id}/`
+      `${this.BASE_PATH}/contacts/${id}/`
     );
     return data;
   }
 
   async createContactPerson(payload: Partial<ContactPerson>): Promise<ContactPerson> {
     const { data } = await apiClient.post<ContactPerson>(
-      `${this.BASE_PATH}/contact-persons/`,
+      `${this.BASE_PATH}/contacts/`,
       payload
     );
     return data;
@@ -466,20 +466,20 @@ class EntitiesService {
 
   async updateContactPerson(id: number, payload: Partial<ContactPerson>): Promise<ContactPerson> {
     const { data } = await apiClient.patch<ContactPerson>(
-      `${this.BASE_PATH}/contact-persons/${id}/`,
+      `${this.BASE_PATH}/contacts/${id}/`,
       payload
     );
     return data;
   }
 
   async deleteContactPerson(id: number): Promise<void> {
-    await apiClient.delete(`${this.BASE_PATH}/contact-persons/${id}/`);
+    await apiClient.delete(`${this.BASE_PATH}/contacts/${id}/`);
   }
 
   // Global search (bypasses department filtering)
   async searchGlobal(query: string): Promise<EntityListItem[]> {
     const { data } = await apiClient.get<EntityListItem[]>(
-      `${this.BASE_PATH}/entities/search_global/`,
+      `${this.BASE_PATH}/search/`,
       { params: { q: query } }
     );
     return data;
@@ -488,7 +488,7 @@ class EntitiesService {
   // Add entity to user's department
   async addToMyDepartment(entityId: number): Promise<{ status: string; message?: string }> {
     const { data } = await apiClient.post<{ status: string; message?: string }>(
-      `${this.BASE_PATH}/entities/${entityId}/add_to_my_department/`
+      `${this.BASE_PATH}/${entityId}/add-to-department/`
     );
     return data;
   }

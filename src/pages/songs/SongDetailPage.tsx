@@ -26,6 +26,8 @@ import { ArtistManagementSection } from '@/components/songs/ArtistManagementSect
 import { WorkTab } from '@/components/songs/WorkTab';
 import { RelatedTasks } from '@/components/tasks/RelatedTasks';
 import { SongTriggerButton } from '@/components/tasks/ManualTriggerButton';
+import { TaskCompletionModal } from '@/components/tasks/TaskCompletionModal';
+import { AddTemplateDialog } from '@/components/songs/AddTemplateDialog';
 import {
   fetchSongDetail,
   fetchChecklist,
@@ -42,6 +44,7 @@ import {
   createNote,
   fetchSongWork,
   updateStageStatus,
+  getOrCreateTaskForChecklistItem,
 } from '@/api/songApi';
 import { useAuthStore } from '@/stores/authStore';
 import { useToast } from '@/hooks/use-toast';
@@ -63,6 +66,10 @@ export default function SongDetailPage() {
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [selectedChecklistItem, setSelectedChecklistItem] = useState<SongChecklistItem | null>(null);
   const [selectedStage, setSelectedStage] = useState<SongStage | undefined>(undefined);
+  const [taskModalOpen, setTaskModalOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<any | null>(null);
+  const [isLoadingTask, setIsLoadingTask] = useState(false);
+  const [addTemplateDialogOpen, setAddTemplateDialogOpen] = useState(false);
 
   const songId = parseInt(id || '0');
 
@@ -273,6 +280,24 @@ export default function SongDetailPage() {
     },
   });
 
+  // Handler to open task completion modal
+  const handleOpenTaskModal = async (checklistItemId: number) => {
+    setIsLoadingTask(true);
+    try {
+      const response = await getOrCreateTaskForChecklistItem(songId, checklistItemId);
+      setSelectedTask(response.data);
+      setTaskModalOpen(true);
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.error || 'Failed to load task',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoadingTask(false);
+    }
+  };
+
   // Combine and sort all activities
   const allActivities = useMemo(() => {
     type ActivityItem = {
@@ -415,7 +440,17 @@ export default function SongDetailPage() {
                 </div>
 
                 {/* Context-aware Stage Action Button */}
-                <div>
+                <div className="flex items-center gap-2">
+                  {/* Add Checklist Template Button */}
+                  <Button
+                    variant="outline"
+                    onClick={() => setAddTemplateDialogOpen(true)}
+                    className="rounded-xl"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Checklist
+                  </Button>
+
                   {selectedStageStatusValue === 'not_started' && (
                     <Button
                       onClick={() => stageActionMutation.mutate({ stage: selectedStage, action: 'start' })}
@@ -508,6 +543,7 @@ export default function SongDetailPage() {
                   onUpdateAssetUrl={(itemId, assetUrl) =>
                     updateAssetUrlMutation.mutate({ itemId, assetUrl })
                   }
+                  onOpenTaskModal={handleOpenTaskModal}
                   onValidateAll={() => validateAllMutation.mutate()}
                   isValidating={validateAllMutation.isPending}
                 />
@@ -748,6 +784,28 @@ export default function SongDetailPage() {
         songId={songId}
         checklistItem={selectedChecklistItem}
       />
+
+      {/* Task Completion Modal */}
+      <TaskCompletionModal
+        task={selectedTask}
+        open={taskModalOpen}
+        onOpenChange={(open) => {
+          setTaskModalOpen(open);
+          if (!open) {
+            setSelectedTask(null);
+          }
+        }}
+      />
+
+      {/* Add Template Dialog */}
+      {selectedStage && (
+        <AddTemplateDialog
+          open={addTemplateDialogOpen}
+          onOpenChange={setAddTemplateDialogOpen}
+          songId={songId}
+          currentStage={selectedStage}
+        />
+      )}
     </div>
     </AppLayout>
   );

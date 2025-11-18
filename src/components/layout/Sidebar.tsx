@@ -29,7 +29,9 @@ import {
   Palette,
   Package,
   StickyNote,
-  Music
+  Music,
+  CheckCircle2,
+  FolderKanban
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -119,6 +121,12 @@ const navigation: NavigationItem[] = [
     },
   },
   {
+    name: 'Workboard',
+    href: '/workboard',
+    icon: FolderKanban,
+    show: (user) => user?.role !== 'guest' && (user?.department || user?.role === 'administrator'),
+  },
+  {
     name: 'Notes',
     href: '/notes',
     icon: StickyNote,
@@ -195,6 +203,30 @@ const digitalNavigation: NavigationItem[] = [
   },
 ];
 
+// Marketing navigation items - shown as regular nav items for marketing users
+const marketingNavigation: NavigationItem[] = [
+  {
+    name: 'Marketing Overview',
+    href: '/marketing/overview',
+    icon: LayoutDashboard,
+    show: (user) => {
+      const isMarketing = user?.department?.name?.toLowerCase() === 'marketing' ||
+                         user?.department?.toLowerCase() === 'marketing';
+      return isMarketing && user?.role !== 'administrator';
+    },
+  },
+  {
+    name: 'Team',
+    href: '/marketing/team',
+    icon: Users,
+    show: (user) => {
+      const isMarketing = user?.department?.name?.toLowerCase() === 'marketing' ||
+                         user?.department?.toLowerCase() === 'marketing';
+      return isMarketing && user?.role !== 'administrator';
+    },
+  },
+];
+
 // Bottom navigation items - shown at the bottom for everyone
 const bottomNavigation: NavigationItem[] = [
   {
@@ -241,6 +273,7 @@ const artistSalesSubmenu: NavigationItem[] = [
 const adminNavigation: NavigationItem[] = [
   { name: 'User Management', href: '/users/management', icon: UserCog },
   { name: 'Entity Requests', href: '/admin/entity-requests', icon: ClipboardList },
+  { name: 'Checklist Templates', href: '/admin/checklist-templates', icon: CheckSquare },
   { name: 'Roles & Permissions', href: '/roles', icon: Shield },
   { name: 'Company Settings', href: '/company-settings', icon: Settings },
 ];
@@ -329,6 +362,34 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
 
           {/* Digital pages as regular nav items for digital users */}
           {digitalNavigation.map((item) => {
+            const shouldShow = !item.show || item.show(user);
+            if (!shouldShow) return null;
+
+            return (
+              <li key={item.name}>
+                <NavLink
+                  to={item.href}
+                  aria-label={`Navigate to ${item.name}`}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-semibold transition-all duration-300",
+                      "hover:scale-105",
+                      isActive
+                        ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/30"
+                        : "text-foreground hover:bg-white/20 dark:hover:bg-white/10 backdrop-blur-sm",
+                      collapsed && "justify-center px-3"
+                    )
+                  }
+                >
+                  <item.icon className="h-5 w-5 flex-shrink-0" />
+                  {!collapsed && <span>{item.name}</span>}
+                </NavLink>
+              </li>
+            );
+          })}
+
+          {/* Marketing pages as regular nav items for marketing users */}
+          {marketingNavigation.map((item) => {
             const shouldShow = !item.show || item.show(user);
             if (!shouldShow) return null;
 
@@ -547,6 +608,29 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                     {pendingCount}
                   </span>
                 )}
+              </NavLink>
+            </li>
+          )}
+
+          {/* Task Reviews - For managers and admins only */}
+          {isAdminOrManager() && (
+            <li>
+              <NavLink
+                to="/tasks/review"
+                aria-label="Task Reviews"
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-semibold transition-all duration-300",
+                    "hover:scale-105",
+                    isActive
+                      ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/30"
+                      : "text-foreground hover:bg-white/20 dark:hover:bg-white/10 backdrop-blur-sm",
+                    collapsed && "justify-center px-3"
+                  )
+                }
+              >
+                <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
+                {!collapsed && <span>Task Reviews</span>}
               </NavLink>
             </li>
           )}

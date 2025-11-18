@@ -64,6 +64,7 @@ import { InlinePrioritySelect } from './InlinePrioritySelect';
 import { InlineDepartmentSelect } from './InlineDepartmentSelect';
 import { InlineDurationSelect } from './InlineDurationSelect';
 import { TaskRichTextEditor } from './TaskRichTextEditor';
+import { InlineCustomFieldsManager } from './InlineCustomFieldsManager';
 import { EntitySearchCombobox } from '@/components/entities/EntitySearchCombobox';
 import { AddEntityModal } from '@/components/entities/AddEntityModal';
 import { SongSearchCombobox } from '@/components/songs/SongSearchCombobox';
@@ -86,7 +87,7 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false }
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [localTitle, setLocalTitle] = useState('');
   const [localDescription, setLocalDescription] = useState('');
-  const [localNotes, setLocalNotes] = useState('');
+  const [localNotes, setLocalNotes] = useState<any>(null);
   const [localPriority, setLocalPriority] = useState<number>(2);
   const [localDueDate, setLocalDueDate] = useState<string | null>(null);
   const [localAssignees, setLocalAssignees] = useState<number[]>([]);
@@ -150,7 +151,7 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false }
   const { data: tasksData } = useQuery({
     queryKey: ['tasks-for-departments'],
     queryFn: async () => {
-      const response = await apiClient.get('/api/v1/crm/tasks/', {
+      const response = await apiClient.get('/api/v1/tasks/', {
         params: { limit: 1000 } // Get enough to extract all departments
       });
       return response.data;
@@ -192,7 +193,7 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false }
       if (task) {
         setLocalTitle(task.title || '');
         setLocalDescription(task.description || '');
-        setLocalNotes(task.notes || '');
+        setLocalNotes(task.notes || null);
         setLocalPriority(task.priority || 2);
         setLocalDueDate(task.due_date || null);
         setLocalAssignees(task.assigned_to_users_detail?.map(u => u.id) || []);
@@ -661,6 +662,11 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false }
                       )}
                     </div>
                   </div>
+                )}
+
+                {/* Custom Fields - Inline with properties */}
+                {(task?.id || createdTaskId) && (
+                  <InlineCustomFieldsManager taskId={task?.id || createdTaskId!} />
                 )}
 
                 {/* Follow-up Reminder */}

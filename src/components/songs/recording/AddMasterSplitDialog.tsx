@@ -50,7 +50,7 @@ export function AddMasterSplitDialog({
   const { data: entitiesData, isLoading: searchLoading } = useQuery({
     queryKey: ['entities-search', searchTerm],
     queryFn: () =>
-      apiClient.get<{ results: Entity[] }>('/api/v1/identity/entities/', {
+      apiClient.get<{ results: Entity[] }>('/api/v1/entities/', {
         params: { search: searchTerm, page_size: 20 },
       }),
     enabled: searchTerm.length > 1,

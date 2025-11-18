@@ -61,7 +61,7 @@ const clientProfilesService = {
     min_health_score?: number;
     max_health_score?: number;
   }): Promise<ClientProfile[]> {
-    const response = await apiClient.get<ClientProfile[]>('/api/v1/identity/entity-scores/', {
+    const response = await apiClient.get<ClientProfile[]>('/api/v1/entities/scores/', {
       params,
     });
     return response.data;
@@ -71,7 +71,7 @@ const clientProfilesService = {
    * Get client profile by ID
    */
   async getClientProfile(id: number): Promise<ClientProfile> {
-    const response = await apiClient.get<ClientProfile>(`/api/v1/identity/entity-scores/${id}/`);
+    const response = await apiClient.get<ClientProfile>(`/api/v1/entities/scores/${id}/`);
     return response.data;
   },
 
@@ -79,7 +79,7 @@ const clientProfilesService = {
    * Get client profile for a specific entity (for current user's department)
    */
   async getClientProfileByEntity(entityId: number): Promise<ClientProfile | null> {
-    const response = await apiClient.get<ClientProfile[]>('/api/v1/identity/entity-scores/by_entity/', {
+    const response = await apiClient.get<ClientProfile[]>('/api/v1/entities/scores/by-entity/', {
       params: { entity_id: entityId },
     });
     // Returns array, but should only have one for current department
@@ -90,7 +90,7 @@ const clientProfilesService = {
    * Create a new client profile
    */
   async createClientProfile(data: CreateClientProfilePayload): Promise<ClientProfile> {
-    const response = await apiClient.post<ClientProfile>('/api/v1/identity/entity-scores/', data);
+    const response = await apiClient.post<ClientProfile>('/api/v1/entities/scores/', data);
     return response.data;
   },
 
@@ -101,7 +101,7 @@ const clientProfilesService = {
     id: number,
     data: UpdateClientProfilePayload
   ): Promise<ClientProfile> {
-    const response = await apiClient.patch<ClientProfile>(`/api/v1/identity/entity-scores/${id}/`, data);
+    const response = await apiClient.patch<ClientProfile>(`/api/v1/entities/scores/${id}/`, data);
     return response.data;
   },
 
@@ -110,7 +110,7 @@ const clientProfilesService = {
    */
   async getClientProfileHistory(profileId: number): Promise<ClientProfileHistory[]> {
     const response = await apiClient.get<ClientProfileHistory[]>(
-      `/api/v1/identity/entity-scores/${profileId}/history/`
+      `/api/v1/entities/scores/${profileId}/history/`
     );
     return response.data;
   },
@@ -133,7 +133,7 @@ const clientProfilesService = {
       stable: number;
     };
   }> {
-    const response = await apiClient.get('/api/v1/identity/entity-scores/stats/', {
+    const response = await apiClient.get('/api/v1/entities/scores/stats/', {
       params: departmentId ? { department_id: departmentId } : undefined,
     });
     return response.data;

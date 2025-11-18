@@ -559,14 +559,25 @@ export function TasksTab({ searchQuery, filterStatus, filterPriority, startDate,
                     )}
                   </TableCell>
                   <TableCell>
-                    {task.assigned_to_detail ? (
+                    {assignedUsers(task).length > 0 ? (
                       <div className="flex items-center gap-2">
-                        <Avatar className="h-6 w-6">
-                          <AvatarFallback className="text-xs">
-                            {task.assigned_to_detail.full_name.substring(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm">{task.assigned_to_detail.full_name}</span>
+                        <div className="flex -space-x-2">
+                          {assignedUsers(task).slice(0, 3).map((user) => (
+                            <Avatar key={user.id} className="h-6 w-6 border-2 border-background">
+                              <AvatarFallback className="text-xs">
+                                {user.full_name.substring(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                          ))}
+                        </div>
+                        {assignedUsers(task).length === 1 && (
+                          <span className="text-sm">{assignedUsers(task)[0].full_name}</span>
+                        )}
+                        {assignedUsers(task).length > 3 && (
+                          <span className="text-xs text-muted-foreground">
+                            +{assignedUsers(task).length - 3}
+                          </span>
+                        )}
                       </div>
                     ) : (
                       <span className="text-sm text-muted-foreground">Unassigned</span>

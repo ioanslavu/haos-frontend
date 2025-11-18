@@ -4,14 +4,14 @@ import { Task, TaskCreateInput, TaskUpdateInput, TaskStats } from '../types/task
 import { toast } from 'sonner';
 
 // API endpoints
-const TASKS_BASE_URL = '/api/v1/crm/tasks';
+const TASKS_BASE_URL = '/api/v1/tasks';
 
 // Fetch tasks with filters
 export const useTasks = (params?: {
   status?: string | string[];
   priority?: number;
   task_type?: string;
-  assigned_to?: number;
+  assigned_to__in?: string;  // Filter by multiple user IDs (comma-separated)
   department?: number;
   campaign?: number;
   entity?: number;
@@ -52,7 +52,7 @@ export const useTasks = (params?: {
       // Handle both paginated and non-paginated responses
       return Array.isArray(response.data) ? response.data : response.data.results;
     },
-    refetchOnMount: 'always',
+    staleTime: 30 * 1000, // Data considered fresh for 30 seconds
   });
 };
 
@@ -61,7 +61,7 @@ export const useInfiniteTasks = (params?: {
   status?: string | string[];
   priority?: number;
   task_type?: string;
-  assigned_to?: number;
+  assigned_to__in?: string;  // Filter by multiple user IDs (comma-separated)
   department?: number;
   campaign?: number;
   entity?: number;
@@ -75,7 +75,6 @@ export const useInfiniteTasks = (params?: {
   is_overdue?: boolean;
   is_blocked?: boolean;
   my_tasks?: boolean;
-  assigned_to__in?: string;
 }) => {
   const buildQueryParams = (pageParam: number) => {
     const queryParams = new URLSearchParams();
@@ -117,7 +116,7 @@ export const useInfiniteTasks = (params?: {
       return undefined;
     },
     initialPageParam: 1,
-    refetchOnMount: 'always',
+    staleTime: 30 * 1000, // Data considered fresh for 30 seconds
   });
 };
 
@@ -130,6 +129,7 @@ export const useTask = (taskId: number | string) => {
       return response.data;
     },
     enabled: !!taskId,
+    staleTime: 30 * 1000, // Data considered fresh for 30 seconds
   });
 };
 
@@ -138,7 +138,7 @@ export const useTaskStats = () => {
   return useQuery({
     queryKey: ['tasks', 'stats'],
     queryFn: async () => {
-      const response = await apiClient.get<TaskStats>(`${TASKS_BASE_URL}/dashboard_stats/`);
+      const response = await apiClient.get<TaskStats>(`${TASKS_BASE_URL}/dashboard-stats/`);
       return response.data;
     },
   });
@@ -172,17 +172,64 @@ export const useUpdateTask = () => {
       const response = await apiClient.patch<Task>(`${TASKS_BASE_URL}/${id}/`, data);
       return response.data;
     },
-    onSuccess: (data) => {
-      // Invalidate all task queries including infinite queries
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['tasks', 'infinite'] });
-      queryClient.invalidateQueries({ queryKey: ['tasks', data.id] });
-      console.log('Task updated successfully, invalidating queries');
-      toast.success('Task updated successfully');
+    onMutate: async ({ id, data }) => {
+      // Cancel any outgoing refetches to avoid overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: ['tasks', id] });
+
+      // Snapshot the previous value
+      const previousTask = queryClient.getQueryData<Task>(['tasks', id]);
+
+      // Optimistically update the single task cache
+      if (previousTask) {
+        queryClient.setQueryData<Task>(['tasks', id], {
+          ...previousTask,
+          ...data,
+          updated_at: new Date().toISOString(),
+        });
+      }
+
+      // Return context for rollback
+      return { previousTask };
     },
-    onError: (error: any) => {
+    onError: (error: any, { id }, context) => {
+      // Rollback on error
+      if (context?.previousTask) {
+        queryClient.setQueryData(['tasks', id], context.previousTask);
+      }
       console.error('Task update error:', error.response?.data || error.message);
       toast.error(error.response?.data?.detail || 'Failed to update task');
+    },
+    onSuccess: (data) => {
+      // Update cache with server response
+      queryClient.setQueryData<Task>(['tasks', data.id], data);
+
+      // Update the task in any list queries that contain it
+      queryClient.setQueriesData<Task[]>(
+        { queryKey: ['tasks'], exact: false },
+        (oldData) => {
+          if (!oldData || !Array.isArray(oldData)) return oldData;
+          return oldData.map(task => task.id === data.id ? data : task);
+        }
+      );
+
+      // Update infinite query pages
+      queryClient.setQueriesData<{ pages: Array<{ results: Task[] }> }>(
+        { queryKey: ['tasks', 'infinite'], exact: false },
+        (oldData) => {
+          if (!oldData?.pages) return oldData;
+          return {
+            ...oldData,
+            pages: oldData.pages.map(page => ({
+              ...page,
+              results: page.results.map(task => task.id === data.id ? data : task),
+            })),
+          };
+        }
+      );
+    },
+    onSettled: () => {
+      // Only invalidate stats since counts may have changed
+      queryClient.invalidateQueries({ queryKey: ['tasks', 'stats'] });
     },
   });
 };
@@ -194,18 +241,63 @@ export const useUpdateTaskStatus = () => {
   return useMutation({
     mutationFn: async ({ id, status }: { id: number; status: string }) => {
       const response = await apiClient.post<Task>(
-        `${TASKS_BASE_URL}/${id}/update_status/`,
+        `${TASKS_BASE_URL}/${id}/update-status/`,
         { status }
       );
       return response.data;
     },
+    onMutate: async ({ id, status }) => {
+      await queryClient.cancelQueries({ queryKey: ['tasks', id] });
+      const previousTask = queryClient.getQueryData<Task>(['tasks', id]);
+
+      if (previousTask) {
+        queryClient.setQueryData<Task>(['tasks', id], {
+          ...previousTask,
+          status: status as Task['status'],
+          updated_at: new Date().toISOString(),
+        });
+      }
+
+      return { previousTask };
+    },
+    onError: (error: any, { id }, context) => {
+      if (context?.previousTask) {
+        queryClient.setQueryData(['tasks', id], context.previousTask);
+      }
+      toast.error(error.response?.data?.detail || 'Failed to update task status');
+    },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['tasks', data.id] });
+      // Update cache with server response
+      queryClient.setQueryData<Task>(['tasks', data.id], data);
+
+      // Update in list queries
+      queryClient.setQueriesData<Task[]>(
+        { queryKey: ['tasks'], exact: false },
+        (oldData) => {
+          if (!oldData || !Array.isArray(oldData)) return oldData;
+          return oldData.map(task => task.id === data.id ? data : task);
+        }
+      );
+
+      // Update infinite query pages
+      queryClient.setQueriesData<{ pages: Array<{ results: Task[] }> }>(
+        { queryKey: ['tasks', 'infinite'], exact: false },
+        (oldData) => {
+          if (!oldData?.pages) return oldData;
+          return {
+            ...oldData,
+            pages: oldData.pages.map(page => ({
+              ...page,
+              results: page.results.map(task => task.id === data.id ? data : task),
+            })),
+          };
+        }
+      );
+
       toast.success(`Task status updated to ${data.status}`);
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.detail || 'Failed to update task status');
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks', 'stats'] });
     },
   });
 };
@@ -235,7 +327,7 @@ export const useCreateSubtask = () => {
   return useMutation({
     mutationFn: async ({ parentId, data }: { parentId: number; data: TaskCreateInput }) => {
       const response = await apiClient.post<Task>(
-        `${TASKS_BASE_URL}/${parentId}/create_subtask/`,
+        `${TASKS_BASE_URL}/${parentId}/create-subtask/`,
         data
       );
       return response.data;
@@ -280,4 +372,96 @@ export const useOpportunityTasks = (opportunityId: number, additionalParams?: an
 
 export const useDeliverableTasks = (deliverableId: number, additionalParams?: any) => {
   return useTasks({ deliverable: deliverableId, ...additionalParams });
+};
+
+// Get input field templates for a task
+export const useTaskInputFields = (taskId: number | undefined) => {
+  return useQuery({
+    queryKey: ['tasks', taskId, 'input-fields'],
+    queryFn: async () => {
+      if (!taskId) return [];
+      const response = await apiClient.get(`${TASKS_BASE_URL}/${taskId}/input-fields/`);
+      return Array.isArray(response.data) ? response.data : response.data?.results || [];
+    },
+    enabled: !!taskId,
+  });
+};
+
+// Submit task for review
+export const useSubmitTaskForReview = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ taskId, inputValues }: { taskId: number; inputValues: any[] }) => {
+      const response = await apiClient.post<Task>(
+        `${TASKS_BASE_URL}/${taskId}/submit-for-review/`,
+        { input_values: inputValues }
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['song-checklist'] });
+      toast.success('Task submitted for review');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to submit task for review');
+    },
+  });
+};
+
+// Get tasks pending review (manager/admin only)
+export const usePendingReviewTasks = () => {
+  return useQuery({
+    queryKey: ['tasks', 'pending-review'],
+    queryFn: async () => {
+      const response = await apiClient.get<Task[]>(`${TASKS_BASE_URL}/pending-review/`);
+      return response.data;
+    },
+  });
+};
+
+// Review a task (approve/reject)
+export const useReviewTask = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      taskId,
+      action,
+      notes
+    }: {
+      taskId: number;
+      action: 'approved' | 'rejected' | 'changes_requested';
+      notes?: string
+    }) => {
+      const response = await apiClient.post<Task>(
+        `${TASKS_BASE_URL}/${taskId}/review/`,
+        { action, notes }
+      );
+      return response.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['song-checklist'] });
+      const actionText = variables.action === 'approved' ? 'approved' :
+                        variables.action === 'rejected' ? 'rejected' : 'sent back for changes';
+      toast.success(`Task ${actionText}`);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to review task');
+    },
+  });
+};
+
+// Get task inbox (tasks and notifications)
+export const useTaskInbox = () => {
+  return useQuery({
+    queryKey: ['tasks', 'inbox'],
+    queryFn: async () => {
+      const response = await apiClient.get(`${TASKS_BASE_URL}/inbox/`);
+      return response.data;
+    },
+    refetchInterval: 60000, // Refresh every minute
+  });
 };

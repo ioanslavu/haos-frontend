@@ -40,6 +40,7 @@ import { InlineStatusBadge } from '@/components/tasks/InlineStatusBadge'
 import { InlineAssigneeSelect } from '@/components/tasks/InlineAssigneeSelect'
 import { InlinePrioritySelect } from '@/components/tasks/InlinePrioritySelect'
 import { InlineDatePicker } from '@/components/tasks/InlineDatePicker'
+import { StatusGroupedCompactTable } from '@/components/tasks/StatusGroupedCompactTable'
 import { useTasks, useInfiniteTasks, useTaskStats, useMyTasks, useOverdueTasks, useDeleteTask, useUpdateTask, useUpdateTaskStatus } from '@/api/hooks/useTasks'
 import { useAuthStore } from '@/stores/authStore'
 import {
@@ -98,7 +99,7 @@ function DroppableColumn({ id, children }: { id: string; children: React.ReactNo
     <div
       ref={setNodeRef}
       className={cn(
-        'rounded-xl transition-all duration-200',
+        'h-full flex-shrink-0 rounded-xl transition-all duration-200',
         isOver && 'bg-primary/5 ring-2 ring-primary/30 scale-[1.02]'
       )}
     >
@@ -636,19 +637,19 @@ export default function TaskManagement() {
           onDragEnd={handleDragEnd}
           onDragCancel={handleDragCancel}
         >
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 overflow-hidden">
             {viewMode === 'kanban' ? (
               // Kanban View - Modern Minimal Design
-              <div className="flex gap-3 h-full">
+              <div className="flex gap-3 h-full overflow-x-auto pb-2">
                 {statusColumns.map((column) => {
                   const Icon = column.icon
                   const tasks = tasksByStatus[column.id as keyof typeof tasksByStatus]
 
                   return (
                     <DroppableColumn key={column.id} id={column.id}>
-                      <div className="flex-1 min-w-[280px] flex flex-col">
+                      <div className="w-[280px] h-full flex flex-col">
                         {/* Column Header - No card wrapper */}
-                        <div className="flex items-center justify-between px-2 py-2 mb-2">
+                        <div className="flex items-center justify-between px-2 py-2 mb-2 flex-shrink-0">
                           <div className="flex items-center gap-1.5">
                             <div className={cn("w-1.5 h-1.5 rounded-full",
                               column.id === 'todo' ? 'bg-gray-400' :
@@ -662,8 +663,8 @@ export default function TaskManagement() {
                           </div>
                         </div>
 
-                        {/* Tasks Container - More compact */}
-                        <div className="flex-1 overflow-auto space-y-1.5">
+                        {/* Tasks Container - Scrolls independently */}
+                        <div className="flex-1 overflow-y-auto space-y-1.5 min-h-0">
                           {tasks.map((task) => (
                             <DraggableTaskCard key={task.id} task={task} onClick={() => handleTaskClick(task)}>
                               <Card className="group p-2.5 cursor-grab active:cursor-grabbing hover:shadow-lg hover:border-primary/40 transition-all duration-200 bg-card border-border/60"
@@ -898,117 +899,15 @@ export default function TaskManagement() {
                 </div>
               </div>
             ) : (
-              // Compact List View - Single Row, Inline Editable
-              <div className="rounded-lg border border-border/60 bg-card/50 backdrop-blur-sm overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-b border-border/60 hover:bg-transparent">
-                      <TableHead className="w-8 py-2"></TableHead>
-                      <TableHead className="font-semibold py-2 text-xs min-w-[200px]">Task</TableHead>
-                      <TableHead className="font-semibold w-20 py-2 text-xs">Type</TableHead>
-                      <TableHead className="font-semibold w-20 py-2 text-xs">Priority</TableHead>
-                      <TableHead className="font-semibold w-24 py-2 text-xs">Status</TableHead>
-                      <TableHead className="font-semibold w-32 py-2 text-xs">Assigned</TableHead>
-                      <TableHead className="font-semibold w-28 py-2 text-xs">Due</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredTasks.map((task) => (
-                      <TableRow
-                        key={task.id}
-                        className="hover:bg-muted/30 transition-colors border-b border-border/30 last:border-0 group"
-                      >
-                        {/* Checkbox */}
-                        <TableCell className="py-1.5">
-                          <Checkbox
-                            checked={task.status === 'done'}
-                            onClick={(e) => e.stopPropagation()}
-                            className="h-3.5 w-3.5"
-                          />
-                        </TableCell>
-
-                        {/* Task Title with Related Entity - Single Line */}
-                        <TableCell className="py-1.5">
-                          <div
-                            className="flex items-center gap-2 cursor-pointer"
-                            onClick={() => handleTaskClick(task)}
-                          >
-                            <div className={cn(
-                              "w-1 h-5 rounded-full flex-shrink-0",
-                              task.priority === 4 ? 'bg-red-500' :
-                              task.priority === 3 ? 'bg-orange-500' :
-                              task.priority === 2 ? 'bg-blue-500' :
-                              'bg-gray-500'
-                            )} />
-                            <div className="flex items-center gap-2 min-w-0 flex-1">
-                              <span className="font-medium text-xs truncate">{task.title}</span>
-                              <RelatedEntity task={task} onClick={handleRelatedEntityClick} />
-                            </div>
-                          </div>
-                        </TableCell>
-
-                        {/* Type Badge */}
-                        <TableCell className="py-1.5" onClick={(e) => e.stopPropagation()}>
-                          <Badge variant="outline" className="text-[10px] font-normal border-border/60 bg-background/50 px-1.5 py-0 whitespace-nowrap">
-                            {TASK_TYPE_LABELS[task.task_type]}
-                          </Badge>
-                        </TableCell>
-
-                        {/* Priority - Inline Editable (Click to change) */}
-                        <TableCell className="py-1.5" onClick={(e) => e.stopPropagation()}>
-                          <InlinePrioritySelect
-                            value={task.priority}
-                            onSave={(priority) => handleInlinePriorityUpdate(task.id, priority)}
-                            className="h-6 text-[10px] whitespace-nowrap hover:bg-accent/50 rounded transition-colors"
-                          />
-                        </TableCell>
-
-                        {/* Status - Inline Editable (Click to change) */}
-                        <TableCell className="py-1.5" onClick={(e) => e.stopPropagation()}>
-                          <InlineStatusBadge
-                            value={task.status}
-                            onSave={(status) => handleInlineStatusUpdate(task.id, status)}
-                            labels={TASK_STATUS_LABELS}
-                            className="text-[10px] py-0.5 px-2 h-auto whitespace-nowrap hover:ring-2 hover:ring-primary/50 hover:brightness-110 transition-all cursor-pointer select-none"
-                          />
-                        </TableCell>
-
-                        {/* Assigned - Inline Editable */}
-                        <TableCell className="py-1.5" onClick={(e) => e.stopPropagation()}>
-                          <InlineAssigneeSelect
-                            value={task.assigned_to_users || []}
-                            onSave={(users) => handleInlineAssigneeUpdate(task.id, users)}
-                            className="h-6 px-1 text-[10px]"
-                            placeholder="Assign"
-                            compact
-                          />
-                        </TableCell>
-
-                        {/* Due Date - Inline Editable */}
-                        <TableCell className="py-1.5" onClick={(e) => e.stopPropagation()}>
-                          <InlineDatePicker
-                            value={task.due_date}
-                            onSave={(date) => handleInlineDateUpdate(task.id, date)}
-                            placeholder="Set date"
-                            className="h-6 px-1 text-[10px]"
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                {/* Infinite scroll trigger */}
-                <div ref={loadMoreRef} className="py-4 flex items-center justify-center">
-                  {isFetchingNextPage && (
-                    <div className="text-sm text-muted-foreground">Loading more tasks...</div>
-                  )}
-                  {!hasNextPage && allTasks.length > 0 && (
-                    <div className="text-sm text-muted-foreground">
-                      All {totalTaskCount} tasks loaded
-                    </div>
-                  )}
-                </div>
-              </div>
+              // Compact List View - Status Grouped with Collapsible Sections
+              <StatusGroupedCompactTable
+                tasks={filteredTasks}
+                onTaskClick={handleTaskClick}
+                onStatusUpdate={handleInlineStatusUpdate}
+                onPriorityUpdate={handleInlinePriorityUpdate}
+                onAssigneeUpdate={handleInlineAssigneeUpdate}
+                onDateUpdate={handleInlineDateUpdate}
+              />
             )
           ) : (
             // Calendar View

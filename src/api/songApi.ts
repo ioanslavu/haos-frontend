@@ -100,6 +100,19 @@ export const updateChecklistAssetUrl = (songId: number, itemId: number, assetUrl
   );
 };
 
+export const getOrCreateTaskForChecklistItem = (songId: number, itemId: number) => {
+  return apiClient.get<any>(
+    `${SONGS_BASE}/${songId}/checklist/${itemId}/get_or_create_task/`
+  );
+};
+
+export const addTemplateToSong = (songId: number, data: { template_id: number; recording_id?: number }) => {
+  return apiClient.post<{ created_count: number; items: SongChecklistItem[] }>(
+    `${SONGS_BASE}/${songId}/checklist/add_template/`,
+    data
+  );
+};
+
 // Assets
 export const fetchAssets = (songId: number) => {
   return apiClient.get<SongAsset[]>(`${SONGS_BASE}/${songId}/assets/`);

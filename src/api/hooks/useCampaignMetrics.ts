@@ -4,7 +4,7 @@ import { CampaignMetrics, CampaignMetricsInput, CampaignMetricsSummary } from '.
 import { toast } from 'sonner';
 
 // API endpoints
-const METRICS_BASE_URL = '/api/v1/crm/metrics';
+const METRICS_BASE_URL = '/api/v1/campaign-metrics';
 
 // Fetch campaign metrics with filters
 export const useCampaignMetrics = (params?: {
@@ -60,7 +60,7 @@ export const useCampaignMetricsSummary = (campaignId: number | string) => {
     queryKey: ['campaign-metrics', 'summary', campaignId],
     queryFn: async () => {
       const response = await apiClient.get<CampaignMetricsSummary>(
-        `${METRICS_BASE_URL}/campaign_summary/?campaign=${campaignId}`
+        `${METRICS_BASE_URL}/report-by-campaign/?campaign=${campaignId}`
       );
       return response.data;
     },
@@ -139,7 +139,7 @@ export const useBulkImportMetrics = () => {
       campaign: number;
       metrics: Omit<CampaignMetricsInput, 'campaign'>[];
     }) => {
-      const response = await apiClient.post(`${METRICS_BASE_URL}/bulk_import/`, {
+      const response = await apiClient.post(`${METRICS_BASE_URL}/bulk-import/`, {
         campaign,
         metrics,
       });

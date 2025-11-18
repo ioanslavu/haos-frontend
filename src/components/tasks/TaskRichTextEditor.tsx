@@ -2,13 +2,15 @@ import { useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
+import Mention from '@tiptap/extension-mention';
 import { Bold, Italic, List, ListOrdered } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { getSuggestion } from './mentions/suggestion';
 
 interface TaskRichTextEditorProps {
-  content: string;
-  onChange: (content: string) => void;
+  content: any; // TipTap JSON or legacy string
+  onChange: (content: any) => void;
   placeholder?: string;
   minimal?: boolean;
 }
@@ -35,11 +37,20 @@ export const TaskRichTextEditor = ({
       Placeholder.configure({
         placeholder,
       }),
+      Mention.configure({
+        HTMLAttributes: {
+          class: 'mention',
+        },
+        suggestion: getSuggestion(),
+        renderLabel({ node }) {
+          return node.attrs.label;
+        },
+      }),
     ],
     content,
     onUpdate: ({ editor }) => {
-      // Return plain text for simple fields, HTML for rich fields
-      onChange(editor.getText() || '');
+      // Return TipTap JSON format (preserves all formatting and mentions)
+      onChange(editor.getJSON());
     },
     editorProps: {
       attributes: {
@@ -53,8 +64,16 @@ export const TaskRichTextEditor = ({
 
   // Update content when it changes externally
   useEffect(() => {
-    if (editor && content !== editor.getText()) {
-      editor.commands.setContent(content);
+    if (!editor) return;
+
+    // Get current editor content
+    const currentContent = editor.getJSON();
+
+    // Only update if content actually changed (deep comparison)
+    const contentChanged = JSON.stringify(content) !== JSON.stringify(currentContent);
+
+    if (contentChanged) {
+      editor.commands.setContent(content || '');
     }
   }, [content, editor]);
 
@@ -156,6 +175,21 @@ export const TaskRichTextEditor = ({
             float: left;
             height: 0;
             pointer-events: none;
+          }
+
+          /* Mention styles */
+          .task-editor-content .ProseMirror .mention {
+            background-color: hsl(var(--primary) / 0.1);
+            color: hsl(var(--primary));
+            border-radius: 0.375rem;
+            padding: 0.125rem 0.5rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            text-decoration: none;
+          }
+          .task-editor-content .ProseMirror .mention:hover {
+            background-color: hsl(var(--primary) / 0.2);
           }
         `}</style>
         <EditorContent editor={editor} />

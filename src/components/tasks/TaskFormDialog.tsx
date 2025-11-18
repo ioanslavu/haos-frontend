@@ -49,7 +49,7 @@ import {
   TASK_PRIORITY_CHOICES,
   TASK_TYPE_CHOICES,
 } from '@/api/types/tasks'
-import { CalendarIcon, Clock, Flag, AlertCircle, CheckCircle, User, Link } from 'lucide-react'
+import { CalendarIcon, Clock, Flag, AlertCircle, CheckCircle, User, Link, Users, UserPlus, X } from 'lucide-react'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -63,7 +63,7 @@ const taskFormSchema = z.object({
   due_date: z.date().optional().nullable(),
   estimated_hours: z.number().min(0).optional().nullable(),
   actual_hours: z.number().min(0).optional().nullable(),
-  assigned_to: z.number().optional().nullable(),
+  assigned_to_users: z.array(z.number()).optional().nullable(),
   entity: z.number().optional().nullable(),
   campaign: z.number().optional().nullable(),
   parent_task: z.number().optional().nullable(),
@@ -120,7 +120,7 @@ export function TaskFormDialog({
       due_date: null,
       estimated_hours: null,
       actual_hours: null,
-      assigned_to: null,
+      assigned_to_users: [],
       entity: null,
       campaign: null,
       parent_task: null,
@@ -152,7 +152,7 @@ export function TaskFormDialog({
           due_date: task.due_date ? new Date(task.due_date) : null,
           estimated_hours: task.estimated_hours,
           actual_hours: task.actual_hours,
-          assigned_to: task.assigned_to,
+          assigned_to_users: task.assigned_to_users || [],
           entity: task.entity,
           campaign: task.campaign,
           parent_task: task.parent_task,
@@ -183,12 +183,14 @@ export function TaskFormDialog({
 
   const onSubmit = async (data: TaskFormData) => {
     try {
+      // Map assigned_to_users to assigned_user_ids for API
+      const { assigned_to_users, ...rest } = data
       const payload = {
-        ...data,
+        ...rest,
         due_date: data.due_date ? format(data.due_date, 'yyyy-MM-dd') : undefined,
         estimated_hours: data.estimated_hours || undefined,
         actual_hours: data.actual_hours || undefined,
-        assigned_to: data.assigned_to || undefined,
+        assigned_user_ids: assigned_to_users?.length ? assigned_to_users : undefined,
         entity: data.entity || undefined,
         campaign: data.campaign || undefined,
         parent_task: data.parent_task || undefined,
@@ -395,41 +397,122 @@ export function TaskFormDialog({
                   />
                 </div>
 
-                {/* Assigned To */}
-                <FormField
-                  control={form.control}
-                  name="assigned_to"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Assigned To</FormLabel>
-                      <Select
-                        onValueChange={(v) => field.onChange(v === 'unassigned' ? null : Number(v))}
-                        value={field.value?.toString() || 'unassigned'}
+                {/* Assigned To (Multiple Users) */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <FormLabel className="flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        Assigned To
+                      </FormLabel>
+                      <FormDescription className="text-xs mt-1">
+                        Assign this task to one or more team members
+                      </FormDescription>
+                    </div>
+                    <div className="flex gap-2">
+                      {currentUser && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const current = form.getValues('assigned_to_users') || []
+                            if (!current.includes(Number(currentUser.id))) {
+                              form.setValue('assigned_to_users', [...current, Number(currentUser.id)])
+                            }
+                          }}
+                        >
+                          <UserPlus className="h-4 w-4 mr-1" />
+                          Add Me
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const current = form.getValues('assigned_to_users') || []
+                          form.setValue('assigned_to_users', [...current, undefined as any])
+                        }}
                       >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select assignee" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="unassigned">
-                            <div className="flex items-center gap-2">
-                              <User className="h-3 w-3" />
-                              Unassigned
-                            </div>
-                          </SelectItem>
-                          {users.map((user) => (
-                            <SelectItem key={user.id} value={user.id.toString()}>
-                              {user.full_name || user.email}
-                              {user.id === currentUser?.id && ' (You)'}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
+                        <UserPlus className="h-4 w-4 mr-1" />
+                        Add User
+                      </Button>
+                    </div>
+                  </div>
+
+                  {((form.watch('assigned_to_users') as any[]) || []).length > 0 && (
+                    <div className="space-y-2">
+                      {((form.watch('assigned_to_users') as any[]) || []).map((_, index) => (
+                        <div
+                          key={index}
+                          className="flex gap-2 items-start border rounded-md p-3 bg-muted/30"
+                        >
+                          <div className="flex-1">
+                            <FormField
+                              control={form.control}
+                              name={`assigned_to_users.${index}` as any}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <Select
+                                    onValueChange={(value) => {
+                                      const current = form.getValues('assigned_to_users') || []
+                                      const newValue = [...current]
+                                      newValue[index] = Number(value)
+                                      form.setValue('assigned_to_users', newValue)
+                                    }}
+                                    value={field.value ? field.value.toString() : ''}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select user" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {users.length > 0 ? (
+                                        users.map((user: any) => (
+                                          <SelectItem key={user.id} value={user.id.toString()}>
+                                            {user.full_name || user.email}
+                                            {user.id === currentUser?.id && ' (You)'}
+                                          </SelectItem>
+                                        ))
+                                      ) : (
+                                        <SelectItem value="no-users" disabled>
+                                          No users available
+                                        </SelectItem>
+                                      )}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              const current = form.getValues('assigned_to_users') || []
+                              const newValue = current.filter((_, i) => i !== index)
+                              form.setValue('assigned_to_users', newValue)
+                            }}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
                   )}
-                />
+
+                  {((form.watch('assigned_to_users') as any[]) || []).length === 0 && (
+                    <div className="text-sm text-muted-foreground text-center py-4 border rounded-lg bg-muted/20">
+                      No users assigned yet. Click "Add User" to assign team members.
+                    </div>
+                  )}
+                </div>
 
                 {/* Labels */}
                 <div className="space-y-2">
