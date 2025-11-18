@@ -235,12 +235,27 @@ export interface Task {
     full_name: string;
   }[];
 
-  // Custom fields
+  // Custom fields (legacy task-level)
   custom_fields?: TaskCustomField[];
+
+  // Project-level custom field values (keyed by definition ID)
+  custom_field_values?: Record<number, {
+    id: number;
+    value: string | null;
+    display_value: string | number | boolean | null;
+  }>;
 
   // Computed fields
   is_overdue: boolean;
   is_blocked: boolean;
+
+  // Review workflow
+  needs_review: boolean;
+
+  // Workflow timestamps
+  started_at?: string;
+  submitted_for_review_at?: string;
+  completed_at?: string;
 
   // Timestamps
   created_at: string;
@@ -266,6 +281,7 @@ export interface TaskCreateInput {
   blocks_tasks?: number[];
   estimated_hours?: number;
   notes?: any; // Changed from string to any (TipTap JSON)
+  needs_review?: boolean;
 }
 
 export interface TaskUpdateInput extends Partial<TaskCreateInput> {

@@ -88,7 +88,7 @@ export function InlineAssigneeSelect({
   };
 
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
+    <Popover open={isOpen} onOpenChange={setIsOpen} modal={true}>
       <PopoverTrigger asChild>
         <Button
           variant="ghost"
@@ -159,7 +159,7 @@ export function InlineAssigneeSelect({
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[300px] p-0 bg-background border-border" align="start">
+      <PopoverContent className="w-[300px] p-0 bg-background border-border z-[9999]" align="start">
         <div className="p-2 border-b">
           <Input
             placeholder="Search users..."

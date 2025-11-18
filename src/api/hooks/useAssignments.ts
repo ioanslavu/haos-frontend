@@ -201,19 +201,41 @@ export const useBulkAssignments = () => {
   const createMutation = useCreateAssignment();
   const deleteMutation = useDeleteAssignment();
 
+  // Process assignments sequentially to avoid rate limiting (429 errors)
   const assignArtists = async (managerId: number, artistIds: number[]) => {
-    const promises = artistIds.map((artistId) =>
-      createMutation.mutateAsync({
-        social_media_manager: managerId,
-        artist: artistId,
-      })
-    );
-    return Promise.all(promises);
+    const results: SocialMediaManagerAssignment[] = [];
+    const errors: Error[] = [];
+
+    for (const artistId of artistIds) {
+      try {
+        const result = await createMutation.mutateAsync({
+          social_media_manager: managerId,
+          artist: artistId,
+        });
+        results.push(result);
+      } catch (error) {
+        errors.push(error as Error);
+        // Continue with remaining assignments even if one fails
+      }
+    }
+
+    if (errors.length > 0 && results.length === 0) {
+      throw errors[0]; // Throw if all failed
+    }
+
+    return results;
   };
 
+  // Process deletions sequentially to avoid rate limiting
   const unassignArtists = async (assignmentIds: number[]) => {
-    const promises = assignmentIds.map((id) => deleteMutation.mutateAsync(id));
-    return Promise.all(promises);
+    for (const id of assignmentIds) {
+      try {
+        await deleteMutation.mutateAsync(id);
+      } catch (error) {
+        // Continue with remaining deletions even if one fails
+        console.error(`Failed to delete assignment ${id}:`, error);
+      }
+    }
   };
 
   return {

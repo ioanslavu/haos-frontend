@@ -174,6 +174,12 @@ export interface ProjectTask {
   estimated_hours?: string | null;
   created_at: string;
   updated_at: string;
+  // Project-level custom field values (keyed by definition ID)
+  custom_field_values?: Record<number, {
+    id: number;
+    value: string | null;
+    display_value: string | number | boolean | null;
+  }>;
 }
 
 // Task Detail (from TaskDetailSerializer)
@@ -197,6 +203,7 @@ export interface ProjectTaskCreatePayload {
   department?: number;
   due_date?: string | null;
   assigned_to_id?: number | null;
+  assigned_to_users?: number[];
   parent_task?: number | null;
   estimated_hours?: string | null;
   metadata?: Record<string, unknown>;

@@ -54,6 +54,7 @@ import {
   Music,
   Briefcase,
   Building2,
+  ClipboardCheck,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -97,6 +98,7 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, 
   const [localTeam, setLocalTeam] = useState<number | null>(null);
   const [localDepartment, setLocalDepartment] = useState<number | null>(null);
   const [localEstimatedHours, setLocalEstimatedHours] = useState<number | null>(null);
+  const [localNeedsReview, setLocalNeedsReview] = useState<boolean>(false);
   const [localEntity, setLocalEntity] = useState<number | null>(null);
   const [localArtist, setLocalArtist] = useState<number | null>(null);
   const [localClient, setLocalClient] = useState<number | null>(null);
@@ -191,6 +193,7 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, 
         setLocalTeam(task.assigned_team || null);
         setLocalDepartment(task.department || null);
         setLocalEstimatedHours(task.estimated_hours || null);
+        setLocalNeedsReview(task.needs_review || false);
         setLocalEntity(task.entity || null);
         // Determine if entity is artist or client based on roles
         if (task.entity && task.entity_detail) {
@@ -242,6 +245,7 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, 
         setLocalTeam(null);
         setLocalDepartment(null); // Admin users need to select department manually
         setLocalEstimatedHours(null);
+        setLocalNeedsReview(false);
         setLocalEntity(null);
         setLocalArtist(null);
         setLocalClient(null);
@@ -300,6 +304,7 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, 
               assigned_user_ids: localAssignees.length > 0 ? localAssignees : undefined,
               department: localDepartment || undefined,
               project: localProject || projectId || undefined,
+              needs_review: localNeedsReview,
             });
             setCreatedTaskId(newTask.id);
             setSaveState('idle');
@@ -380,6 +385,7 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, 
           song: localSong || undefined,
           campaign: localCampaign || undefined,
           project: localProject || projectId || undefined,
+          needs_review: localNeedsReview,
         };
 
         createTask.mutate(payload, {
@@ -691,6 +697,38 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, 
                   </div>
                 </div>
 
+                {/* Needs Review */}
+                <div className="flex items-start gap-3 group">
+                  <div className="flex items-center gap-2 w-32 text-sm text-muted-foreground">
+                    <ClipboardCheck className="h-4 w-4" />
+                    <span>Needs review</span>
+                  </div>
+                  <div className="flex-1">
+                    <button
+                      onClick={async () => {
+                        const newValue = !localNeedsReview;
+                        setLocalNeedsReview(newValue);
+                        if (!isCreateMode && (task || createdTaskId)) {
+                          await handleUpdateField('needs_review', newValue);
+                        }
+                      }}
+                      className={cn(
+                        "inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
+                        localNeedsReview
+                          ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80"
+                      )}
+                    >
+                      {localNeedsReview ? "Yes" : "No"}
+                    </button>
+                    {localNeedsReview && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Requires manager approval before completion
+                      </p>
+                    )}
+                  </div>
+                </div>
+
                 {/* Actual Duration (Read-only, auto-calculated) */}
                 {task?.actual_hours && (
                   <div className="flex items-start gap-3 group">
@@ -728,8 +766,12 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, 
                 )}
 
                 {/* Custom Fields - Inline with properties */}
-                {(task?.id || createdTaskId) && (
-                  <InlineCustomFieldsManager ref={customFieldsRef} taskId={task?.id || createdTaskId!} />
+                {(task?.id || createdTaskId) && (task?.project || localProject) && (
+                  <InlineCustomFieldsManager
+                    ref={customFieldsRef}
+                    taskId={task?.id || createdTaskId!}
+                    projectId={task?.project || localProject!}
+                  />
                 )}
 
                 {/* Follow-up Reminder */}
@@ -1277,20 +1319,63 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, 
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <CheckCircle2 className="h-4 w-4" />
                         <span>Started:</span>
-                        <span>{format(new Date(task.started_at), 'PPP')}</span>
+                        <span>{new Date(task.started_at).toLocaleString('ro-RO', {
+                          timeZone: 'Europe/Bucharest',
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                          timeZoneName: 'short'
+                        })}</span>
+                      </div>
+                    )}
+                    {task.submitted_for_review_at && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <ClipboardCheck className="h-4 w-4" />
+                        <span>In Review:</span>
+                        <span>{new Date(task.submitted_for_review_at).toLocaleString('ro-RO', {
+                          timeZone: 'Europe/Bucharest',
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                          timeZoneName: 'short'
+                        })}</span>
                       </div>
                     )}
                     {task.completed_at && (
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <CheckCircle2 className="h-4 w-4" />
                         <span>Completed:</span>
-                        <span>{format(new Date(task.completed_at), 'PPP')}</span>
+                        <span>{new Date(task.completed_at).toLocaleString('ro-RO', {
+                          timeZone: 'Europe/Bucharest',
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                          timeZoneName: 'short'
+                        })}</span>
                       </div>
                     )}
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Calendar className="h-4 w-4" />
                       <span>Created:</span>
-                      <span>{format(new Date(task.created_at), 'PPP')}</span>
+                      <span>{new Date(task.created_at).toLocaleString('ro-RO', {
+                        timeZone: 'Europe/Bucharest',
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        timeZoneName: 'short'
+                      })}</span>
                     </div>
                   </div>
                 </div>

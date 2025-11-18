@@ -33,6 +33,7 @@ import {
   Link as LinkIcon,
   Bell,
   BellOff,
+  ClipboardCheck,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -105,6 +106,12 @@ export function TaskViewSheet({ task, open, onOpenChange, onEdit }: TaskViewShee
                     </Badge>
                   )}
                   <Badge variant="outline">{TASK_TYPE_LABELS[task.task_type]}</Badge>
+                  {task.needs_review && (
+                    <Badge variant="outline" className="text-orange-600 border-orange-300">
+                      <ClipboardCheck className="mr-1 h-3 w-3" />
+                      Needs Review
+                    </Badge>
+                  )}
                 </SheetDescription>
               </div>
             </div>
@@ -249,20 +256,63 @@ export function TaskViewSheet({ task, open, onOpenChange, onEdit }: TaskViewShee
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <CheckCircle2 className="h-4 w-4" />
                     <span>Started:</span>
-                    <span>{format(new Date(task.started_at), 'PPP')}</span>
+                    <span>{new Date(task.started_at).toLocaleString('ro-RO', {
+                      timeZone: 'Europe/Bucharest',
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      second: '2-digit',
+                      timeZoneName: 'short'
+                    })}</span>
+                  </div>
+                )}
+                {task.submitted_for_review_at && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <ClipboardCheck className="h-4 w-4" />
+                    <span>In Review:</span>
+                    <span>{new Date(task.submitted_for_review_at).toLocaleString('ro-RO', {
+                      timeZone: 'Europe/Bucharest',
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      second: '2-digit',
+                      timeZoneName: 'short'
+                    })}</span>
                   </div>
                 )}
                 {task.completed_at && (
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <CheckCircle2 className="h-4 w-4" />
                     <span>Completed:</span>
-                    <span>{format(new Date(task.completed_at), 'PPP')}</span>
+                    <span>{new Date(task.completed_at).toLocaleString('ro-RO', {
+                      timeZone: 'Europe/Bucharest',
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      second: '2-digit',
+                      timeZoneName: 'short'
+                    })}</span>
                   </div>
                 )}
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Calendar className="h-4 w-4" />
                   <span>Created:</span>
-                  <span>{format(new Date(task.created_at), 'PPP')}</span>
+                  <span>{new Date(task.created_at).toLocaleString('ro-RO', {
+                    timeZone: 'Europe/Bucharest',
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    timeZoneName: 'short'
+                  })}</span>
                 </div>
               </div>
             </div>

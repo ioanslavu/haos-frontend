@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useImperativeHandle, forwardRef, useCallback } from 'react';
-import { Plus, Type, Hash, List, X } from 'lucide-react';
+import { Plus, Type, Hash, List, X, Calendar, CheckSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -8,16 +8,24 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { InlineCustomField } from './InlineCustomField';
-import type { CustomFieldType, CreateCustomFieldDto, UpdateCustomFieldDto } from '@/api/types/customFields';
+import type {
+  CustomFieldType,
+  CreateProjectCustomFieldDefinitionDto,
+  TaskFieldWithDefinition,
+} from '@/api/types/customFields';
 import {
-  useTaskCustomFields,
-  useCreateCustomField,
-  useUpdateCustomField,
-  useDeleteCustomField,
+  useProjectCustomFieldDefinitions,
+  useCreateProjectCustomFieldDefinition,
+  useTaskFieldsWithDefinitions,
+  useUpdateTaskCustomFieldValue,
+  useBulkUpdateTaskCustomFieldValues,
+  useDeleteProjectCustomFieldDefinition,
 } from '@/api/hooks/useCustomFields';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface InlineCustomFieldsManagerProps {
   taskId: number;
+  projectId?: number;
 }
 
 export interface InlineCustomFieldsManagerHandle {
@@ -26,34 +34,49 @@ export interface InlineCustomFieldsManagerHandle {
 }
 
 export const InlineCustomFieldsManager = forwardRef<InlineCustomFieldsManagerHandle, InlineCustomFieldsManagerProps>(
-  ({ taskId }, ref) => {
+  ({ taskId, projectId }, ref) => {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [selectedType, setSelectedType] = useState<CustomFieldType | null>(null);
   const [fieldName, setFieldName] = useState('');
   const [selectOptions, setSelectOptions] = useState<string[]>([]);
   const [newOption, setNewOption] = useState('');
 
-  // Track pending changes for all fields
-  const pendingChangesRef = useRef<Map<number, string | number>>(new Map());
+  // Track pending changes for all fields (keyed by value ID)
+  const pendingChangesRef = useRef<Map<number, string | null>>(new Map());
 
-  const { data: fieldsData, isLoading, error } = useTaskCustomFields(taskId);
-  const createMutation = useCreateCustomField();
-  const updateMutation = useUpdateCustomField();
-  const deleteMutation = useDeleteCustomField();
+  // Fetch project-level field definitions and task field values combined
+  const { data: fieldsWithDefinitions = [], isLoading } = useTaskFieldsWithDefinitions(taskId);
+  const { data: definitions = [] } = useProjectCustomFieldDefinitions(projectId);
 
-  // Handle both array and paginated responses from API
-  const fields = Array.isArray(fieldsData)
-    ? fieldsData
-    : fieldsData?.results
-    ? fieldsData.results
-    : [];
+  const queryClient = useQueryClient();
+  const createDefinitionMutation = useCreateProjectCustomFieldDefinition();
+  const updateValueMutation = useUpdateTaskCustomFieldValue();
+  const bulkUpdateMutation = useBulkUpdateTaskCustomFieldValues();
+  const deleteDefinitionMutation = useDeleteProjectCustomFieldDefinition();
+
+  // Handle creating a new value (when no value record exists yet)
+  const handleCreateValue = useCallback((definitionId: number, value: string | null) => {
+    bulkUpdateMutation.mutate(
+      {
+        taskId,
+        values: [{ field_definition_id: definitionId, value }],
+      },
+      {
+        onSuccess: () => {
+          // Refetch all relevant queries to sync modal and inline
+          queryClient.refetchQueries({ queryKey: ['tasks', taskId, 'fieldsWithDefinitions'] });
+          queryClient.refetchQueries({ queryKey: ['project-tasks'] });
+        },
+      }
+    );
+  }, [taskId, bulkUpdateMutation, queryClient]);
 
   // Handle pending change from child fields
-  const handlePendingChange = useCallback((fieldId: number, value: string | number | null) => {
+  const handlePendingChange = useCallback((valueId: number, value: string | null) => {
     if (value === null) {
-      pendingChangesRef.current.delete(fieldId);
+      pendingChangesRef.current.delete(valueId);
     } else {
-      pendingChangesRef.current.set(fieldId, value);
+      pendingChangesRef.current.set(valueId, value);
     }
   }, []);
 
@@ -65,10 +88,10 @@ export const InlineCustomFieldsManager = forwardRef<InlineCustomFieldsManagerHan
       if (pending.length === 0) return;
 
       // Save all pending changes
-      const promises = pending.map(([fieldId, value]) => {
+      const promises = pending.map(([valueId, value]) => {
         return new Promise<void>((resolve) => {
-          updateMutation.mutate(
-            { id: fieldId, data: { value }, taskId },
+          updateValueMutation.mutate(
+            { taskId, valueId, data: { value } },
             { onSettled: () => resolve() }
           );
         });
@@ -80,7 +103,7 @@ export const InlineCustomFieldsManager = forwardRef<InlineCustomFieldsManagerHan
       // Wait for all to complete
       await Promise.all(promises);
     },
-  }), [updateMutation, taskId]);
+  }), [updateValueMutation, taskId]);
 
   const propertyTypes: Array<{
     type: CustomFieldType;
@@ -90,6 +113,8 @@ export const InlineCustomFieldsManager = forwardRef<InlineCustomFieldsManagerHan
     { type: 'text', label: 'Text', icon: <Type className="h-4 w-4" /> },
     { type: 'number', label: 'Number', icon: <Hash className="h-4 w-4" /> },
     { type: 'single_select', label: 'Select', icon: <List className="h-4 w-4" /> },
+    { type: 'date', label: 'Date', icon: <Calendar className="h-4 w-4" /> },
+    { type: 'checkbox', label: 'Checkbox', icon: <CheckSquare className="h-4 w-4" /> },
   ];
 
   const handleTypeSelect = (type: CustomFieldType) => {
@@ -97,7 +122,7 @@ export const InlineCustomFieldsManager = forwardRef<InlineCustomFieldsManagerHan
   };
 
   const handleCreate = () => {
-    if (!selectedType || !fieldName.trim()) return;
+    if (!selectedType || !fieldName.trim() || !projectId) return;
 
     // Auto-add any pending option that wasn't explicitly added
     let finalOptions = selectOptions;
@@ -105,15 +130,15 @@ export const InlineCustomFieldsManager = forwardRef<InlineCustomFieldsManagerHan
       finalOptions = [...selectOptions, newOption.trim()];
     }
 
-    const data: CreateCustomFieldDto = {
-      task: taskId,
+    const data: CreateProjectCustomFieldDefinitionDto = {
       field_name: fieldName.trim(),
       field_type: selectedType,
       select_options: selectedType === 'single_select' ? finalOptions : undefined,
+      show_in_table: true,
     };
 
-    createMutation.mutate(
-      { taskId, data },
+    createDefinitionMutation.mutate(
+      { projectId, data },
       {
         onSuccess: () => {
           // Reset form
@@ -146,26 +171,42 @@ export const InlineCustomFieldsManager = forwardRef<InlineCustomFieldsManagerHan
     setPopoverOpen(false);
   };
 
+  // Don't render if no project ID (can't manage project-level fields)
+  if (!projectId) {
+    return null;
+  }
+
   return (
     <>
-      {/* Existing custom fields */}
-      {fields.map((field) => (
+      {/* Existing custom fields from project definitions */}
+      {fieldsWithDefinitions.map((fieldWithDef) => (
         <InlineCustomField
-          key={field.id}
-          field={field}
-          onUpdate={(data) => {
-            updateMutation.mutate({ id: field.id, data, taskId });
+          key={fieldWithDef.definition.id}
+          fieldWithDefinition={fieldWithDef}
+          taskId={taskId}
+          projectId={projectId}
+          onUpdateValue={(valueId, value) => {
+            updateValueMutation.mutate(
+              { taskId, valueId, data: { value } },
+              {
+                onSuccess: () => {
+                  // Refetch all relevant queries to sync modal and inline
+                  queryClient.refetchQueries({ queryKey: ['tasks', taskId, 'fieldsWithDefinitions'] });
+                  queryClient.refetchQueries({ queryKey: ['project-tasks'] });
+                },
+              }
+            );
           }}
-          onUpdateName={(name) => {
-            updateMutation.mutate({ id: field.id, data: { field_name: name }, taskId });
+          onCreateValue={handleCreateValue}
+          onDeleteDefinition={(definitionId) => {
+            deleteDefinitionMutation.mutate({ projectId, id: definitionId });
           }}
-          onDelete={() => deleteMutation.mutate({ id: field.id, taskId })}
           onPendingChange={handlePendingChange}
         />
       ))}
 
       {/* Add property button */}
-      {fields.length < 20 && (
+      {definitions.length < 20 && (
         <Popover open={popoverOpen} onOpenChange={setPopoverOpen} modal={true}>
           <PopoverTrigger asChild>
             <Button
@@ -262,7 +303,7 @@ export const InlineCustomFieldsManager = forwardRef<InlineCustomFieldsManagerHan
                     disabled={
                       !fieldName.trim() ||
                       (selectedType === 'single_select' && selectOptions.length === 0) ||
-                      createMutation.isPending
+                      createDefinitionMutation.isPending
                     }
                   >
                     Create

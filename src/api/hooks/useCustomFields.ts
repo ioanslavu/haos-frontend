@@ -1,6 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../client';
-import type { TaskCustomField, CreateCustomFieldDto, UpdateCustomFieldDto } from '../types/customFields';
+import type {
+  TaskCustomField,
+  CreateCustomFieldDto,
+  UpdateCustomFieldDto,
+  ProjectCustomFieldDefinition,
+  CreateProjectCustomFieldDefinitionDto,
+  UpdateProjectCustomFieldDefinitionDto,
+  TaskCustomFieldValue,
+  UpdateTaskCustomFieldValueDto,
+  BulkUpdateTaskCustomFieldValueDto,
+  TaskFieldWithDefinition,
+} from '../types/customFields';
 import { toast } from 'sonner';
 
 const CUSTOM_FIELDS_BASE_URL = '/api/v1';
@@ -148,6 +159,289 @@ export const useDeleteCustomField = () => {
       // Invalidate to ensure cache is clean
       queryClient.invalidateQueries({ queryKey: ['tasks', taskId, 'customFields'] });
       toast.success('Custom field deleted');
+    },
+  });
+};
+
+// =============================================================================
+// Project-Level Custom Field Definition Hooks
+// =============================================================================
+
+// Fetch custom field definitions for a project
+export const useProjectCustomFieldDefinitions = (projectId: number | undefined) => {
+  return useQuery({
+    queryKey: ['projects', projectId, 'customFieldDefinitions'],
+    queryFn: async () => {
+      if (!projectId) throw new Error('Project ID is required');
+      const response = await apiClient.get<ProjectCustomFieldDefinition[] | { results: ProjectCustomFieldDefinition[] }>(
+        `${CUSTOM_FIELDS_BASE_URL}/projects/${projectId}/custom-field-definitions/`
+      );
+      return Array.isArray(response.data) ? response.data : response.data.results;
+    },
+    enabled: !!projectId,
+    staleTime: 30 * 1000,
+  });
+};
+
+// Create custom field definition
+export const useCreateProjectCustomFieldDefinition = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ projectId, data }: { projectId: number; data: CreateProjectCustomFieldDefinitionDto }) => {
+      const response = await apiClient.post<ProjectCustomFieldDefinition>(
+        `${CUSTOM_FIELDS_BASE_URL}/projects/${projectId}/custom-field-definitions/`,
+        data
+      );
+      return response.data;
+    },
+    onSuccess: (newDefinition, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'customFieldDefinitions'] });
+      // Invalidate all task field values for this project
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      toast.success(`Custom field "${newDefinition.field_name}" created`);
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.response?.data?.error ||
+                          error?.response?.data?.field_name?.[0] ||
+                          error?.response?.data?.non_field_errors?.[0] ||
+                          'Failed to create custom field';
+      toast.error(errorMessage);
+    },
+  });
+};
+
+// Update custom field definition
+export const useUpdateProjectCustomFieldDefinition = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ projectId, id, data }: { projectId: number; id: number; data: UpdateProjectCustomFieldDefinitionDto }) => {
+      const response = await apiClient.patch<ProjectCustomFieldDefinition>(
+        `${CUSTOM_FIELDS_BASE_URL}/projects/${projectId}/custom-field-definitions/${id}/`,
+        data
+      );
+      return response.data;
+    },
+    onMutate: async ({ projectId, id, data }) => {
+      await queryClient.cancelQueries({ queryKey: ['projects', projectId, 'customFieldDefinitions'] });
+      const previousDefinitions = queryClient.getQueryData<ProjectCustomFieldDefinition[]>(
+        ['projects', projectId, 'customFieldDefinitions']
+      );
+
+      if (previousDefinitions) {
+        queryClient.setQueryData<ProjectCustomFieldDefinition[]>(
+          ['projects', projectId, 'customFieldDefinitions'],
+          previousDefinitions.map(def =>
+            def.id === id ? { ...def, ...data, updated_at: new Date().toISOString() } : def
+          )
+        );
+      }
+
+      return { previousDefinitions, projectId };
+    },
+    onError: (error: any, { projectId }, context) => {
+      if (context?.previousDefinitions) {
+        queryClient.setQueryData(['projects', projectId, 'customFieldDefinitions'], context.previousDefinitions);
+      }
+      const errorMessage = error?.response?.data?.error ||
+                          error?.response?.data?.field_name?.[0] ||
+                          'Failed to update custom field';
+      toast.error(errorMessage);
+    },
+    onSuccess: (updatedDefinition, { projectId }) => {
+      queryClient.setQueryData<ProjectCustomFieldDefinition[]>(
+        ['projects', projectId, 'customFieldDefinitions'],
+        (oldData) => {
+          if (!oldData) return oldData;
+          return oldData.map(def =>
+            def.id === updatedDefinition.id ? updatedDefinition : def
+          );
+        }
+      );
+      // Invalidate task values to reflect any changes
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    },
+  });
+};
+
+// Delete (archive) custom field definition
+export const useDeleteProjectCustomFieldDefinition = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ projectId, id }: { projectId: number; id: number }) => {
+      await apiClient.delete(
+        `${CUSTOM_FIELDS_BASE_URL}/projects/${projectId}/custom-field-definitions/${id}/`
+      );
+      return { projectId, id };
+    },
+    onMutate: async ({ projectId, id }) => {
+      await queryClient.cancelQueries({ queryKey: ['projects', projectId, 'customFieldDefinitions'] });
+      const previousDefinitions = queryClient.getQueryData<ProjectCustomFieldDefinition[]>(
+        ['projects', projectId, 'customFieldDefinitions']
+      );
+
+      // Optimistically remove from cache (backend does soft delete)
+      if (previousDefinitions) {
+        queryClient.setQueryData<ProjectCustomFieldDefinition[]>(
+          ['projects', projectId, 'customFieldDefinitions'],
+          previousDefinitions.filter(def => def.id !== id)
+        );
+      }
+
+      return { previousDefinitions, projectId };
+    },
+    onError: (error: any, { projectId }, context) => {
+      if (context?.previousDefinitions) {
+        queryClient.setQueryData(['projects', projectId, 'customFieldDefinitions'], context.previousDefinitions);
+      }
+      const errorMessage = error?.response?.data?.error || 'Failed to delete custom field';
+      toast.error(errorMessage);
+    },
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'customFieldDefinitions'] });
+      // Invalidate task values
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      toast.success('Custom field archived');
+    },
+  });
+};
+
+// Reorder custom field definitions
+export const useReorderProjectCustomFieldDefinitions = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ projectId, orderedIds }: { projectId: number; orderedIds: number[] }) => {
+      const response = await apiClient.post<ProjectCustomFieldDefinition[]>(
+        `${CUSTOM_FIELDS_BASE_URL}/projects/${projectId}/custom-field-definitions/reorder/`,
+        { ordered_ids: orderedIds }
+      );
+      return response.data;
+    },
+    onSuccess: (updatedDefinitions, { projectId }) => {
+      queryClient.setQueryData(['projects', projectId, 'customFieldDefinitions'], updatedDefinitions);
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.response?.data?.error || 'Failed to reorder custom fields';
+      toast.error(errorMessage);
+    },
+  });
+};
+
+// =============================================================================
+// Task Custom Field Value Hooks
+// =============================================================================
+
+// Fetch custom field values for a task
+export const useTaskCustomFieldValues = (taskId: number | undefined) => {
+  return useQuery({
+    queryKey: ['tasks', taskId, 'customFieldValues'],
+    queryFn: async () => {
+      if (!taskId) throw new Error('Task ID is required');
+      const response = await apiClient.get<TaskCustomFieldValue[] | { results: TaskCustomFieldValue[] }>(
+        `${CUSTOM_FIELDS_BASE_URL}/tasks/${taskId}/custom-field-values/`
+      );
+      return Array.isArray(response.data) ? response.data : response.data.results;
+    },
+    enabled: !!taskId,
+    staleTime: 30 * 1000,
+  });
+};
+
+// Fetch task fields with definitions (combined data)
+export const useTaskFieldsWithDefinitions = (taskId: number | undefined) => {
+  return useQuery({
+    queryKey: ['tasks', taskId, 'fieldsWithDefinitions'],
+    queryFn: async () => {
+      if (!taskId) throw new Error('Task ID is required');
+      const response = await apiClient.get<TaskFieldWithDefinition[]>(
+        `${CUSTOM_FIELDS_BASE_URL}/tasks/${taskId}/custom-field-values/with-definitions/`
+      );
+      return response.data;
+    },
+    enabled: !!taskId,
+    staleTime: 30 * 1000,
+  });
+};
+
+// Update task custom field value
+export const useUpdateTaskCustomFieldValue = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ taskId, valueId, data }: { taskId: number; valueId: number; data: UpdateTaskCustomFieldValueDto }) => {
+      const response = await apiClient.patch<TaskCustomFieldValue>(
+        `${CUSTOM_FIELDS_BASE_URL}/tasks/${taskId}/custom-field-values/${valueId}/`,
+        data
+      );
+      return response.data;
+    },
+    onMutate: async ({ taskId, valueId, data }) => {
+      await queryClient.cancelQueries({ queryKey: ['tasks', taskId, 'customFieldValues'] });
+      await queryClient.cancelQueries({ queryKey: ['tasks', taskId, 'fieldsWithDefinitions'] });
+
+      const previousValues = queryClient.getQueryData<TaskCustomFieldValue[]>(
+        ['tasks', taskId, 'customFieldValues']
+      );
+
+      if (previousValues) {
+        queryClient.setQueryData<TaskCustomFieldValue[]>(
+          ['tasks', taskId, 'customFieldValues'],
+          previousValues.map(val =>
+            val.id === valueId ? { ...val, value: data.value, updated_at: new Date().toISOString() } : val
+          )
+        );
+      }
+
+      return { previousValues, taskId };
+    },
+    onError: (error: any, { taskId }, context) => {
+      if (context?.previousValues) {
+        queryClient.setQueryData(['tasks', taskId, 'customFieldValues'], context.previousValues);
+      }
+      const errorMessage = error?.response?.data?.error ||
+                          error?.response?.data?.value?.[0] ||
+                          'Failed to update field value';
+      toast.error(errorMessage);
+    },
+    onSuccess: (updatedValue, { taskId }) => {
+      // Update caches with server response
+      queryClient.setQueryData<TaskCustomFieldValue[]>(
+        ['tasks', taskId, 'customFieldValues'],
+        (oldData) => {
+          if (!oldData) return oldData;
+          return oldData.map(val =>
+            val.id === updatedValue.id ? updatedValue : val
+          );
+        }
+      );
+      // Invalidate fieldsWithDefinitions to refresh combined data
+      queryClient.invalidateQueries({ queryKey: ['tasks', taskId, 'fieldsWithDefinitions'] });
+    },
+  });
+};
+
+// Bulk update task custom field values
+export const useBulkUpdateTaskCustomFieldValues = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ taskId, values }: { taskId: number; values: BulkUpdateTaskCustomFieldValueDto[] }) => {
+      const response = await apiClient.post<TaskCustomFieldValue[]>(
+        `${CUSTOM_FIELDS_BASE_URL}/tasks/${taskId}/custom-field-values/bulk-update/`,
+        { values }
+      );
+      return response.data;
+    },
+    onSuccess: (updatedValues, { taskId }) => {
+      queryClient.setQueryData(['tasks', taskId, 'customFieldValues'], updatedValues);
+      queryClient.invalidateQueries({ queryKey: ['tasks', taskId, 'fieldsWithDefinitions'] });
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.response?.data?.error || 'Failed to update field values';
+      toast.error(errorMessage);
     },
   });
 };

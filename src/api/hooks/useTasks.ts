@@ -26,8 +26,9 @@ export const useTasks = (params?: {
   is_overdue?: boolean;
   is_blocked?: boolean;
   my_tasks?: boolean;
-}) => {
+}, options?: { enabled?: boolean }) => {
   const queryParams = new URLSearchParams();
+  queryParams.append('page_size', '100'); // Load 100 tasks per page for better UX
 
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
@@ -53,6 +54,7 @@ export const useTasks = (params?: {
       return Array.isArray(response.data) ? response.data : response.data.results;
     },
     staleTime: 30 * 1000, // Data considered fresh for 30 seconds
+    enabled: options?.enabled ?? true,
   });
 };
 
@@ -79,6 +81,7 @@ export const useInfiniteTasks = (params?: {
   const buildQueryParams = (pageParam: number) => {
     const queryParams = new URLSearchParams();
     queryParams.append('page', pageParam.toString());
+    queryParams.append('page_size', '100'); // Load 100 tasks per page for better UX
 
     if (params) {
       Object.entries(params).forEach(([key, value]) => {

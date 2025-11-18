@@ -198,6 +198,24 @@ All colors MUST be HSL.
 
 /* Modern utility classes for 2025 patterns */
 @layer utilities {
+  /* Hide scrollbar while maintaining scroll functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
+  }
+
+  /* Global scrollbar hide - apply to all scrollable elements */
+  * {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  *::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
+  }
+
   /* Hover effects */
   .hover-lift {
     transition: transform 0.2s ease, box-shadow 0.2s ease;

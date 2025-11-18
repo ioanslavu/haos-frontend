@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { useAuthStore } from '@/stores/authStore';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -68,6 +70,8 @@ import {
   useActivateRecurringTask,
   useDeactivateRecurringTask,
 } from '@/api/hooks/useProjects';
+import { useUpdateTaskCustomFieldValue, useBulkUpdateTaskCustomFieldValues } from '@/api/hooks/useCustomFields';
+import { useUpdateTask } from '@/api/hooks/useTasks';
 import {
   PROJECT_TYPE_CONFIG,
   PROJECT_STATUS_CONFIG,
@@ -143,6 +147,7 @@ function convertProjectTaskToTask(projectTask: ProjectTask): Task {
       email: projectTask.reviewed_by.email,
       full_name: projectTask.reviewed_by.full_name,
     } : undefined,
+    custom_field_values: projectTask.custom_field_values,
   };
 }
 
@@ -241,6 +246,10 @@ function RelatedEntity({ task, onClick }: { task: Task; onClick: (e: React.Mouse
 
 export function ProjectTasksView({ project, showBackButton, showFullPageButton, onClose, initialTaskId }: ProjectTasksViewProps) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { user } = useAuthStore();
+  const isMarketingDepartment = user?.department?.toLowerCase() === 'marketing';
+
   const [viewMode, setViewMode] = useState<'kanban' | 'list' | 'calendar'>('kanban');
   const [listDensity, setListDensity] = useState<'comfortable' | 'compact'>('compact');
   const [searchQuery, setSearchQuery] = useState('');
@@ -277,6 +286,7 @@ export function ProjectTasksView({ project, showBackButton, showFullPageButton, 
   const archiveProject = useArchiveProject();
   const activateProject = useActivateProject();
   const updateProjectTask = useUpdateProjectTask();
+  const updateTask = useUpdateTask();
   const deleteRecurringTemplate = useDeleteRecurringTaskTemplate();
   const activateTemplate = useActivateRecurringTask();
   const deactivateTemplate = useDeactivateRecurringTask();
@@ -368,9 +378,9 @@ export function ProjectTasksView({ project, showBackButton, showFullPageButton, 
 
   const handleAssigneeUpdate = async (taskId: number, assignedToUsers: number[]) => {
     try {
-      await updateProjectTask.mutateAsync({
+      await updateTask.mutateAsync({
         id: taskId,
-        data: { assigned_to_id: assignedToUsers[0] || null },
+        data: { assigned_user_ids: assignedToUsers },
       });
       toast.success('Assignee updated');
     } catch (error) {
@@ -387,6 +397,43 @@ export function ProjectTasksView({ project, showBackButton, showFullPageButton, 
       toast.success('Due date updated');
     } catch (error) {
       toast.error('Failed to update task due date');
+    }
+  };
+
+  // Custom field update
+  const updateCustomFieldValue = useUpdateTaskCustomFieldValue();
+  const bulkUpdateCustomFieldValues = useBulkUpdateTaskCustomFieldValues();
+
+  const handleCustomFieldUpdate = async (taskId: number, fieldId: number, value: string | null) => {
+    // Find the value ID from the task's custom_field_values
+    const task = tasks.find(t => t.id === taskId);
+    const fieldValue = task?.custom_field_values?.[fieldId];
+
+    if (fieldValue?.id) {
+      // Update existing value
+      updateCustomFieldValue.mutate({
+        taskId,
+        valueId: fieldValue.id,
+        data: { value },
+      }, {
+        onSuccess: () => {
+          // Refetch both queries to sync inline and modal
+          queryClient.refetchQueries({ queryKey: ['project-tasks'] });
+          queryClient.refetchQueries({ queryKey: ['tasks', taskId, 'fieldsWithDefinitions'] });
+        },
+      });
+    } else {
+      // Create new value using bulk update
+      bulkUpdateCustomFieldValues.mutate({
+        taskId,
+        values: [{ field_definition_id: fieldId, value }],
+      }, {
+        onSuccess: () => {
+          // Refetch both queries to sync inline and modal
+          queryClient.refetchQueries({ queryKey: ['project-tasks'] });
+          queryClient.refetchQueries({ queryKey: ['tasks', taskId, 'fieldsWithDefinitions'] });
+        },
+      });
     }
   };
 
@@ -724,7 +771,7 @@ export function ProjectTasksView({ project, showBackButton, showFullPageButton, 
                     <Calendar className="h-3.5 w-3.5" />
                   </Button>
                 </div>
-                {viewMode === 'list' && (
+                {viewMode === 'list' && !isMarketingDepartment && (
                   <div className="flex gap-1 p-0.5 bg-muted rounded-lg">
                     <Button
                       variant={listDensity === 'comfortable' ? 'default' : 'ghost'}
@@ -1002,11 +1049,13 @@ export function ProjectTasksView({ project, showBackButton, showFullPageButton, 
                 // Compact List View
                 <StatusGroupedCompactTable
                   tasks={filteredTasks}
+                  projectId={project.id}
                   onTaskClick={handleTaskClick}
                   onStatusUpdate={handleStatusUpdate}
                   onPriorityUpdate={handlePriorityUpdate}
                   onAssigneeUpdate={handleAssigneeUpdate}
                   onDateUpdate={handleDateUpdate}
+                  onCustomFieldUpdate={handleCustomFieldUpdate}
                 />
               )
             ) : (
@@ -1058,6 +1107,7 @@ export function ProjectTasksView({ project, showBackButton, showFullPageButton, 
         task={viewTask}
         open={taskViewOpen}
         onOpenChange={setTaskViewOpen}
+        projectId={project.id}
       />
 
       {/* Task Create Panel */}

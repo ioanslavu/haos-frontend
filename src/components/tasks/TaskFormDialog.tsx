@@ -69,6 +69,7 @@ const taskFormSchema = z.object({
   parent_task: z.number().optional().nullable(),
   dependencies: z.array(z.number()).optional().nullable(),
   is_milestone: z.boolean().optional().nullable(),
+  needs_review: z.boolean().optional().nullable(),
   completion_percentage: z.number().min(0).max(100).optional().nullable(),
   recurring_pattern: z.string().optional().nullable(),
   labels: z.array(z.string()).optional().nullable(),
@@ -100,10 +101,10 @@ export function TaskFormDialog({
   const createTask = useCreateTask()
   const updateTask = useUpdateTask()
 
-  // Fetch related data
+  // Fetch related data only when dialog is open
   const { data: usersData } = useUsersList({ is_active: true })
   const { data: campaignsData } = useCampaigns()
-  const { data: tasksData } = useTasks()
+  const { data: tasksData } = useTasks(undefined, { enabled: open })
 
   const users = usersData?.results || []
   const campaigns = campaignsData?.results || []
@@ -126,6 +127,7 @@ export function TaskFormDialog({
       parent_task: null,
       dependencies: [],
       is_milestone: false,
+      needs_review: false,
       completion_percentage: 0,
       recurring_pattern: null,
       labels: [],
@@ -158,6 +160,7 @@ export function TaskFormDialog({
           parent_task: task.parent_task,
           dependencies: task.dependencies || [],
           is_milestone: task.is_milestone,
+          needs_review: task.needs_review || false,
           completion_percentage: task.completion_percentage || 0,
           recurring_pattern: task.recurring_pattern,
           labels: task.labels || [],
@@ -196,6 +199,7 @@ export function TaskFormDialog({
         parent_task: data.parent_task || undefined,
         dependencies: data.dependencies?.length ? data.dependencies : undefined,
         labels: data.labels?.length ? data.labels : undefined,
+        needs_review: data.needs_review || false,
       }
 
       let result: Task
@@ -559,6 +563,28 @@ export function TaskFormDialog({
                         <FormLabel className="text-base">Milestone Task</FormLabel>
                         <FormDescription>
                           Mark this task as a project milestone
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                {/* Needs Review */}
+                <FormField
+                  control={form.control}
+                  name="needs_review"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Needs Review</FormLabel>
+                        <FormDescription>
+                          Require manager approval before completion
                         </FormDescription>
                       </div>
                       <FormControl>

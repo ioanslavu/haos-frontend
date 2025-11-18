@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Trash2, GripVertical } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { InlineDatePicker } from './InlineDatePicker';
 import {
   Select,
   SelectContent,
@@ -18,49 +20,52 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import type { TaskCustomField, UpdateCustomFieldDto } from '@/api/types/customFields';
+import type { TaskFieldWithDefinition } from '@/api/types/customFields';
 import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 
 interface InlineCustomFieldProps {
-  field: TaskCustomField;
-  onUpdate: (data: UpdateCustomFieldDto) => void;
-  onDelete: () => void;
-  onUpdateName: (name: string) => void;
-  onPendingChange?: (fieldId: number, value: string | number | null) => void;
+  fieldWithDefinition: TaskFieldWithDefinition;
+  taskId: number;
+  projectId: number;
+  onUpdateValue: (valueId: number, value: string | null) => void;
+  onCreateValue?: (definitionId: number, value: string | null) => void;
+  onDeleteDefinition: (definitionId: number) => void;
+  onPendingChange?: (valueId: number, value: string | null) => void;
 }
 
-export function InlineCustomField({ field, onUpdate, onDelete, onUpdateName, onPendingChange }: InlineCustomFieldProps) {
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [nameValue, setNameValue] = useState(field.field_name);
+export function InlineCustomField({
+  fieldWithDefinition,
+  taskId,
+  projectId,
+  onUpdateValue,
+  onCreateValue,
+  onDeleteDefinition,
+  onPendingChange,
+}: InlineCustomFieldProps) {
+  const { definition, value, display_value } = fieldWithDefinition;
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const [localValue, setLocalValue] = useState<string | number>(field.display_value || '');
+  const [localValue, setLocalValue] = useState<string>(value?.value || '');
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
-  const lastSyncedValueRef = useRef<string | number | undefined>(field.display_value);
+  const lastSyncedValueRef = useRef<string | null>(value?.value || null);
 
   // Sync local value when field updates from server (only if actually changed)
   useEffect(() => {
-    // Only sync if the server value actually changed (not on initial mount or re-renders)
-    if (field.display_value !== lastSyncedValueRef.current) {
-      lastSyncedValueRef.current = field.display_value;
-      setLocalValue(field.display_value || '');
+    const serverValue = value?.value || '';
+    if (serverValue !== lastSyncedValueRef.current) {
+      lastSyncedValueRef.current = serverValue;
+      setLocalValue(serverValue);
       // Clear pending at parent since server has the latest value
-      onPendingChange?.(field.id, null);
+      if (value?.id) {
+        onPendingChange?.(value.id, null);
+      }
     }
-  }, [field.display_value, field.id, onPendingChange]);
+  }, [value?.value, value?.id, onPendingChange]);
 
-  const handleSaveName = () => {
-    if (nameValue.trim() && nameValue !== field.field_name) {
-      onUpdateName(nameValue.trim());
-    }
-    setIsEditingName(false);
-  };
-
-  const handleValueChange = (value: string | number) => {
+  const handleValueChange = (newValue: string) => {
     // Update local state immediately
-    setLocalValue(value);
-    // Report pending change to parent for save-on-close
-    onPendingChange?.(field.id, value);
+    setLocalValue(newValue);
 
     // Debounce the API call
     if (saveTimeoutRef.current) {
@@ -68,10 +73,20 @@ export function InlineCustomField({ field, onUpdate, onDelete, onUpdateName, onP
     }
 
     saveTimeoutRef.current = setTimeout(() => {
-      onUpdate({ value });
-      // Clear pending at parent after save
-      onPendingChange?.(field.id, null);
+      if (value?.id) {
+        // Update existing value
+        onUpdateValue(value.id, newValue || null);
+        onPendingChange?.(value.id, null);
+      } else {
+        // Create new value using bulk update
+        onCreateValue?.(definition.id, newValue || null);
+      }
     }, 500); // 500ms debounce
+
+    // Report pending change to parent for save-on-close (only if value exists)
+    if (value?.id) {
+      onPendingChange?.(value.id, newValue);
+    }
   };
 
   // Save immediately when field loses focus
@@ -84,26 +99,39 @@ export function InlineCustomField({ field, onUpdate, onDelete, onUpdateName, onP
 
     // Check if value changed from server value
     if (localValue !== lastSyncedValueRef.current) {
-      onUpdate({ value: localValue });
-      onPendingChange?.(field.id, null);
+      if (value?.id) {
+        onUpdateValue(value.id, localValue || null);
+        onPendingChange?.(value.id, null);
+      } else {
+        // Create new value
+        onCreateValue?.(definition.id, localValue || null);
+      }
     }
   };
 
-  // Cleanup and save on unmount
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
-      // Note: Can't reliably save on unmount as React context is torn down
-      // The onBlur handler will save when focus leaves the input
     };
   }, []);
 
-  const formatValue = (val: string | number | null): string => {
+  const formatDisplayValue = (val: string | number | boolean | null): string => {
     if (val === null || val === undefined || val === '') return '';
-    if (field.field_type === 'number') {
-      return new Intl.NumberFormat().format(Number(val));
+    if (definition.field_type === 'number' && typeof val === 'number') {
+      return new Intl.NumberFormat().format(val);
+    }
+    if (definition.field_type === 'checkbox') {
+      return val ? 'Yes' : 'No';
+    }
+    if (definition.field_type === 'date' && val) {
+      try {
+        return format(new Date(String(val)), 'PPP');
+      } catch {
+        return String(val);
+      }
     }
     return String(val);
   };
@@ -128,34 +156,14 @@ export function InlineCustomField({ field, onUpdate, onDelete, onUpdateName, onP
               </button>
             </>
           )}
-          {isEditingName ? (
-            <Input
-              value={nameValue}
-              onChange={(e) => setNameValue(e.target.value)}
-              onBlur={handleSaveName}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleSaveName();
-                if (e.key === 'Escape') {
-                  setNameValue(field.field_name);
-                  setIsEditingName(false);
-                }
-              }}
-              className="h-6 text-xs text-muted-foreground"
-              autoFocus
-            />
-          ) : (
-            <button
-              onClick={() => setIsEditingName(true)}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors text-left truncate"
-            >
-              {field.field_name}
-            </button>
-          )}
+          <span className="text-xs text-muted-foreground truncate">
+            {definition.field_name}
+          </span>
         </div>
 
         {/* Value */}
         <div className="flex-1">
-          {field.field_type === 'text' && (
+          {definition.field_type === 'text' && (
             <Input
               type="text"
               value={localValue || ''}
@@ -166,7 +174,7 @@ export function InlineCustomField({ field, onUpdate, onDelete, onUpdateName, onP
             />
           )}
 
-          {field.field_type === 'number' && (
+          {definition.field_type === 'number' && (
             <Input
               type="number"
               value={localValue || ''}
@@ -177,16 +185,59 @@ export function InlineCustomField({ field, onUpdate, onDelete, onUpdateName, onP
             />
           )}
 
-          {field.field_type === 'single_select' && (
+          {definition.field_type === 'date' && (
+            <InlineDatePicker
+              value={localValue || null}
+              onSave={(date) => {
+                setLocalValue(date || '');
+                if (value?.id) {
+                  onUpdateValue(value.id, date);
+                  onPendingChange?.(value.id, null);
+                } else {
+                  onCreateValue?.(definition.id, date);
+                }
+              }}
+              placeholder="Select date..."
+              className="h-7 text-sm border-none bg-transparent hover:bg-muted/30"
+            />
+          )}
+
+          {definition.field_type === 'checkbox' && (
+            <div className="flex items-center h-7">
+              <Checkbox
+                checked={localValue === 'true'}
+                onCheckedChange={(checked) => {
+                  const newValue = checked ? 'true' : 'false';
+                  setLocalValue(newValue);
+                  if (value?.id) {
+                    onUpdateValue(value.id, newValue);
+                    onPendingChange?.(value.id, null);
+                  } else {
+                    onCreateValue?.(definition.id, newValue);
+                  }
+                }}
+              />
+            </div>
+          )}
+
+          {definition.field_type === 'single_select' && (
             <Select
-              value={localValue?.toString() || ''}
-              onValueChange={handleValueChange}
+              value={localValue || ''}
+              onValueChange={(val) => {
+                setLocalValue(val);
+                if (value?.id) {
+                  onUpdateValue(value.id, val);
+                  onPendingChange?.(value.id, null);
+                } else {
+                  onCreateValue?.(definition.id, val);
+                }
+              }}
             >
               <SelectTrigger className="h-7 text-sm border-none bg-transparent hover:bg-muted/30 data-[state=open]:bg-background data-[state=open]:border-input">
                 <SelectValue placeholder="Select..." />
               </SelectTrigger>
               <SelectContent className="z-[9999]">
-                {field.select_options?.map((option) => (
+                {definition.select_options?.map((option) => (
                   <SelectItem key={option} value={option}>
                     {option}
                   </SelectItem>
@@ -203,14 +254,14 @@ export function InlineCustomField({ field, onUpdate, onDelete, onUpdateName, onP
           <AlertDialogHeader>
             <AlertDialogTitle>Delete property?</AlertDialogTitle>
             <AlertDialogDescription>
-              Delete "{field.field_name}"? This cannot be undone.
+              Delete "{definition.field_name}" from this project? This will remove it from all tasks in the project. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                onDelete();
+                onDeleteDefinition(definition.id);
                 setDeleteDialogOpen(false);
               }}
             >

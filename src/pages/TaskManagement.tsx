@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -41,7 +41,7 @@ import { InlineAssigneeSelect } from '@/components/tasks/InlineAssigneeSelect'
 import { InlinePrioritySelect } from '@/components/tasks/InlinePrioritySelect'
 import { InlineDatePicker } from '@/components/tasks/InlineDatePicker'
 import { StatusGroupedCompactTable } from '@/components/tasks/StatusGroupedCompactTable'
-import { useTasks, useInfiniteTasks, useTaskStats, useMyTasks, useOverdueTasks, useDeleteTask, useUpdateTask, useUpdateTaskStatus } from '@/api/hooks/useTasks'
+import { useInfiniteTasks, useTaskStats, useDeleteTask, useUpdateTask, useUpdateTaskStatus } from '@/api/hooks/useTasks'
 import { useAuthStore } from '@/stores/authStore'
 import {
   Task,
@@ -236,12 +236,12 @@ export default function TaskManagement() {
   )
 
   // Fetch tasks data with infinite scrolling
-  const taskParams = {
+  const taskParams = useMemo(() => ({
     priority: filterPriority !== 'all' ? parseInt(filterPriority) : undefined,
     task_type: filterType !== 'all' ? filterType : undefined,
     assigned_to: filterAssignee !== 'all' ? parseInt(filterAssignee) : undefined,
     assigned_to__in: selectedEmployees.length > 0 ? selectedEmployees.join(',') : undefined,
-  } as any
+  }), [filterPriority, filterType, filterAssignee, selectedEmployees])
 
   const {
     data: infiniteData,
@@ -254,8 +254,6 @@ export default function TaskManagement() {
   // Flatten all pages into a single array
   const allTasks = infiniteData?.pages.flatMap(page => page.results) || []
   const totalTaskCount = infiniteData?.pages[0]?.count || 0
-  const { data: myTasks } = useMyTasks()
-  const { data: overdueTasks } = useOverdueTasks()
   const { data: taskStats } = useTaskStats()
 
   const deleteTask = useDeleteTask()
@@ -285,24 +283,6 @@ export default function TaskManagement() {
       }
     }
   }, [hasNextPage, isFetchingNextPage, fetchNextPage])
-
-  // Debug: Log what API returns
-  if (allTasks && allTasks.length > 0) {
-    const priorityCounts = allTasks.reduce((acc, task) => {
-      acc[task.priority] = (acc[task.priority] || 0) + 1
-      return acc
-    }, {} as Record<number, number>)
-    const typeCounts = allTasks.reduce((acc, task) => {
-      acc[task.task_type] = (acc[task.task_type] || 0) + 1
-      return acc
-    }, {} as Record<string, number>)
-    console.log('=== Tasks with Infinite Scroll ===')
-    console.log('Tasks loaded so far:', allTasks.length)
-    console.log('Total tasks available:', totalTaskCount)
-    console.log('Has more pages:', hasNextPage)
-    console.log('Priority breakdown:', priorityCounts)
-    console.log('Type breakdown:', typeCounts)
-  }
 
   // Filter tasks
   const filteredTasks = allTasks?.filter(task => {
@@ -629,10 +609,11 @@ export default function TaskManagement() {
           onDragEnd={handleDragEnd}
           onDragCancel={handleDragCancel}
         >
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-auto">
             {viewMode === 'kanban' ? (
               // Kanban View - Modern Minimal Design
-              <div className="flex gap-3 h-full overflow-x-auto pb-2">
+              <div className="flex flex-col h-full">
+                <div className="flex gap-3 flex-1 overflow-x-auto pb-2 scrollbar-hide">
                 {statusColumns.map((column) => {
                   const Icon = column.icon
                   const tasks = tasksByStatus[column.id as keyof typeof tasksByStatus]
@@ -656,7 +637,7 @@ export default function TaskManagement() {
                         </div>
 
                         {/* Tasks Container - Scrolls independently */}
-                        <div className="flex-1 overflow-y-auto space-y-1.5 min-h-0">
+                        <div className="flex-1 overflow-y-auto space-y-1.5 min-h-0 scrollbar-hide">
                           {tasks.map((task) => (
                             <DraggableTaskCard key={task.id} task={task} onClick={() => handleTaskClick(task)}>
                               <Card className="group p-2.5 cursor-grab active:cursor-grabbing hover:shadow-lg hover:border-primary/40 transition-all duration-200 bg-card border-border/60"
@@ -740,6 +721,23 @@ export default function TaskManagement() {
                     </DroppableColumn>
                   )
                 })}
+                </div>
+                {/* Infinite scroll trigger for kanban */}
+                <div ref={loadMoreRef} className="py-2 flex items-center justify-center flex-shrink-0">
+                  {isFetchingNextPage && (
+                    <div className="text-sm text-muted-foreground">Loading more tasks...</div>
+                  )}
+                  {hasNextPage && !isFetchingNextPage && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => fetchNextPage()}
+                      className="text-xs"
+                    >
+                      Load more tasks ({totalTaskCount - allTasks.length} remaining)
+                    </Button>
+                  )}
+                </div>
               </div>
           ) : viewMode === 'list' ? (
             listDensity === 'comfortable' ? (
@@ -909,10 +907,6 @@ export default function TaskManagement() {
                 setViewTask(task)
                 setTaskViewOpen(true)
               }}
-              onDateClick={(date) => {
-                // Could open create panel with pre-filled due date
-                setTaskCreateOpen(true)
-              }}
             />
           )}
 
@@ -947,11 +941,13 @@ export default function TaskManagement() {
       </div>
 
       {/* Task Form Dialog - Only for advanced editing */}
-      <TaskFormDialog
-        open={taskDialogOpen}
-        onOpenChange={setTaskDialogOpen}
-        task={selectedTask}
-      />
+      {taskDialogOpen && (
+        <TaskFormDialog
+          open={taskDialogOpen}
+          onOpenChange={setTaskDialogOpen}
+          task={selectedTask}
+        />
+      )}
 
       {/* Task Detail Panel - View/Edit existing tasks */}
       <TaskDetailPanel
