@@ -8,6 +8,7 @@ import {
   AssignableArtist,
 } from '../types/assignments';
 import { toast } from 'sonner';
+import { handleApiError } from '@/lib/error-handler';
 
 // API endpoints
 const ASSIGNMENTS_BASE_URL = '/api/v1/entities/sm-assignments';
@@ -145,9 +146,11 @@ export const useCreateAssignment = () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       toast.success('Artist assigned successfully');
     },
-    onError: (error: any) => {
-      const message = error.response?.data?.detail || 'Failed to assign artist';
-      toast.error(message);
+    onError: (error) => {
+      handleApiError(error, {
+        context: 'assigning artist',
+        showToast: true,
+      });
     },
   });
 };
@@ -169,9 +172,11 @@ export const useUpdateAssignment = () => {
       queryClient.invalidateQueries({ queryKey: ['social-media-assignments', variables.id] });
       toast.success('Assignment updated successfully');
     },
-    onError: (error: any) => {
-      const message = error.response?.data?.detail || 'Failed to update assignment';
-      toast.error(message);
+    onError: (error) => {
+      handleApiError(error, {
+        context: 'updating assignment',
+        showToast: true,
+      });
     },
   });
 };
@@ -189,9 +194,11 @@ export const useDeleteAssignment = () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       toast.success('Assignment removed successfully');
     },
-    onError: (error: any) => {
-      const message = error.response?.data?.detail || 'Failed to remove assignment';
-      toast.error(message);
+    onError: (error) => {
+      handleApiError(error, {
+        context: 'removing assignment',
+        showToast: true,
+      });
     },
   });
 };

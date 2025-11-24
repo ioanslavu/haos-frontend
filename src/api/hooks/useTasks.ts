@@ -2,6 +2,7 @@ import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tansta
 import apiClient from '../client';
 import { Task, TaskCreateInput, TaskUpdateInput, TaskStats } from '../types/tasks';
 import { toast } from 'sonner';
+import { handleApiError } from '@/lib/error-handler';
 
 // API endpoints
 const TASKS_BASE_URL = '/api/v1/tasks';
@@ -196,13 +197,15 @@ export const useUpdateTask = () => {
       // Return context for rollback
       return { previousTask };
     },
-    onError: (error: any, { id }, context) => {
+    onError: (error, { id }, context) => {
       // Rollback on error
       if (context?.previousTask) {
         queryClient.setQueryData(['tasks', id], context.previousTask);
       }
-      console.error('Task update error:', error.response?.data || error.message);
-      toast.error(error.response?.data?.detail || 'Failed to update task');
+      handleApiError(error, {
+        context: 'updating task',
+        showToast: true,
+      });
     },
     onSuccess: (data) => {
       // Update cache with server response

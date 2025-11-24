@@ -99,6 +99,7 @@ import {
 import { useDroppable, useDraggable } from '@dnd-kit/core';
 import { snapCenterToCursor } from '@dnd-kit/modifiers';
 import { toast } from 'sonner';
+import { handleApiError } from '@/lib/error-handler';
 
 interface ProjectTasksViewProps {
   project: Project;
@@ -360,7 +361,10 @@ export function ProjectTasksView({ project, showBackButton, showFullPageButton, 
       });
       toast.success('Status updated');
     } catch (error) {
-      toast.error('Failed to update task status');
+      handleApiError(error, {
+        context: 'updating task status',
+        showToast: true,
+      });
     }
   };
 
@@ -372,7 +376,10 @@ export function ProjectTasksView({ project, showBackButton, showFullPageButton, 
       });
       toast.success('Priority updated');
     } catch (error) {
-      toast.error('Failed to update task priority');
+      handleApiError(error, {
+        context: 'updating task priority',
+        showToast: true,
+      });
     }
   };
 
@@ -384,7 +391,10 @@ export function ProjectTasksView({ project, showBackButton, showFullPageButton, 
       });
       toast.success('Assignee updated');
     } catch (error) {
-      toast.error('Failed to update task assignee');
+      handleApiError(error, {
+        context: 'updating task assignee',
+        showToast: true,
+      });
     }
   };
 

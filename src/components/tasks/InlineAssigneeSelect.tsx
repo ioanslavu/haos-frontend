@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { User, X, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUsersList } from '@/api/hooks/useUsers';
+import { handleApiError } from '@/lib/error-handler';
 
 interface InlineAssigneeSelectProps {
   value: number[];
@@ -69,7 +70,10 @@ export function InlineAssigneeSelect({
       }
       await onSave(newValue);
     } catch (error) {
-      console.error('Failed to update assignees:', error);
+      handleApiError(error, {
+        context: 'updating assignees',
+        showToast: true,
+      });
     } finally {
       setIsSaving(false);
     }
@@ -81,7 +85,10 @@ export function InlineAssigneeSelect({
     try {
       await onSave(value.filter((id) => id !== userId));
     } catch (error) {
-      console.error('Failed to remove assignee:', error);
+      handleApiError(error, {
+        context: 'removing assignee',
+        showToast: true,
+      });
     } finally {
       setIsSaving(false);
     }

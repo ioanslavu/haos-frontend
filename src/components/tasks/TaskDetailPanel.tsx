@@ -59,6 +59,7 @@ import {
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { handleApiError } from '@/lib/error-handler';
 import { InlineStatusBadge } from './InlineStatusBadge';
 import { InlineDatePicker } from './InlineDatePicker';
 import { InlineAssigneeSelect } from './InlineAssigneeSelect';
@@ -467,8 +468,10 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, 
       });
       toast.success('Updated successfully');
     } catch (error) {
-      console.error('Failed to update:', error);
-      toast.error('Failed to update');
+      handleApiError(error, {
+        context: 'updating task',
+        showToast: true,
+      });
       throw error;
     }
   };

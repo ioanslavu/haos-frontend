@@ -3,6 +3,7 @@ import apiClient from '@/api/client';
 import { API_ENDPOINTS, QUERY_KEYS } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
 import { User } from '@/stores/authStore';
+import { handleApiError } from '@/lib/error-handler';
 
 // Types
 export interface Role {
@@ -74,7 +75,10 @@ export const useRolesList = () => {
         // Handle direct array response
         return Array.isArray(response.data) ? response.data : [];
       } catch (error) {
-        console.error('Failed to fetch roles:', error);
+        handleApiError(error, {
+          context: 'fetching roles',
+          showToast: false, // Silent failure for graceful degradation
+        });
         // Return empty array on error to prevent crashes
         return [];
       }
@@ -88,7 +92,7 @@ export const useRole = (roleId: number) => {
   return useQuery({
     queryKey: QUERY_KEYS.ROLES.DETAIL(roleId),
     queryFn: async () => {
-      const response = await apiClient.get<any>(API_ENDPOINTS.ROLES.DETAIL(roleId));
+      const response = await apiClient.get<RoleDetail>(API_ENDPOINTS.ROLES.DETAIL(roleId));
       const data = response.data;
       
       
@@ -129,13 +133,10 @@ export const useCreateRole = () => {
         description: 'The new role has been created successfully.',
       });
     },
-    onError: (error: unknown) => {
-      const errorMessage = error instanceof Error ? error.message : 
-        (error as any)?.response?.data?.message || 'Failed to create role';
-      toast({
-        title: 'Creation failed',
-        description: errorMessage,
-        variant: 'destructive',
+    onError: (error) => {
+      handleApiError(error, {
+        context: 'creating role',
+        showToast: true,
       });
     },
   });
@@ -162,13 +163,10 @@ export const useUpdateRole = () => {
         description: 'The role has been updated successfully.',
       });
     },
-    onError: (error: unknown) => {
-      const errorMessage = error instanceof Error ? error.message : 
-        (error as any)?.response?.data?.message || 'Failed to update role';
-      toast({
-        title: 'Update failed',
-        description: errorMessage,
-        variant: 'destructive',
+    onError: (error) => {
+      handleApiError(error, {
+        context: 'updating role',
+        showToast: true,
       });
     },
   });
@@ -190,13 +188,11 @@ export const useDeleteRole = () => {
         description: 'The role has been deleted successfully.',
       });
     },
-    onError: (error: unknown) => {
-      const errorMessage = error instanceof Error ? error.message : 
-        (error as any)?.response?.data?.message || 'Failed to delete role. It may have users assigned.';
-      toast({
-        title: 'Deletion failed',
-        description: errorMessage,
-        variant: 'destructive',
+    onError: (error) => {
+      handleApiError(error, {
+        context: 'deleting role',
+        showToast: true,
+        fallbackMessage: 'Failed to delete role. It may have users assigned.',
       });
     },
   });
@@ -276,13 +272,10 @@ export const useManageRolePermissions = () => {
         description: `Permissions have been ${actionText} successfully.`,
       });
     },
-    onError: (error: unknown) => {
-      const errorMessage = error instanceof Error ? error.message : 
-        (error as any)?.response?.data?.message || 'Failed to update permissions';
-      toast({
-        title: 'Permission update failed',
-        description: errorMessage,
-        variant: 'destructive',
+    onError: (error) => {
+      handleApiError(error, {
+        context: 'updating permissions',
+        showToast: true,
       });
     },
   });
@@ -305,13 +298,10 @@ export const useClearRolePermissions = () => {
         description: 'All permissions have been removed from the role.',
       });
     },
-    onError: (error: unknown) => {
-      const errorMessage = error instanceof Error ? error.message : 
-        (error as any)?.response?.data?.message || 'Failed to clear permissions';
-      toast({
-        title: 'Clear failed',
-        description: errorMessage,
-        variant: 'destructive',
+    onError: (error) => {
+      handleApiError(error, {
+        context: 'clearing permissions',
+        showToast: true,
       });
     },
   });
@@ -338,13 +328,10 @@ export const useBulkAssignRoles = () => {
         description: 'Users have been assigned to roles successfully.',
       });
     },
-    onError: (error: unknown) => {
-      const errorMessage = error instanceof Error ? error.message : 
-        (error as any)?.response?.data?.message || 'Failed to assign users';
-      toast({
-        title: 'Assignment failed',
-        description: errorMessage,
-        variant: 'destructive',
+    onError: (error) => {
+      handleApiError(error, {
+        context: 'assigning users to roles',
+        showToast: true,
       });
     },
   });

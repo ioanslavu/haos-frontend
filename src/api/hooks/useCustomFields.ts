@@ -13,6 +13,7 @@ import type {
   TaskFieldWithDefinition,
 } from '../types/customFields';
 import { toast } from 'sonner';
+import { handleApiError } from '@/lib/error-handler';
 
 const CUSTOM_FIELDS_BASE_URL = '/api/v1';
 
@@ -50,11 +51,11 @@ export const useCreateCustomField = () => {
       queryClient.invalidateQueries({ queryKey: ['tasks', taskId, 'customFields'] });
       toast.success('Custom field added');
     },
-    onError: (error: any) => {
-      const errorMessage = error?.response?.data?.error ||
-                          error?.response?.data?.field_name?.[0] ||
-                          'Failed to add custom field';
-      toast.error(errorMessage);
+    onError: (error) => {
+      handleApiError(error, {
+        context: 'adding custom field',
+        showToast: true,
+      });
     },
   });
 };
@@ -99,15 +100,15 @@ export const useUpdateCustomField = () => {
 
       return { previousFields, taskId };
     },
-    onError: (error: any, { taskId }, context) => {
+    onError: (error, { taskId }, context) => {
       // Rollback on error
       if (context?.previousFields && context?.taskId) {
         queryClient.setQueryData(['tasks', context.taskId, 'customFields'], context.previousFields);
       }
-      const errorMessage = error?.response?.data?.error ||
-                          error?.response?.data?.value?.[0] ||
-                          'Failed to update custom field';
-      toast.error(errorMessage);
+      handleApiError(error, {
+        context: 'updating custom field',
+        showToast: true,
+      });
     },
     onSuccess: (updatedField) => {
       // Update cache with server response (no full refetch needed)
@@ -148,12 +149,14 @@ export const useDeleteCustomField = () => {
 
       return { previousFields, taskId };
     },
-    onError: (error: any, { taskId }, context) => {
+    onError: (error, { taskId }, context) => {
       if (context?.previousFields) {
         queryClient.setQueryData(['tasks', taskId, 'customFields'], context.previousFields);
       }
-      const errorMessage = error?.response?.data?.error || 'Failed to delete custom field';
-      toast.error(errorMessage);
+      handleApiError(error, {
+        context: 'deleting custom field',
+        showToast: true,
+      });
     },
     onSuccess: (_, { taskId }) => {
       // Invalidate to ensure cache is clean
@@ -201,12 +204,11 @@ export const useCreateProjectCustomFieldDefinition = () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       toast.success(`Custom field "${newDefinition.field_name}" created`);
     },
-    onError: (error: any) => {
-      const errorMessage = error?.response?.data?.error ||
-                          error?.response?.data?.field_name?.[0] ||
-                          error?.response?.data?.non_field_errors?.[0] ||
-                          'Failed to create custom field';
-      toast.error(errorMessage);
+    onError: (error) => {
+      handleApiError(error, {
+        context: 'creating custom field',
+        showToast: true,
+      });
     },
   });
 };
@@ -240,14 +242,14 @@ export const useUpdateProjectCustomFieldDefinition = () => {
 
       return { previousDefinitions, projectId };
     },
-    onError: (error: any, { projectId }, context) => {
+    onError: (error, { projectId }, context) => {
       if (context?.previousDefinitions) {
         queryClient.setQueryData(['projects', projectId, 'customFieldDefinitions'], context.previousDefinitions);
       }
-      const errorMessage = error?.response?.data?.error ||
-                          error?.response?.data?.field_name?.[0] ||
-                          'Failed to update custom field';
-      toast.error(errorMessage);
+      handleApiError(error, {
+        context: 'updating custom field definition',
+        showToast: true,
+      });
     },
     onSuccess: (updatedDefinition, { projectId }) => {
       queryClient.setQueryData<ProjectCustomFieldDefinition[]>(
@@ -292,12 +294,14 @@ export const useDeleteProjectCustomFieldDefinition = () => {
 
       return { previousDefinitions, projectId };
     },
-    onError: (error: any, { projectId }, context) => {
+    onError: (error, { projectId }, context) => {
       if (context?.previousDefinitions) {
         queryClient.setQueryData(['projects', projectId, 'customFieldDefinitions'], context.previousDefinitions);
       }
-      const errorMessage = error?.response?.data?.error || 'Failed to delete custom field';
-      toast.error(errorMessage);
+      handleApiError(error, {
+        context: 'deleting custom field definition',
+        showToast: true,
+      });
     },
     onSuccess: (_, { projectId }) => {
       queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'customFieldDefinitions'] });
@@ -323,9 +327,11 @@ export const useReorderProjectCustomFieldDefinitions = () => {
     onSuccess: (updatedDefinitions, { projectId }) => {
       queryClient.setQueryData(['projects', projectId, 'customFieldDefinitions'], updatedDefinitions);
     },
-    onError: (error: any) => {
-      const errorMessage = error?.response?.data?.error || 'Failed to reorder custom fields';
-      toast.error(errorMessage);
+    onError: (error) => {
+      handleApiError(error, {
+        context: 'reordering custom fields',
+        showToast: true,
+      });
     },
   });
 };
@@ -397,14 +403,14 @@ export const useUpdateTaskCustomFieldValue = () => {
 
       return { previousValues, taskId };
     },
-    onError: (error: any, { taskId }, context) => {
+    onError: (error, { taskId }, context) => {
       if (context?.previousValues) {
         queryClient.setQueryData(['tasks', taskId, 'customFieldValues'], context.previousValues);
       }
-      const errorMessage = error?.response?.data?.error ||
-                          error?.response?.data?.value?.[0] ||
-                          'Failed to update field value';
-      toast.error(errorMessage);
+      handleApiError(error, {
+        context: 'updating field value',
+        showToast: true,
+      });
     },
     onSuccess: (updatedValue, { taskId }) => {
       // Update caches with server response
@@ -439,9 +445,11 @@ export const useBulkUpdateTaskCustomFieldValues = () => {
       queryClient.setQueryData(['tasks', taskId, 'customFieldValues'], updatedValues);
       queryClient.invalidateQueries({ queryKey: ['tasks', taskId, 'fieldsWithDefinitions'] });
     },
-    onError: (error: any) => {
-      const errorMessage = error?.response?.data?.error || 'Failed to update field values';
-      toast.error(errorMessage);
+    onError: (error) => {
+      handleApiError(error, {
+        context: 'bulk updating field values',
+        showToast: true,
+      });
     },
   });
 };

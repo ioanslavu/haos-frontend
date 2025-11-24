@@ -3,6 +3,7 @@ import apiClient from '@/api/client';
 import { API_ENDPOINTS, QUERY_KEYS } from '@/lib/constants';
 import { User } from '@/stores/authStore';
 import { useToast } from '@/hooks/use-toast';
+import { handleApiError } from '@/lib/error-handler';
 
 // Types
 export interface UserListParams {
@@ -83,13 +84,10 @@ export const useUpdateCurrentUser = () => {
         description: 'Your profile has been updated successfully.',
       });
     },
-    onError: (error: unknown) => {
-      const errorMessage = error instanceof Error ? error.message : 
-        (error as any)?.response?.data?.message || 'Failed to update profile';
-      toast({
-        title: 'Update failed',
-        description: errorMessage,
-        variant: 'destructive',
+    onError: (error) => {
+      handleApiError(error, {
+        context: 'updating profile',
+        showToast: true,
       });
     },
   });
@@ -166,13 +164,10 @@ export const useUpdateUser = () => {
         description: 'User has been updated successfully.',
       });
     },
-    onError: (error: unknown) => {
-      const errorMessage = error instanceof Error ? error.message : 
-        (error as any)?.response?.data?.message || 'Failed to update user';
-      toast({
-        title: 'Update failed',
-        description: errorMessage,
-        variant: 'destructive',
+    onError: (error) => {
+      handleApiError(error, {
+        context: 'updating user',
+        showToast: true,
       });
     },
   });
@@ -196,13 +191,10 @@ export const useAssignRole = () => {
         description: 'User role has been updated successfully.',
       });
     },
-    onError: (error: unknown) => {
-      const errorMessage = error instanceof Error ? error.message : 
-        (error as any)?.response?.data?.message || 'Failed to assign role';
-      toast({
-        title: 'Role assignment failed',
-        description: errorMessage,
-        variant: 'destructive',
+    onError: (error) => {
+      handleApiError(error, {
+        context: 'assigning role',
+        showToast: true,
       });
     },
   });
@@ -226,13 +218,10 @@ export const useRemoveRoles = () => {
         description: 'All roles have been removed from the user.',
       });
     },
-    onError: (error: unknown) => {
-      const errorMessage = error instanceof Error ? error.message : 
-        (error as any)?.response?.data?.message || 'Failed to remove roles';
-      toast({
-        title: 'Failed to remove roles',
-        description: errorMessage,
-        variant: 'destructive',
+    onError: (error) => {
+      handleApiError(error, {
+        context: 'removing roles',
+        showToast: true,
       });
     },
   });
@@ -284,13 +273,10 @@ export const useAssignPermission = () => {
         description: 'Permission has been granted successfully.',
       });
     },
-    onError: (error: unknown) => {
-      const errorMessage = error instanceof Error ? error.message : 
-        (error as any)?.response?.data?.message || 'Failed to assign permission';
-      toast({
-        title: 'Permission assignment failed',
-        description: errorMessage,
-        variant: 'destructive',
+    onError: (error) => {
+      handleApiError(error, {
+        context: 'assigning permission',
+        showToast: true,
       });
     },
   });
@@ -328,13 +314,10 @@ export const useRemovePermission = () => {
           : 'All permissions have been removed.',
       });
     },
-    onError: (error: unknown) => {
-      const errorMessage = error instanceof Error ? error.message : 
-        (error as any)?.response?.data?.message || 'Failed to remove permission';
-      toast({
-        title: 'Permission removal failed',
-        description: errorMessage,
-        variant: 'destructive',
+    onError: (error) => {
+      handleApiError(error, {
+        context: 'removing permission',
+        showToast: true,
       });
     },
   });
@@ -370,13 +353,10 @@ export const useLockUser = () => {
         description: 'User account has been locked successfully.',
       });
     },
-    onError: (error: unknown) => {
-      const errorMessage = error instanceof Error ? error.message : 
-        (error as any)?.response?.data?.message || 'Failed to lock account';
-      toast({
-        title: 'Lock failed',
-        description: errorMessage,
-        variant: 'destructive',
+    onError: (error) => {
+      handleApiError(error, {
+        context: 'locking account',
+        showToast: true,
       });
     },
   });
@@ -402,13 +382,10 @@ export const useUnlockUser = () => {
         description: 'User account has been unlocked successfully.',
       });
     },
-    onError: (error: unknown) => {
-      const errorMessage = error instanceof Error ? error.message : 
-        (error as any)?.response?.data?.message || 'Failed to unlock account';
-      toast({
-        title: 'Unlock failed',
-        description: errorMessage,
-        variant: 'destructive',
+    onError: (error) => {
+      handleApiError(error, {
+        context: 'unlocking account',
+        showToast: true,
       });
     },
   });
@@ -472,13 +449,10 @@ export const useUpdateProfileWithImage = () => {
         description: 'Your profile has been updated successfully.',
       });
     },
-    onError: (error: unknown) => {
-      const errorMessage = error instanceof Error ? error.message :
-        (error as any)?.response?.data?.message || 'Failed to update profile';
-      toast({
-        title: 'Update failed',
-        description: errorMessage,
-        variant: 'destructive',
+    onError: (error) => {
+      handleApiError(error, {
+        context: 'updating profile with image',
+        showToast: true,
       });
     },
   });
@@ -503,13 +477,10 @@ export const useUpdateUserRole = () => {
         description: 'User role has been updated successfully.',
       });
     },
-    onError: (error: unknown) => {
-      const errorMessage = error instanceof Error ? error.message :
-        (error as any)?.response?.data?.message || 'Failed to update role';
-      toast({
-        title: 'Update failed',
-        description: errorMessage,
-        variant: 'destructive',
+    onError: (error) => {
+      handleApiError(error, {
+        context: 'updating user role',
+        showToast: true,
       });
     },
   });
@@ -555,13 +526,10 @@ export const useCreateDepartmentRequest = () => {
         description: 'Your department access request has been submitted for review.',
       });
     },
-    onError: (error: unknown) => {
-      const errorMessage = error instanceof Error ? error.message :
-        (error as any)?.response?.data?.message || 'Failed to submit request';
-      toast({
-        title: 'Submission failed',
-        description: errorMessage,
-        variant: 'destructive',
+    onError: (error) => {
+      handleApiError(error, {
+        context: 'submitting department request',
+        showToast: true,
       });
     },
   });
@@ -596,13 +564,10 @@ export const useReviewDepartmentRequest = () => {
         description: `Department access request has been ${variables.data.status}.`,
       });
     },
-    onError: (error: unknown) => {
-      const errorMessage = error instanceof Error ? error.message :
-        (error as any)?.response?.data?.message || 'Failed to review request';
-      toast({
-        title: 'Review failed',
-        description: errorMessage,
-        variant: 'destructive',
+    onError: (error) => {
+      handleApiError(error, {
+        context: 'reviewing department request',
+        showToast: true,
       });
     },
   });
@@ -644,13 +609,10 @@ export const useCancelDepartmentRequest = () => {
         description: 'Your department request has been canceled. You can now select a different department.',
       });
     },
-    onError: (error: unknown) => {
-      const errorMessage = error instanceof Error ? error.message :
-        (error as any)?.response?.data?.message || 'Failed to cancel request';
-      toast({
-        title: 'Cancellation failed',
-        description: errorMessage,
-        variant: 'destructive',
+    onError: (error) => {
+      handleApiError(error, {
+        context: 'canceling department request',
+        showToast: true,
       });
     },
   });

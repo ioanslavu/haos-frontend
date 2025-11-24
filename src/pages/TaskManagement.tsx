@@ -77,6 +77,7 @@ import {
 import { format, formatDistanceToNow, isToday, isTomorrow, isPast } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { handleApiError } from '@/lib/error-handler'
 import {
   DndContext,
   DragEndEvent,
@@ -324,8 +325,11 @@ export default function TaskManagement() {
       try {
         await deleteTask.mutateAsync(task.id)
         toast.success('Task deleted successfully')
-      } catch {
-        toast.error('Failed to delete task')
+      } catch (error) {
+        handleApiError(error, {
+          context: 'deleting task',
+          showToast: true,
+        })
       }
     }
   }
@@ -337,8 +341,11 @@ export default function TaskManagement() {
         data: { status: newStatus },
       })
       toast.success('Task status updated')
-    } catch {
-      toast.error('Failed to update task status')
+    } catch (error) {
+      handleApiError(error, {
+        context: 'updating task status',
+        showToast: true,
+      })
     }
   }
 
@@ -350,8 +357,11 @@ export default function TaskManagement() {
         data: { status },
       })
       toast.success('Status updated')
-    } catch {
-      toast.error('Failed to update status')
+    } catch (error) {
+      handleApiError(error, {
+        context: 'updating status',
+        showToast: true,
+      })
     }
   }
 

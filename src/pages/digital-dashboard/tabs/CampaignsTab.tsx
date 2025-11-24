@@ -54,6 +54,8 @@ import { ServiceMetricsUpdateDialog } from '@/components/digital/ServiceMetricsU
 import { useAuthStore } from '@/stores/authStore';
 import { KanbanBoard, KanbanColumn } from '@/components/ui/KanbanBoard';
 import { cn } from '@/lib/utils';
+import { handleApiError } from '@/lib/error-handler';
+import { Campaign, CampaignFilters } from '@/types/campaign';
 
 interface CampaignsTabProps {
   searchQuery: string;
@@ -73,7 +75,7 @@ export function CampaignsTab({ searchQuery, filterStatus, filterService, filterP
   const [itemsPerPage] = useState(20);
 
   // Build filter params for backend
-  const filterParams: any = {
+  const filterParams: CampaignFilters & { page?: number; page_size?: number; service_type?: string } = {
     status: filterStatus !== 'all' ? filterStatus : undefined,
     service_type: filterService !== 'all' ? filterService : undefined,
     search: searchQuery || undefined,
@@ -152,12 +154,15 @@ export function CampaignsTab({ searchQuery, filterStatus, filterService, filterP
     try {
       await updateCampaign.mutateAsync({ id: Number(campaignId), data: { status: newStatus } });
     } catch (error) {
-      console.error('Failed to update campaign status:', error);
+      handleApiError(error, {
+        context: 'updating campaign status',
+        showToast: true,
+      });
     }
   };
 
   // Render function for campaign cards
-  const renderCampaignCard = (campaign: any, isDragging: boolean) => (
+  const renderCampaignCard = (campaign: Campaign, isDragging: boolean) => (
     <Card
       className={cn(
         "p-5 cursor-grab active:cursor-grabbing hover:shadow-xl hover:border-primary/50 transition-all duration-200 bg-card",
@@ -259,7 +264,7 @@ export function CampaignsTab({ searchQuery, filterStatus, filterService, filterP
   );
 
   // Render function for drag overlay
-  const renderDragOverlay = (campaign: any) => (
+  const renderDragOverlay = (campaign: Campaign) => (
     <Card className="p-5 cursor-grabbing shadow-2xl rotate-2 w-[300px] bg-card border-2 border-primary/50">
       <div className="space-y-4">
         <h4 className="text-sm font-semibold line-clamp-2 leading-snug">
