@@ -52,19 +52,7 @@ import { formatDistanceToNow, format } from 'date-fns';
 import { SERVICE_TYPE_LABELS, PLATFORM_LABELS } from '@/api/types/campaigns';
 import { ServiceMetricsUpdateDialog } from '@/components/digital/ServiceMetricsUpdateDialog';
 import { useAuthStore } from '@/stores/authStore';
-import {
-  DndContext,
-  DragEndEvent,
-  DragOverlay,
-  DragStartEvent,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  pointerWithin,
-} from '@dnd-kit/core';
-import { useDroppable } from '@dnd-kit/core';
-import { useDraggable } from '@dnd-kit/core';
-import { snapCenterToCursor } from '@dnd-kit/modifiers';
+import { KanbanBoard, KanbanColumn } from '@/components/ui/KanbanBoard';
 import { cn } from '@/lib/utils';
 
 interface CampaignsTabProps {
@@ -77,52 +65,10 @@ interface CampaignsTabProps {
   filterClient?: string;
 }
 
-// Droppable Column Component
-function DroppableColumn({ id, children }: { id: string; children: React.ReactNode }) {
-  const { setNodeRef, isOver } = useDroppable({ id });
-
-  return (
-    <div
-      ref={setNodeRef}
-      className={cn(
-        'transition-colors',
-        isOver && 'bg-primary/5 ring-2 ring-primary/50 rounded-lg'
-      )}
-    >
-      {children}
-    </div>
-  );
-}
-
-// Draggable Campaign Card Component
-function DraggableCampaignCard({ campaign, children, onClick }: { campaign: any; children: React.ReactNode; onClick: () => void }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: campaign.id,
-  });
-
-  return (
-    <div
-      ref={setNodeRef}
-      {...attributes}
-      {...listeners}
-      className={cn(isDragging && 'opacity-30')}
-      onClick={(e) => {
-        // Only trigger onClick if not dragging
-        if (!isDragging) {
-          onClick();
-        }
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
 export function CampaignsTab({ searchQuery, filterStatus, filterService, filterPeriod, startDate, endDate, filterClient }: CampaignsTabProps) {
   const navigate = useNavigate();
   const currentUser = useAuthStore((state) => state.user);
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('table');
-  const [activeCampaign, setActiveCampaign] = useState<any | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
 
@@ -179,17 +125,7 @@ export function CampaignsTab({ searchQuery, filterStatus, filterService, filterP
     setCurrentPage(1);
   }, [searchQuery, filterStatus, filterService, filterPeriod, startDate, endDate, filterClient]);
 
-  // Setup drag sensors
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8, // 8px movement required to start dragging
-      },
-    })
-  );
-
   // Campaigns are already filtered by the backend
-  // No need for frontend filtering anymore
   const filteredCampaigns = campaignsList;
 
   // Group campaigns by status for kanban view
@@ -202,7 +138,7 @@ export function CampaignsTab({ searchQuery, filterStatus, filterService, filterP
     lost: filteredCampaigns?.filter(c => c.status === 'lost') || [],
   };
 
-  const statusColumns = [
+  const statusColumns: KanbanColumn[] = [
     { id: 'lead', label: 'Lead', color: 'bg-blue-500' },
     { id: 'negotiation', label: 'Negotiation', color: 'bg-yellow-500' },
     { id: 'confirmed', label: 'Confirmed', color: 'bg-green-500' },
@@ -211,44 +147,142 @@ export function CampaignsTab({ searchQuery, filterStatus, filterService, filterP
     { id: 'lost', label: 'Lost', color: 'bg-red-500' },
   ];
 
-  // Drag handlers
-  const handleDragStart = (event: DragStartEvent) => {
-    const campaignId = event.active.id as number;
-    const campaign = filteredCampaigns?.find((c) => c.id === campaignId);
-    if (campaign) {
-      setActiveCampaign(campaign);
+  // Handle status change via drag and drop
+  const handleStatusChange = async (campaignId: string | number, newStatus: string) => {
+    try {
+      await updateCampaign.mutateAsync({ id: Number(campaignId), data: { status: newStatus } });
+    } catch (error) {
+      console.error('Failed to update campaign status:', error);
     }
   };
 
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
+  // Render function for campaign cards
+  const renderCampaignCard = (campaign: any, isDragging: boolean) => (
+    <Card
+      className={cn(
+        "p-5 cursor-grab active:cursor-grabbing hover:shadow-xl hover:border-primary/50 transition-all duration-200 bg-card",
+        isDragging && "opacity-50"
+      )}
+    >
+      <div className="space-y-4">
+        {/* Title and Actions */}
+        <div className="flex items-start justify-between gap-3">
+          <h4 className="text-sm font-semibold line-clamp-2 leading-snug flex-1 min-w-0">
+            {campaign.campaign_name}
+          </h4>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <ServiceMetricsUpdateDialog
+              campaign={campaign}
+              variant="ghost"
+              size="icon"
+            >
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 hover:bg-muted"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+            </ServiceMetricsUpdateDialog>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 hover:bg-muted"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
 
-    if (!over) {
-      setActiveCampaign(null);
-      return;
-    }
+        {/* Service Types - Show only first one + count */}
+        {campaign.service_types && campaign.service_types.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant="outline" className="text-xs font-medium px-2.5 py-1">
+              {campaign.service_types_display?.[0] || campaign.service_types[0]}
+            </Badge>
+            {campaign.service_types.length > 1 && (
+              <Badge variant="secondary" className="text-xs px-2 py-1">
+                +{campaign.service_types.length - 1}
+              </Badge>
+            )}
+          </div>
+        )}
 
-    const campaignId = active.id as number;
-    const newStatus = over.id as string;
+        {/* Client & Artist */}
+        <div className="space-y-1.5">
+          <p className="text-sm font-semibold text-foreground truncate">
+            {campaign.client.display_name}
+          </p>
+          {campaign.artist && (
+            <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+              <span>🎵</span>
+              <span>{campaign.artist.display_name}</span>
+            </p>
+          )}
+        </div>
 
-    // Find the campaign
-    const campaign = filteredCampaigns?.find((c) => c.id === campaignId);
+        {/* Metrics Row */}
+        <div className="flex items-center justify-between pt-3 border-t border-border/50">
+          {/* Campaign Value - Hidden for digital_employee */}
+          {currentUser?.role !== 'digital_employee' && campaign.value && (
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+              <span className="text-sm font-semibold text-foreground">
+                {campaign.currency || '€'}{parseFloat(campaign.value).toLocaleString()}
+              </span>
+            </div>
+          )}
+          <div className={cn(
+            "flex items-center gap-2",
+            currentUser?.role === 'digital_employee' || !campaign.value ? "ml-0" : "ml-auto"
+          )}>
+            <Target className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+            <span className="text-sm font-medium">
+              {campaign.kpi_completion || 0}%
+            </span>
+          </div>
+        </div>
 
-    if (campaign && campaign.status !== newStatus) {
-      // Update campaign status
-      try {
-        await updateCampaign.mutateAsync({ id: campaignId, data: { status: newStatus } });
-      } catch (error) {
-        console.error('Failed to update campaign status:', error);
-      }
-    }
+        {/* Due Date */}
+        {campaign.end_date && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground pt-0.5">
+            <Clock className="h-4 w-4 flex-shrink-0" />
+            <span>
+              {formatDistanceToNow(new Date(campaign.end_date), { addSuffix: true })}
+            </span>
+          </div>
+        )}
+      </div>
+    </Card>
+  );
 
-    setActiveCampaign(null);
-  };
-
-  const handleDragCancel = () => {
-    setActiveCampaign(null);
-  };
+  // Render function for drag overlay
+  const renderDragOverlay = (campaign: any) => (
+    <Card className="p-5 cursor-grabbing shadow-2xl rotate-2 w-[300px] bg-card border-2 border-primary/50">
+      <div className="space-y-4">
+        <h4 className="text-sm font-semibold line-clamp-2 leading-snug">
+          {campaign.campaign_name}
+        </h4>
+        {campaign.service_types && campaign.service_types.length > 0 && (
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-xs font-medium px-2.5 py-1">
+              {campaign.service_types_display?.[0] || campaign.service_types[0]}
+            </Badge>
+            {campaign.service_types.length > 1 && (
+              <Badge variant="secondary" className="text-xs px-2 py-1">
+                +{campaign.service_types.length - 1}
+              </Badge>
+            )}
+          </div>
+        )}
+        <p className="text-sm font-semibold text-foreground truncate">
+          {campaign.client.display_name}
+        </p>
+      </div>
+    </Card>
+  );
 
   return (
     <div className="space-y-6">
@@ -440,167 +474,17 @@ export function CampaignsTab({ searchQuery, filterStatus, filterService, filterP
           </CardContent>
         </Card>
       ) : (
-        // Kanban View
-        <DndContext
-          sensors={sensors}
-          collisionDetection={pointerWithin}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          onDragCancel={handleDragCancel}
-        >
-        <div className="grid grid-cols-6 gap-8">
-          {statusColumns.map((column) => (
-            <DroppableColumn key={column.id} id={column.id}>
-            <div className="h-[700px] flex flex-col">
-              {/* Column Header */}
-              <div className="pb-5 mb-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-3 h-3 rounded-full ${column.color}`} />
-                    <h3 className="text-base font-semibold">{column.label}</h3>
-                  </div>
-                  <Badge variant="secondary" className="text-sm px-2.5 py-1 font-medium">
-                    {campaignsByStatus[column.id as keyof typeof campaignsByStatus].length}
-                  </Badge>
-                </div>
-              </div>
-              {/* Scrollable Cards Container */}
-              <div className="flex-1 overflow-auto">
-                <div className="space-y-4 pr-2">
-                  {campaignsByStatus[column.id as keyof typeof campaignsByStatus].map((campaign) => (
-                    <DraggableCampaignCard key={campaign.id} campaign={campaign} onClick={() => navigate(`/digital/campaigns/${campaign.id}`)}>
-                    <Card
-                      className="p-5 cursor-grab active:cursor-grabbing hover:shadow-xl hover:border-primary/50 transition-all duration-200 bg-card"
-                    >
-                      <div className="space-y-4">
-                        {/* Title and Actions */}
-                        <div className="flex items-start justify-between gap-3">
-                          <h4 className="text-sm font-semibold line-clamp-2 leading-snug flex-1 min-w-0">
-                            {campaign.campaign_name}
-                          </h4>
-                          <div className="flex items-center gap-1 flex-shrink-0">
-                            <ServiceMetricsUpdateDialog
-                              campaign={campaign}
-                              variant="ghost"
-                              size="icon"
-                            >
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 hover:bg-muted"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                            </ServiceMetricsUpdateDialog>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 hover:bg-muted"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-
-                        {/* Service Types - Show only first one + count */}
-                        {campaign.service_types && campaign.service_types.length > 0 && (
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <Badge variant="outline" className="text-xs font-medium px-2.5 py-1">
-                              {campaign.service_types_display?.[0] || campaign.service_types[0]}
-                            </Badge>
-                            {campaign.service_types.length > 1 && (
-                              <Badge variant="secondary" className="text-xs px-2 py-1">
-                                +{campaign.service_types.length - 1}
-                              </Badge>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Client & Artist */}
-                        <div className="space-y-1.5">
-                          <p className="text-sm font-semibold text-foreground truncate">
-                            {campaign.client.display_name}
-                          </p>
-                          {campaign.artist && (
-                            <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                              <span>🎵</span>
-                              <span>{campaign.artist.display_name}</span>
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Metrics Row */}
-                        <div className="flex items-center justify-between pt-3 border-t border-border/50">
-                          {/* Campaign Value - Hidden for digital_employee */}
-                          {currentUser?.role !== 'digital_employee' && campaign.value && (
-                            <div className="flex items-center gap-2">
-                              <DollarSign className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
-                              <span className="text-sm font-semibold text-foreground">
-                                {campaign.currency || '€'}{parseFloat(campaign.value).toLocaleString()}
-                              </span>
-                            </div>
-                          )}
-                          <div className={cn(
-                            "flex items-center gap-2",
-                            currentUser?.role === 'digital_employee' || !campaign.value ? "ml-0" : "ml-auto"
-                          )}>
-                            <Target className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-                            <span className="text-sm font-medium">
-                              {campaign.kpi_completion || 0}%
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Due Date */}
-                        {campaign.end_date && (
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground pt-0.5">
-                            <Clock className="h-4 w-4 flex-shrink-0" />
-                            <span>
-                              {formatDistanceToNow(new Date(campaign.end_date), { addSuffix: true })}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </Card>
-                    </DraggableCampaignCard>
-                  ))}
-                </div>
-              </div>
-            </div>
-            </DroppableColumn>
-          ))}
-        </div>
-
-        {/* Drag Overlay - shows the campaign being dragged */}
-        <DragOverlay modifiers={[snapCenterToCursor]}>
-          {activeCampaign ? (
-            <Card className="p-5 cursor-grabbing shadow-2xl rotate-2 w-[300px] bg-card border-2 border-primary/50">
-              <div className="space-y-4">
-                <h4 className="text-sm font-semibold line-clamp-2 leading-snug">
-                  {activeCampaign.campaign_name}
-                </h4>
-                {activeCampaign.service_types && activeCampaign.service_types.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs font-medium px-2.5 py-1">
-                      {activeCampaign.service_types_display?.[0] || activeCampaign.service_types[0]}
-                    </Badge>
-                    {activeCampaign.service_types.length > 1 && (
-                      <Badge variant="secondary" className="text-xs px-2 py-1">
-                        +{activeCampaign.service_types.length - 1}
-                      </Badge>
-                    )}
-                  </div>
-                )}
-                <p className="text-sm font-semibold text-foreground truncate">
-                  {activeCampaign.client.display_name}
-                </p>
-              </div>
-            </Card>
-          ) : null}
-        </DragOverlay>
-        </DndContext>
+        // Kanban View - Using Generic KanbanBoard Component
+        <KanbanBoard
+          columns={statusColumns}
+          itemsByColumn={campaignsByStatus}
+          renderCard={renderCampaignCard}
+          renderDragOverlay={renderDragOverlay}
+          onItemClick={(campaign) => navigate(`/digital/campaigns/${campaign.id}`)}
+          onStatusChange={handleStatusChange}
+          getItemId={(campaign) => campaign.id}
+          columnHeight="700px"
+        />
       )}
 
       {/* Pagination */}
