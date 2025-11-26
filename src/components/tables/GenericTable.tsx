@@ -236,8 +236,10 @@ export function GenericTable<T>({
   // Get filter state for a column
   // ============================================================================
 
-  const getColumnFilterState = useCallback((columnId: string): FilterState | undefined => {
-    return tableInstance.filterState[columnId];
+  const getColumnFilterState = useCallback((columnId: string): { columnId: string; value: unknown } | undefined => {
+    const value = tableInstance.filterState[columnId];
+    if (value === undefined) return undefined;
+    return { columnId, value };
   }, [tableInstance.filterState]);
 
   // ============================================================================
@@ -245,18 +247,18 @@ export function GenericTable<T>({
   // ============================================================================
 
   const handleFilterChange = useCallback((columnId: string, value: unknown) => {
+    // tableInstance.setFilter already calls onFilter callback internally
     tableInstance.setFilter(columnId, value);
-    onFilter?.(columnId, value);
-  }, [tableInstance, onFilter]);
+  }, [tableInstance]);
 
   // ============================================================================
   // Handle clear filter
   // ============================================================================
 
   const handleClearFilter = useCallback((columnId: string) => {
+    // tableInstance.clearFilter already calls onFilter callback internally
     tableInstance.clearFilter(columnId);
-    onFilter?.(columnId, undefined);
-  }, [tableInstance, onFilter]);
+  }, [tableInstance]);
 
   // ============================================================================
   // Density classes
@@ -332,7 +334,7 @@ export function GenericTable<T>({
     const HeaderComponent = reorderableColumns ? DraggableHeaderCell : HeaderCell;
 
     const headerContent = (
-      <TableRow>
+      <TableRow className="border-b border-border/60 hover:bg-transparent">
         {orderedColumns.map((column) => (
           <HeaderComponent
             key={column.id}
@@ -379,6 +381,7 @@ export function GenericTable<T>({
         key={rowId}
         className={cn(
           densityClasses.row,
+          'border-b border-border/40 transition-colors',
           stripedRows && rowIndex % 2 === 1 && 'bg-muted/50',
           (onRowClick || onRowDoubleClick) && 'cursor-pointer hover:bg-muted/50',
           customClassName
@@ -510,7 +513,7 @@ export function GenericTable<T>({
       <div
         ref={virtualization?.enabled ? virtualParentRef : tableContainerRef}
         className={cn(
-          'rounded-md border overflow-hidden',
+          'overflow-hidden',
           virtualization?.enabled && 'overflow-auto',
           virtualization?.enabled && virtualization.maxHeight && `max-h-[${virtualization.maxHeight}px]`
         )}
@@ -519,7 +522,7 @@ export function GenericTable<T>({
         <div className="overflow-x-auto">
           <Table aria-label={ariaLabel}>
             {/* Header */}
-            <TableHeader className={cn(stickyHeader && 'sticky top-0 z-10 bg-background')}>
+            <TableHeader className={cn(stickyHeader && 'sticky top-0 z-10')}>
               {renderHeader()}
             </TableHeader>
 

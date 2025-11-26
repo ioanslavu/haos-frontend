@@ -10,9 +10,11 @@
 
 import {
   useQuery,
+  useQueries,
   useMutation,
   useQueryClient,
   useInfiniteQuery,
+  keepPreviousData,
 } from '@tanstack/react-query'
 import { campaignsService } from '../services/campaigns.service'
 import { useUIStore } from '@/stores/uiStore'
@@ -71,7 +73,9 @@ export const campaignKeys = {
   // SubCampaigns
   subCampaigns: (campaignId: number) => [...campaignKeys.detail(campaignId), 'subcampaigns'] as const,
   subCampaignList: (campaignId: number, filters?: SubCampaignFilters) =>
-    [...campaignKeys.subCampaigns(campaignId), filters] as const,
+    filters
+      ? [...campaignKeys.subCampaigns(campaignId), filters] as const
+      : campaignKeys.subCampaigns(campaignId),
   subCampaignDetail: (campaignId: number, subCampaignId: number) =>
     [...campaignKeys.subCampaigns(campaignId), subCampaignId] as const,
 }
@@ -109,7 +113,8 @@ export const useInfiniteCampaigns = (
       return allPages.length + 1
     },
     initialPageParam: 1,
-    staleTime: 30000,
+    staleTime: 30000, // Consider data fresh for 30s
+    placeholderData: keepPreviousData, // Keep showing old data while fetching new
   })
 }
 
@@ -121,6 +126,7 @@ export const useCampaign = (id: number, enabled = true) => {
     queryKey: campaignKeys.detail(id),
     queryFn: () => campaignsService.getCampaign(id),
     enabled: enabled && !!id,
+    staleTime: 0, // Always consider data stale for fresh updates
   })
 }
 
@@ -240,6 +246,39 @@ export const useUpdateCampaignStatus = () => {
 }
 
 /**
+ * Hook to reopen a campaign from terminal state
+ * - COMPLETED → ACTIVE
+ * - CANCELLED → CONFIRMED
+ * - LOST → NEGOTIATION
+ */
+export const useReopenCampaign = () => {
+  const queryClient = useQueryClient()
+  const { addNotification } = useUIStore()
+
+  return useMutation({
+    mutationFn: (id: number) => campaignsService.reopen(id),
+    onSuccess: (campaign, id) => {
+      queryClient.invalidateQueries({ queryKey: campaignKeys.detail(id) })
+      queryClient.invalidateQueries({ queryKey: campaignKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: campaignKeys.stats() })
+      queryClient.invalidateQueries({ queryKey: campaignKeys.history(id) })
+      addNotification({
+        type: 'success',
+        title: 'Campaign Reopened',
+        description: `Campaign has been reopened to "${campaign.status_display}".`,
+      })
+    },
+    onError: (error: any) => {
+      addNotification({
+        type: 'error',
+        title: 'Reopen Failed',
+        description: error.response?.data?.error || 'Failed to reopen campaign.',
+      })
+    },
+  })
+}
+
+/**
  * Hook to get campaign history
  */
 export const useCampaignHistory = (id: number, enabled = true) => {
@@ -279,6 +318,8 @@ export const useCampaignStats = (filters?: CampaignFilters) => {
   return useQuery<CampaignStats>({
     queryKey: campaignKeys.stats(filters),
     queryFn: () => campaignsService.getStats(filters),
+    staleTime: 30000, // Consider data fresh for 30s
+    placeholderData: keepPreviousData, // Keep showing old data while fetching new
   })
 }
 
@@ -364,6 +405,8 @@ export const useCreateSubCampaign = () => {
       queryClient.invalidateQueries({ queryKey: campaignKeys.subCampaigns(variables.campaignId) })
       queryClient.invalidateQueries({ queryKey: campaignKeys.detail(variables.campaignId) })
       queryClient.invalidateQueries({ queryKey: campaignKeys.history(variables.campaignId) })
+      queryClient.invalidateQueries({ queryKey: campaignKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: campaignKeys.stats() })
       addNotification({
         type: 'success',
         title: 'Platform Added',
@@ -397,12 +440,31 @@ export const useUpdateSubCampaign = () => {
       subCampaignId: number
       data: SubCampaignUpdateData
     }) => campaignsService.updateSubCampaign(campaignId, subCampaignId, data),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: campaignKeys.subCampaigns(variables.campaignId) })
+    onSuccess: (updatedSubCampaign, variables) => {
+      // Directly update the subcampaigns list cache with the returned data
+      queryClient.setQueryData<PaginatedResponse<SubCampaign>>(
+        campaignKeys.subCampaignList(variables.campaignId),
+        (oldData) => {
+          if (!oldData) return oldData
+          return {
+            ...oldData,
+            results: oldData.results.map((sc) =>
+              sc.id === variables.subCampaignId ? updatedSubCampaign : sc
+            ),
+          }
+        }
+      )
+      // Also update the detail cache if it exists
+      queryClient.setQueryData<SubCampaign>(
+        campaignKeys.subCampaignDetail(variables.campaignId, variables.subCampaignId),
+        updatedSubCampaign
+      )
+      // Invalidate campaign detail with exact match to avoid invalidating subcampaigns
       queryClient.invalidateQueries({
-        queryKey: campaignKeys.subCampaignDetail(variables.campaignId, variables.subCampaignId),
+        queryKey: campaignKeys.detail(variables.campaignId),
+        exact: true,
       })
-      queryClient.invalidateQueries({ queryKey: campaignKeys.detail(variables.campaignId) })
+      queryClient.invalidateQueries({ queryKey: campaignKeys.lists() })
       addNotification({
         type: 'success',
         title: 'Platform Updated',
@@ -433,6 +495,8 @@ export const useDeleteSubCampaign = () => {
       queryClient.invalidateQueries({ queryKey: campaignKeys.subCampaigns(variables.campaignId) })
       queryClient.invalidateQueries({ queryKey: campaignKeys.detail(variables.campaignId) })
       queryClient.invalidateQueries({ queryKey: campaignKeys.history(variables.campaignId) })
+      queryClient.invalidateQueries({ queryKey: campaignKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: campaignKeys.stats() })
       addNotification({
         type: 'success',
         title: 'Platform Removed',
@@ -473,6 +537,8 @@ export const useUpdateSubCampaignBudget = () => {
       queryClient.invalidateQueries({ queryKey: campaignKeys.detail(variables.campaignId) })
       queryClient.invalidateQueries({ queryKey: campaignKeys.financials(variables.campaignId) })
       queryClient.invalidateQueries({ queryKey: campaignKeys.history(variables.campaignId) })
+      queryClient.invalidateQueries({ queryKey: campaignKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: campaignKeys.stats() })
       addNotification({
         type: 'success',
         title: 'Budget Updated',
@@ -513,6 +579,8 @@ export const useUpdateSubCampaignSpent = () => {
       queryClient.invalidateQueries({ queryKey: campaignKeys.detail(variables.campaignId) })
       queryClient.invalidateQueries({ queryKey: campaignKeys.financials(variables.campaignId) })
       queryClient.invalidateQueries({ queryKey: campaignKeys.history(variables.campaignId) })
+      queryClient.invalidateQueries({ queryKey: campaignKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: campaignKeys.stats() })
       addNotification({
         type: 'success',
         title: 'Spending Updated',
@@ -553,7 +621,10 @@ export const useUpdateSubCampaignStatus = () => {
       queryClient.invalidateQueries({
         queryKey: campaignKeys.subCampaignDetail(variables.campaignId, variables.subCampaignId),
       })
+      queryClient.invalidateQueries({ queryKey: campaignKeys.detail(variables.campaignId) })
       queryClient.invalidateQueries({ queryKey: campaignKeys.history(variables.campaignId) })
+      queryClient.invalidateQueries({ queryKey: campaignKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: campaignKeys.stats() })
       addNotification({
         type: 'success',
         title: 'Status Updated',
@@ -760,9 +831,14 @@ export const useContractValidation = (campaignId: number, enabled = true) => {
     queryKey: campaignContractKeys.validation(campaignId),
     queryFn: () => campaignsService.validateForContract(campaignId),
     enabled: enabled && !!campaignId,
-    staleTime: 30000, // 30 seconds
+    staleTime: 0, // Always refetch for fresh signer info
   })
 }
+
+/**
+ * Alias for useContractValidation (used in signature dialog)
+ */
+export const useValidateForContract = useContractValidation
 
 /**
  * Hook to link an existing contract to a campaign
@@ -883,5 +959,587 @@ export const useSendContractForSignature = () => {
         description: error.response?.data?.error || 'Failed to send for signature.',
       })
     },
+  })
+}
+
+/**
+ * Hook to refresh signature status from Dropbox Sign
+ */
+export const useRefreshSignatureStatus = () => {
+  const queryClient = useQueryClient()
+  const { addNotification } = useUIStore()
+
+  return useMutation({
+    mutationFn: ({
+      campaignId,
+      contractId,
+    }: {
+      campaignId: number
+      contractId: number
+    }) => campaignsService.refreshSignatureStatus(contractId),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: campaignContractKeys.all(variables.campaignId) })
+      queryClient.invalidateQueries({ queryKey: ['contracts'] })
+
+      if (data.is_complete) {
+        addNotification({
+          type: 'success',
+          title: 'All Signatures Complete',
+          description: 'The contract has been fully signed.',
+        })
+      } else {
+        addNotification({
+          type: 'info',
+          title: 'Status Updated',
+          description: 'Signature status has been refreshed.',
+        })
+      }
+    },
+    onError: (error: any) => {
+      addNotification({
+        type: 'error',
+        title: 'Refresh Failed',
+        description: error.response?.data?.error || 'Failed to refresh signature status.',
+      })
+    },
+  })
+}
+
+// ============================================
+// CAMPAIGN REPORT HOOKS
+// ============================================
+
+/**
+ * Hook to generate a PDF report for a completed campaign
+ */
+export const useGenerateCampaignReport = () => {
+  const { addNotification } = useUIStore()
+
+  return useMutation({
+    mutationFn: (campaignId: number) => campaignsService.generateReport(campaignId),
+    onSuccess: (data) => {
+      addNotification({
+        type: 'success',
+        title: 'Report Generated',
+        description: 'Your campaign report is ready for download.',
+      })
+    },
+    onError: (error: any) => {
+      addNotification({
+        type: 'error',
+        title: 'Report Generation Failed',
+        description: error.response?.data?.error || 'Failed to generate campaign report.',
+      })
+    },
+  })
+}
+
+// ============================================
+// CAMPAIGN ASSIGNMENT HOOKS
+// ============================================
+
+import apiClient from '../client'
+import type { CampaignAssignment, CampaignAssignmentRole } from '@/types/campaign'
+
+export const campaignAssignmentKeys = {
+  all: (campaignId: number) => [...campaignKeys.detail(campaignId), 'assignments'] as const,
+}
+
+/**
+ * Hook to add a user to a campaign
+ */
+export const useCreateCampaignAssignment = () => {
+  const queryClient = useQueryClient()
+  const { addNotification } = useUIStore()
+
+  return useMutation({
+    mutationFn: async ({
+      campaignId,
+      userId,
+      role,
+    }: {
+      campaignId: number
+      userId: number
+      role: CampaignAssignmentRole
+    }) => {
+      const response = await apiClient.post<CampaignAssignment>(
+        `/api/v1/campaigns/${campaignId}/assignments/`,
+        { user_id: userId, role }
+      )
+      return response.data
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: campaignKeys.detail(variables.campaignId) })
+      queryClient.invalidateQueries({ queryKey: campaignKeys.history(variables.campaignId) })
+      addNotification({
+        type: 'success',
+        title: 'Team Member Added',
+        description: 'User has been assigned to the campaign.',
+      })
+    },
+    onError: (error: any) => {
+      addNotification({
+        type: 'error',
+        title: 'Assignment Failed',
+        description: error.response?.data?.error || 'Failed to assign user to campaign.',
+      })
+    },
+  })
+}
+
+/**
+ * Hook to remove a user from a campaign
+ */
+export const useDeleteCampaignAssignment = () => {
+  const queryClient = useQueryClient()
+  const { addNotification } = useUIStore()
+
+  return useMutation({
+    mutationFn: async ({
+      campaignId,
+      assignmentId,
+    }: {
+      campaignId: number
+      assignmentId: number
+    }) => {
+      await apiClient.delete(`/api/v1/campaigns/${campaignId}/assignments/${assignmentId}/`)
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: campaignKeys.detail(variables.campaignId) })
+      queryClient.invalidateQueries({ queryKey: campaignKeys.history(variables.campaignId) })
+      addNotification({
+        type: 'success',
+        title: 'Team Member Removed',
+        description: 'User has been removed from the campaign.',
+      })
+    },
+    onError: (error: any) => {
+      addNotification({
+        type: 'error',
+        title: 'Removal Failed',
+        description: error.response?.data?.error || 'Failed to remove user from campaign.',
+      })
+    },
+  })
+}
+
+// ============================================
+// CAMPAIGN INVOICE HOOKS
+// ============================================
+
+import type {
+  CampaignInvoiceLink,
+  SubCampaignInvoiceLink,
+  SubCampaignInvoiceUploadPayload,
+  InvoiceAmountUpdatePayload,
+} from '@/types/campaign'
+
+export const campaignInvoiceKeys = {
+  all: (campaignId: number) =>
+    [...campaignKeys.detail(campaignId), 'invoices'] as const,
+  list: (campaignId: number) =>
+    [...campaignInvoiceKeys.all(campaignId), 'list'] as const,
+  detail: (campaignId: number, invoiceLinkId: number) =>
+    [...campaignInvoiceKeys.all(campaignId), invoiceLinkId] as const,
+}
+
+/**
+ * Hook to get invoices linked directly to a campaign
+ */
+export const useCampaignInvoices = (campaignId: number, enabled = true) => {
+  return useQuery<CampaignInvoiceLink[]>({
+    queryKey: campaignInvoiceKeys.list(campaignId),
+    queryFn: async () => {
+      const response = await apiClient.get<PaginatedResponse<CampaignInvoiceLink> | CampaignInvoiceLink[]>(
+        `/api/v1/campaigns/${campaignId}/invoices/`
+      )
+      if (Array.isArray(response.data)) {
+        return response.data
+      }
+      return response.data.results || []
+    },
+    enabled: enabled && !!campaignId,
+  })
+}
+
+/**
+ * Hook to get ALL invoices for a campaign (campaign-level + all subcampaign invoices)
+ * Uses useQueries to handle dynamic number of subcampaign queries
+ */
+export const useAllCampaignInvoices = (campaignId: number, subcampaignIds: number[], enabled = true) => {
+  // Fetch campaign-level invoices
+  const campaignInvoicesQuery = useCampaignInvoices(campaignId, enabled)
+
+  // Fetch invoices for each subcampaign using useQueries (handles dynamic array properly)
+  const subcampaignInvoiceQueries = useQueries({
+    queries: subcampaignIds.map(subId => ({
+      queryKey: [...campaignKeys.subCampaignDetail(campaignId, subId), 'invoices', 'list'] as const,
+      queryFn: async () => {
+        const response = await apiClient.get<PaginatedResponse<SubCampaignInvoiceLink> | SubCampaignInvoiceLink[]>(
+          `/api/v1/campaigns/${campaignId}/subcampaigns/${subId}/invoices/`
+        )
+        if (Array.isArray(response.data)) {
+          return response.data
+        }
+        return response.data.results || []
+      },
+      enabled: enabled && !!campaignId && !!subId,
+    })),
+  })
+
+  const isLoading = campaignInvoicesQuery.isLoading || subcampaignInvoiceQueries.some(q => q.isLoading)
+  const isError = campaignInvoicesQuery.isError || subcampaignInvoiceQueries.some(q => q.isError)
+
+  // Aggregate all invoices
+  const campaignInvoices = campaignInvoicesQuery.data || []
+  const subcampaignInvoices = subcampaignInvoiceQueries.flatMap(q => q.data || [])
+
+  // Separate by type
+  const incomeInvoices = [
+    ...campaignInvoices.filter(inv => inv.invoice_type === 'income'),
+    ...subcampaignInvoices.filter(inv => inv.invoice_type === 'income'),
+  ]
+  const expenseInvoices = [
+    ...campaignInvoices.filter(inv => inv.invoice_type === 'expense'),
+    ...subcampaignInvoices.filter(inv => inv.invoice_type === 'expense'),
+  ]
+
+  // Calculate totals (only non-cancelled invoices with amounts)
+  const totalIncome = incomeInvoices
+    .filter(inv => inv.status !== 'cancelled' && inv.amount)
+    .reduce((sum, inv) => sum + parseFloat(inv.amount!), 0)
+
+  const totalExpense = expenseInvoices
+    .filter(inv => inv.status !== 'cancelled' && inv.amount)
+    .reduce((sum, inv) => sum + parseFloat(inv.amount!), 0)
+
+  const paidIncome = incomeInvoices
+    .filter(inv => inv.status === 'paid' && inv.amount)
+    .reduce((sum, inv) => sum + parseFloat(inv.amount!), 0)
+
+  const paidExpense = expenseInvoices
+    .filter(inv => inv.status === 'paid' && inv.amount)
+    .reduce((sum, inv) => sum + parseFloat(inv.amount!), 0)
+
+  return {
+    isLoading,
+    isError,
+    campaignInvoices,
+    subcampaignInvoices,
+    incomeInvoices,
+    expenseInvoices,
+    totalIncome,
+    totalExpense,
+    paidIncome,
+    paidExpense,
+    balance: totalIncome - totalExpense,
+    profit: paidIncome - paidExpense,
+  }
+}
+
+// ============================================
+// SUBCAMPAIGN INVOICE HOOKS
+// ============================================
+
+export const subCampaignInvoiceKeys = {
+  all: (campaignId: number, subcampaignId: number) =>
+    [...campaignKeys.subCampaignDetail(campaignId, subcampaignId), 'invoices'] as const,
+  list: (campaignId: number, subcampaignId: number) =>
+    [...subCampaignInvoiceKeys.all(campaignId, subcampaignId), 'list'] as const,
+  detail: (campaignId: number, subcampaignId: number, invoiceLinkId: number) =>
+    [...subCampaignInvoiceKeys.all(campaignId, subcampaignId), invoiceLinkId] as const,
+}
+
+/**
+ * Hook to get invoices linked to a subcampaign
+ */
+export const useSubCampaignInvoices = (
+  campaignId: number,
+  subcampaignId: number,
+  enabled = true
+) => {
+  return useQuery<SubCampaignInvoiceLink[]>({
+    queryKey: subCampaignInvoiceKeys.list(campaignId, subcampaignId),
+    queryFn: async () => {
+      const response = await apiClient.get<PaginatedResponse<SubCampaignInvoiceLink> | SubCampaignInvoiceLink[]>(
+        `/api/v1/campaigns/${campaignId}/subcampaigns/${subcampaignId}/invoices/`
+      )
+      // Handle both paginated and non-paginated responses
+      if (Array.isArray(response.data)) {
+        return response.data
+      }
+      return response.data.results || []
+    },
+    enabled: enabled && !!campaignId && !!subcampaignId,
+  })
+}
+
+/**
+ * Hook to upload a new invoice for a subcampaign with AI extraction
+ */
+export const useUploadSubCampaignInvoice = () => {
+  const queryClient = useQueryClient()
+  const { addNotification } = useUIStore()
+
+  return useMutation({
+    mutationFn: async ({
+      campaignId,
+      subcampaignId,
+      data,
+    }: {
+      campaignId: number
+      subcampaignId: number
+      data: SubCampaignInvoiceUploadPayload
+    }) => {
+      const formData = new FormData()
+      formData.append('file', data.file)
+      formData.append('name', data.name)
+      formData.append('invoice_type', data.invoice_type || 'expense')
+      if (data.currency) formData.append('currency', data.currency)
+      if (data.amount) formData.append('amount', data.amount)
+      if (data.notes) formData.append('notes', data.notes)
+
+      const response = await apiClient.post<SubCampaignInvoiceLink & { extraction_task_id?: string }>(
+        `/api/v1/campaigns/${campaignId}/subcampaigns/${subcampaignId}/invoices/upload/`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      )
+      return response.data
+    },
+    onSuccess: (result, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: subCampaignInvoiceKeys.all(variables.campaignId, variables.subcampaignId),
+      })
+      queryClient.invalidateQueries({ queryKey: campaignKeys.detail(variables.campaignId) })
+      queryClient.invalidateQueries({ queryKey: campaignKeys.subCampaigns(variables.campaignId) })
+
+      if (result.extraction_task_id) {
+        addNotification({
+          type: 'info',
+          title: 'Invoice Uploaded',
+          description: 'AI is extracting invoice details. This may take a moment.',
+        })
+      } else {
+        addNotification({
+          type: 'success',
+          title: 'Invoice Added',
+          description: 'Invoice has been added to the platform.',
+        })
+      }
+    },
+    onError: (error: any) => {
+      addNotification({
+        type: 'error',
+        title: 'Upload Failed',
+        description: error.response?.data?.error || 'Failed to upload invoice.',
+      })
+    },
+  })
+}
+
+/**
+ * Hook to manually set invoice amount (fallback when extraction fails)
+ */
+export const useSetSubCampaignInvoiceAmount = () => {
+  const queryClient = useQueryClient()
+  const { addNotification } = useUIStore()
+
+  return useMutation({
+    mutationFn: async ({
+      campaignId,
+      subcampaignId,
+      invoiceLinkId,
+      data,
+    }: {
+      campaignId: number
+      subcampaignId: number
+      invoiceLinkId: number
+      data: InvoiceAmountUpdatePayload
+    }) => {
+      const response = await apiClient.post<SubCampaignInvoiceLink>(
+        `/api/v1/campaigns/${campaignId}/subcampaigns/${subcampaignId}/invoices/${invoiceLinkId}/set_amount/`,
+        data
+      )
+      return response.data
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: subCampaignInvoiceKeys.all(variables.campaignId, variables.subcampaignId),
+      })
+      queryClient.invalidateQueries({ queryKey: campaignKeys.detail(variables.campaignId) })
+      queryClient.invalidateQueries({ queryKey: campaignKeys.subCampaigns(variables.campaignId) })
+      addNotification({
+        type: 'success',
+        title: 'Amount Set',
+        description: 'Invoice amount has been updated.',
+      })
+    },
+    onError: (error: any) => {
+      addNotification({
+        type: 'error',
+        title: 'Update Failed',
+        description: error.response?.data?.error || 'Failed to set invoice amount.',
+      })
+    },
+  })
+}
+
+/**
+ * Hook to accept AI-extracted amount as the invoice amount
+ */
+export const useAcceptSubCampaignInvoiceExtraction = () => {
+  const queryClient = useQueryClient()
+  const { addNotification } = useUIStore()
+
+  return useMutation({
+    mutationFn: async ({
+      campaignId,
+      subcampaignId,
+      invoiceLinkId,
+    }: {
+      campaignId: number
+      subcampaignId: number
+      invoiceLinkId: number
+    }) => {
+      const response = await apiClient.post<SubCampaignInvoiceLink>(
+        `/api/v1/campaigns/${campaignId}/subcampaigns/${subcampaignId}/invoices/${invoiceLinkId}/accept_extraction/`
+      )
+      return response.data
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: subCampaignInvoiceKeys.all(variables.campaignId, variables.subcampaignId),
+      })
+      queryClient.invalidateQueries({ queryKey: campaignKeys.detail(variables.campaignId) })
+      queryClient.invalidateQueries({ queryKey: campaignKeys.subCampaigns(variables.campaignId) })
+      addNotification({
+        type: 'success',
+        title: 'Extraction Accepted',
+        description: 'AI-extracted amount has been applied.',
+      })
+    },
+    onError: (error: any) => {
+      addNotification({
+        type: 'error',
+        title: 'Accept Failed',
+        description: error.response?.data?.error || 'Failed to accept extraction.',
+      })
+    },
+  })
+}
+
+/**
+ * Hook to retry AI extraction for an invoice
+ */
+export const useRetrySubCampaignInvoiceExtraction = () => {
+  const queryClient = useQueryClient()
+  const { addNotification } = useUIStore()
+
+  return useMutation({
+    mutationFn: async ({
+      campaignId,
+      subcampaignId,
+      invoiceLinkId,
+    }: {
+      campaignId: number
+      subcampaignId: number
+      invoiceLinkId: number
+    }) => {
+      const response = await apiClient.post<{ message: string; task_id: string }>(
+        `/api/v1/campaigns/${campaignId}/subcampaigns/${subcampaignId}/invoices/${invoiceLinkId}/retry_extraction/`
+      )
+      return response.data
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: subCampaignInvoiceKeys.all(variables.campaignId, variables.subcampaignId),
+      })
+      addNotification({
+        type: 'info',
+        title: 'Extraction Retrying',
+        description: 'AI is re-extracting invoice details.',
+      })
+    },
+    onError: (error: any) => {
+      addNotification({
+        type: 'error',
+        title: 'Retry Failed',
+        description: error.response?.data?.error || 'Failed to retry extraction.',
+      })
+    },
+  })
+}
+
+/**
+ * Hook to unlink an invoice from a subcampaign
+ */
+export const useUnlinkSubCampaignInvoice = () => {
+  const queryClient = useQueryClient()
+  const { addNotification } = useUIStore()
+
+  return useMutation({
+    mutationFn: async ({
+      campaignId,
+      subcampaignId,
+      invoiceLinkId,
+    }: {
+      campaignId: number
+      subcampaignId: number
+      invoiceLinkId: number
+    }) => {
+      await apiClient.delete(
+        `/api/v1/campaigns/${campaignId}/subcampaigns/${subcampaignId}/invoices/${invoiceLinkId}/`
+      )
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: subCampaignInvoiceKeys.all(variables.campaignId, variables.subcampaignId),
+      })
+      queryClient.invalidateQueries({ queryKey: campaignKeys.detail(variables.campaignId) })
+      queryClient.invalidateQueries({ queryKey: campaignKeys.subCampaigns(variables.campaignId) })
+      addNotification({
+        type: 'success',
+        title: 'Invoice Unlinked',
+        description: 'Invoice has been removed from the platform.',
+      })
+    },
+    onError: (error: any) => {
+      addNotification({
+        type: 'error',
+        title: 'Unlink Failed',
+        description: error.response?.data?.error || 'Failed to unlink invoice.',
+      })
+    },
+  })
+}
+
+/**
+ * Hook to poll invoice extraction status
+ * Used to check if AI extraction has completed
+ */
+export const useInvoiceExtractionStatus = (
+  invoiceId: number,
+  options?: { enabled?: boolean; refetchInterval?: number }
+) => {
+  return useQuery<{
+    extraction_status: 'pending' | 'processing' | 'success' | 'failed' | 'manual'
+    extracted_amount: string | null
+    extracted_currency: string | null
+    extraction_confidence: number | null
+    extraction_notes: string | null
+  }>({
+    queryKey: ['invoice-extraction-status', invoiceId],
+    queryFn: async () => {
+      const response = await apiClient.get(`/api/v1/invoices/${invoiceId}/`)
+      return {
+        extraction_status: response.data.extraction_status,
+        extracted_amount: response.data.extracted_amount,
+        extracted_currency: response.data.extracted_currency,
+        extraction_confidence: response.data.extraction_confidence,
+        extraction_notes: response.data.extraction_notes,
+      }
+    },
+    enabled: options?.enabled !== false && !!invoiceId,
+    refetchInterval: options?.refetchInterval || false,
   })
 }

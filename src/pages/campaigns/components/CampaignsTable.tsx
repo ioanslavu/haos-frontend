@@ -16,11 +16,11 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { formatMoney, cn } from '@/lib/utils'
+import { PLATFORM_ICONS, PLATFORM_TEXT_COLORS } from '@/lib/platform-icons'
 import type { Campaign, SubCampaign } from '@/types/campaign'
 import {
   CAMPAIGN_STATUS_CONFIG,
   CAMPAIGN_TYPE_CONFIG,
-  SUBCAMPAIGN_STATUS_CONFIG,
   PLATFORM_CONFIG,
   SERVICE_TYPE_CONFIG,
 } from '@/types/campaign'
@@ -28,9 +28,10 @@ import {
 interface CampaignsTableProps {
   campaigns: Campaign[]
   onCampaignClick?: (id: number) => void
+  onClientClick?: (clientId: number) => void
 }
 
-export function CampaignsTable({ campaigns, onCampaignClick }: CampaignsTableProps) {
+export function CampaignsTable({ campaigns, onCampaignClick, onClientClick }: CampaignsTableProps) {
   const navigate = useNavigate()
 
   const handleClick = (id: number) => {
@@ -38,6 +39,14 @@ export function CampaignsTable({ campaigns, onCampaignClick }: CampaignsTablePro
       onCampaignClick(id)
     } else {
       navigate(`/campaigns/${id}`)
+    }
+  }
+
+  const handleClientClick = (clientId: number) => {
+    if (onClientClick) {
+      onClientClick(clientId)
+    } else {
+      navigate(`/entities/${clientId}`)
     }
   }
 
@@ -65,6 +74,7 @@ export function CampaignsTable({ campaigns, onCampaignClick }: CampaignsTablePro
                   key={campaign.id}
                   campaign={campaign}
                   onClick={() => handleClick(campaign.id)}
+                  onClientClick={() => campaign.client?.id && handleClientClick(campaign.client.id)}
                 />
                 {hasSubcampaigns && campaign.subcampaigns?.map((sub) => (
                   <SubCampaignRow
@@ -85,9 +95,10 @@ export function CampaignsTable({ campaigns, onCampaignClick }: CampaignsTablePro
 interface CampaignRowProps {
   campaign: Campaign
   onClick: () => void
+  onClientClick?: () => void
 }
 
-function CampaignRow({ campaign, onClick }: CampaignRowProps) {
+function CampaignRow({ campaign, onClick, onClientClick }: CampaignRowProps) {
   const statusConfig = CAMPAIGN_STATUS_CONFIG[campaign.status]
   const typeConfig = CAMPAIGN_TYPE_CONFIG[campaign.campaign_type]
   const budget = parseFloat(campaign.total_budget || '0')
@@ -128,7 +139,18 @@ function CampaignRow({ campaign, onClick }: CampaignRowProps) {
 
       {/* Client */}
       <TableCell className="py-3">
-        <div className="flex items-center gap-2">
+        <div
+          className={cn(
+            "flex items-center gap-2 rounded-lg px-1 -mx-1 py-0.5 transition-colors",
+            campaign.client?.id && "hover:bg-primary/10 cursor-pointer"
+          )}
+          onClick={(e) => {
+            if (campaign.client?.id && onClientClick) {
+              e.stopPropagation()
+              onClientClick()
+            }
+          }}
+        >
           <div className="h-7 w-7 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center flex-shrink-0">
             <span className="text-xs font-semibold">
               {campaign.client?.display_name?.charAt(0) || '?'}
@@ -206,7 +228,6 @@ interface SubCampaignRowProps {
 }
 
 function SubCampaignRow({ subcampaign, onClick }: SubCampaignRowProps) {
-  const statusConfig = SUBCAMPAIGN_STATUS_CONFIG[subcampaign.status]
   const platformConfig = PLATFORM_CONFIG[subcampaign.platform]
   const serviceConfig = SERVICE_TYPE_CONFIG[subcampaign.service_type]
   const budget = parseFloat(subcampaign.budget || '0')
@@ -229,7 +250,11 @@ function SubCampaignRow({ subcampaign, onClick }: SubCampaignRowProps) {
             <div className="w-px bg-muted-foreground/30 h-full" />
             <div className="w-5 h-px bg-muted-foreground/30" />
           </div>
-          <span className="text-base">{platformConfig?.emoji}</span>
+          {(() => {
+            const Icon = PLATFORM_ICONS[subcampaign.platform]
+            const colorClass = PLATFORM_TEXT_COLORS[subcampaign.platform]
+            return <Icon className={cn('h-5 w-5', colorClass)} />
+          })()}
           <div className="flex flex-col">
             <span className="text-sm font-medium">
               {subcampaign.platform_display || platformConfig?.label}
@@ -286,20 +311,8 @@ function SubCampaignRow({ subcampaign, onClick }: SubCampaignRowProps) {
         )}
       </TableCell>
 
-      {/* Status */}
-      <TableCell className="py-2">
-        <Badge
-          className={cn(
-            "font-normal text-xs",
-            statusConfig?.bgColor,
-            statusConfig?.color,
-            "border-transparent"
-          )}
-          variant="outline"
-        >
-          {statusConfig?.label}
-        </Badge>
-      </TableCell>
+      {/* Status - empty for subcampaigns */}
+      <TableCell className="py-2" />
     </TableRow>
   )
 }

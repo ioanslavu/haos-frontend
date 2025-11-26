@@ -15,6 +15,7 @@ import { EntityFormDialog } from '@/components/entities/EntityFormDialog';
 import { ContactPersonFormDialog } from '@/components/entities/ContactPersonFormDialog';
 import { EntityRequestDialog } from '@/components/entities/EntityRequestDialog';
 import { ActivityTimeline } from '@/components/activities/ActivityTimeline';
+import { ClientScoreSection } from '@/pages/campaigns/components/ClientScoreSection';
 import { toast } from '@/components/ui/use-toast';
 import { toast as sonnerToast } from 'sonner';
 import { ENGAGEMENT_STAGE_COLORS, CONTACT_SENTIMENT_COLORS } from '@/types/contact';
@@ -1132,6 +1133,14 @@ export default function EntityDetail() {
                     <p className="text-sm whitespace-pre-wrap">{entity.notes}</p>
                   </CardContent>
                 </Card>
+              )}
+
+              {/* Client Score - only for entities with client role */}
+              {isClient && (
+                <ClientScoreSection
+                  entityId={entity.id}
+                  entityName={entity.display_name}
+                />
               )}
             </div>
           </TabsContent>

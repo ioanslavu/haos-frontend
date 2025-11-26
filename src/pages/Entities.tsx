@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus,
@@ -8,14 +8,11 @@ import {
   User,
   LayoutGrid,
   Table2,
-  SlidersHorizontal,
   Mail,
   Phone,
   MoreVertical,
   Edit,
   Trash,
-  ChevronDown,
-  ArrowUpDown,
   Loader2,
   X,
 } from 'lucide-react';
@@ -30,49 +27,32 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { cn } from '@/lib/utils';
-import { Entity } from '@/api/services/entities.service';
+import { EntityListItem } from '@/api/services/entities.service';
 import { getMediaUrl } from '@/lib/media';
+import { GenericTable, type ColumnDef, type SortState, type FilterState } from '@/components/tables';
 
 type ViewMode = 'grid' | 'table';
-type SortField = 'name' | 'created' | 'role' | 'type';
-type SortOrder = 'asc' | 'desc';
 
 const roleOptions = [
-  { value: 'all', label: 'All Roles' },
-  { value: 'artist', label: 'Artists', category: 'creative' },
-  { value: 'producer', label: 'Producers', category: 'creative' },
-  { value: 'composer', label: 'Composers', category: 'creative' },
-  { value: 'lyricist', label: 'Lyricists', category: 'creative' },
-  { value: 'audio_editor', label: 'Audio Editors', category: 'creative' },
-  { value: 'label', label: 'Label', category: 'business' },
-  { value: 'booking', label: 'Booking', category: 'business' },
-  { value: 'endorsements', label: 'Endorsements', category: 'business' },
-  { value: 'publishing', label: 'Publishing', category: 'business' },
-  { value: 'productie', label: 'Productie', category: 'business' },
-  { value: 'new_business', label: 'New Business', category: 'business' },
-  { value: 'digital', label: 'Digital', category: 'business' },
+  { value: 'artist', label: 'Artists' },
+  { value: 'producer', label: 'Producers' },
+  { value: 'composer', label: 'Composers' },
+  { value: 'lyricist', label: 'Lyricists' },
+  { value: 'audio_editor', label: 'Audio Editors' },
+  { value: 'label', label: 'Label' },
+  { value: 'booking', label: 'Booking' },
+  { value: 'endorsements', label: 'Endorsements' },
+  { value: 'publishing', label: 'Publishing' },
+  { value: 'productie', label: 'Productie' },
+  { value: 'new_business', label: 'New Business' },
+  { value: 'digital', label: 'Digital' },
 ];
 
 const roleColors: Record<string, string> = {
@@ -90,26 +70,49 @@ const roleColors: Record<string, string> = {
   digital: 'bg-lime-100 text-lime-700 dark:bg-lime-900/30 dark:text-lime-300',
 };
 
+const kindOptions = [
+  { value: 'PF', label: 'Person' },
+  { value: 'PJ', label: 'Company' },
+];
+
 export default function Entities() {
   const navigate = useNavigate();
   const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState('all');
-  const [kindFilter, setKindFilter] = useState<'all' | 'PF' | 'PJ'>('all');
-  const [internalFilter, setInternalFilter] = useState<'all' | 'internal' | 'external'>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('table');
-  const [sortField, setSortField] = useState<SortField>('created');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  const [showFilters, setShowFilters] = useState(false);
-  const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  // Fetch entities based on filters with infinite scrolling
-  const entityParams = {
-    ...(roleFilter !== 'all' && { has_role: roleFilter }),
-    ...(internalFilter !== 'all' && { is_internal: internalFilter === 'internal' }),
-    ...(searchQuery && { search: searchQuery }),
-    page_size: 20,
-  };
+  // Server-side sort and filter state
+  const [sortState, setSortState] = useState<SortState | null>({ columnId: 'created_at', direction: 'desc' });
+  const [filterState, setFilterState] = useState<FilterState>({});
+
+  // Build API params from filter state
+  const entityParams = useMemo(() => {
+    const params: Record<string, unknown> = {
+      page_size: 20,
+    };
+
+    if (searchQuery) {
+      params.search = searchQuery;
+    }
+
+    // Map filter state to API params
+    if (filterState.role) {
+      params.has_role = filterState.role;
+    }
+    if (filterState.kind) {
+      params.kind = filterState.kind;
+    }
+    if (filterState.is_internal !== undefined) {
+      params.is_internal = filterState.is_internal === 'internal';
+    }
+
+    // Sorting
+    if (sortState) {
+      params.ordering = sortState.direction === 'desc' ? `-${sortState.columnId}` : sortState.columnId;
+    }
+
+    return params;
+  }, [searchQuery, filterState, sortState]);
 
   const {
     data: entitiesData,
@@ -126,69 +129,17 @@ export default function Entities() {
 
   const totalCount = entitiesData?.pages[0]?.count || 0;
 
-  // Intersection observer for infinite scroll
-  const handleObserver = useCallback(
-    (entries: IntersectionObserverEntry[]) => {
-      const [target] = entries;
-      if (target.isIntersecting && hasNextPage && !isFetchingNextPage) {
-        fetchNextPage();
-      }
-    },
-    [hasNextPage, isFetchingNextPage, fetchNextPage]
-  );
-
-  useEffect(() => {
-    const element = loadMoreRef.current;
-    if (!element) return;
-
-    const observer = new IntersectionObserver(handleObserver, {
-      root: null,
-      rootMargin: '100px',
-      threshold: 0,
-    });
-
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [handleObserver]);
-
-  // Fetch stats using the same filters (without pagination)
+  // Fetch stats
   const { data: statsData } = useEntityStats(entityParams);
 
-  // Client-side filter and sort (for kind filter that isn't in backend yet)
-  const filteredAndSortedEntities = useMemo(() => {
-    // Filter by kind (client-side since backend doesn't support it yet)
-    const filtered = entities.filter((entity) => {
-      const matchesKind = kindFilter === 'all' || entity.kind === kindFilter;
-      return matchesKind;
-    });
+  const stats = useMemo(() => ({
+    total: statsData?.total || 0,
+    physical: statsData?.physical || 0,
+    legal: statsData?.legal || 0,
+    creative: statsData?.creative || 0,
+  }), [statsData]);
 
-    // Sort
-    filtered.sort((a, b) => {
-      let comparison = 0;
-
-      switch (sortField) {
-        case 'name':
-          comparison = a.display_name.localeCompare(b.display_name);
-          break;
-        case 'created':
-          comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-          break;
-        case 'type':
-          comparison = a.kind.localeCompare(b.kind);
-          break;
-        case 'role':
-          const aRole = a.roles?.[0] || '';
-          const bRole = b.roles?.[0] || '';
-          comparison = aRole.localeCompare(bRole);
-          break;
-      }
-
-      return sortOrder === 'asc' ? comparison : -comparison;
-    });
-
-    return filtered;
-  }, [entities, kindFilter, sortField, sortOrder]);
-
+  // Helper function
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -198,30 +149,171 @@ export default function Entities() {
       .slice(0, 2);
   };
 
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+  // Handle sort changes (server-side)
+  const handleSort = useCallback((columnId: string, direction: 'asc' | 'desc' | null) => {
+    if (direction) {
+      setSortState({ columnId, direction });
     } else {
-      setSortField(field);
-      setSortOrder('asc');
+      setSortState(null);
     }
-  };
+  }, []);
 
-  // Use backend stats instead of client-side calculation
-  const stats = useMemo(() => ({
-    total: statsData?.total || 0,
-    physical: statsData?.physical || 0,
-    legal: statsData?.legal || 0,
-    creative: statsData?.creative || 0,
-  }), [statsData]);
+  // Handle filter changes (server-side) - receives full FilterState from GenericTable
+  const handleFilter = useCallback((filters: FilterState) => {
+    setFilterState(filters);
+  }, []);
 
-  const activeFiltersCount = useMemo(() => {
-    let count = 0;
-    if (roleFilter !== 'all') count++;
-    if (kindFilter !== 'all') count++;
-    if (internalFilter !== 'all') count++;
-    return count;
-  }, [roleFilter, kindFilter, internalFilter]);
+  // Count active filters
+  const activeFiltersCount = Object.keys(filterState).length;
+
+  // Define columns for GenericTable
+  const columns: ColumnDef<EntityListItem>[] = useMemo(() => [
+    {
+      id: 'display_name',
+      accessorKey: 'display_name',
+      header: 'Name',
+      sortable: true,
+      filterable: true,
+      filterType: 'text',
+      filterPlaceholder: 'Filter by name...',
+      minWidth: 200,
+      cell: ({ row }) => (
+        <div className="flex items-center gap-3">
+          <Avatar className="h-9 w-9">
+            <AvatarImage src={getMediaUrl(row.profile_photo) || `https://avatar.vercel.sh/${row.display_name}`} />
+            <AvatarFallback className="text-xs">
+              {getInitials(row.display_name)}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="font-medium text-sm">{row.display_name}</p>
+            {row.stage_name && (
+              <p className="text-xs text-muted-foreground">
+                aka "{row.stage_name}"
+              </p>
+            )}
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: 'kind',
+      accessorKey: 'kind',
+      header: 'Type',
+      sortable: true,
+      filterable: true,
+      filterType: 'select',
+      filterOptions: kindOptions,
+      width: 120,
+      cell: ({ row }) => (
+        <Badge variant="outline" className="text-xs">
+          {row.kind === 'PF' ? (
+            <>
+              <User className="h-3 w-3 mr-1" />
+              Person
+            </>
+          ) : (
+            <>
+              <Building2 className="h-3 w-3 mr-1" />
+              Company
+            </>
+          )}
+        </Badge>
+      ),
+    },
+    {
+      id: 'role',
+      accessorFn: (row) => row.roles?.[0] || '',
+      header: 'Roles',
+      sortable: false,
+      filterable: true,
+      filterType: 'select',
+      filterOptions: roleOptions,
+      minWidth: 180,
+      cell: ({ row }) => (
+        <div className="flex flex-wrap gap-1">
+          {row.has_internal_role && (
+            <Badge variant="default" className="text-xs bg-green-600 hover:bg-green-700">
+              Internal
+            </Badge>
+          )}
+          {row.roles?.slice(0, 3).map((role) => (
+            <Badge
+              key={role}
+              className={cn('text-xs', roleColors[role] || 'bg-gray-100 text-gray-700')}
+            >
+              {role}
+            </Badge>
+          ))}
+          {row.roles && row.roles.length > 3 && (
+            <Badge variant="secondary" className="text-xs">
+              +{row.roles.length - 3}
+            </Badge>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: 'email',
+      accessorKey: 'email',
+      header: 'Contact',
+      sortable: true,
+      minWidth: 200,
+      cell: ({ row }) => (
+        <div className="space-y-1">
+          {row.email && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Mail className="h-3 w-3" />
+              <span className="truncate max-w-[180px]">{row.email}</span>
+            </div>
+          )}
+          {row.phone && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Phone className="h-3 w-3" />
+              <span>{row.phone}</span>
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: 'created_at',
+      accessorKey: 'created_at',
+      header: 'Added',
+      sortable: true,
+      width: 120,
+      cell: ({ value }) => (
+        <span className="text-xs text-muted-foreground">
+          {format(new Date(value as string), 'MMM d, yyyy')}
+        </span>
+      ),
+    },
+    {
+      id: 'actions',
+      header: '',
+      width: 50,
+      cell: ({ row }) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => navigate(`/entities/${row.id}`)}>
+              <Edit className="h-4 w-4 mr-2" />
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="text-destructive">
+              <Trash className="h-4 w-4 mr-2" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ),
+    },
+  ], [navigate]);
 
   return (
     <AppLayout>
@@ -244,7 +336,6 @@ export default function Entities() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-               
                 <Button onClick={() => setFormDialogOpen(true)} className="shadow-lg">
                   <Plus className="h-4 w-4 mr-2" />
                   Add Entity
@@ -317,7 +408,7 @@ export default function Entities() {
           </Card>
         </div>
 
-        {/* Search and Filters Bar */}
+        {/* Search Bar and View Toggle */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-1 items-center gap-2">
             <div className="relative flex-1 max-w-md">
@@ -339,20 +430,15 @@ export default function Entities() {
                 </Button>
               )}
             </div>
-            <Button
-              variant={showFilters ? 'secondary' : 'outline'}
-              size="sm"
-              onClick={() => setShowFilters(!showFilters)}
-              className="relative"
-            >
-              <SlidersHorizontal className="h-4 w-4 mr-2" />
-              Filters
-              {activeFiltersCount > 0 && (
-                <Badge variant="destructive" className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
-                  {activeFiltersCount}
-                </Badge>
-              )}
-            </Button>
+            {activeFiltersCount > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setFilterState({})}
+              >
+                Clear {activeFiltersCount} filter{activeFiltersCount > 1 ? 's' : ''}
+              </Button>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -375,111 +461,8 @@ export default function Entities() {
                 <Table2 className="h-4 w-4" />
               </Button>
             </div>
-
-            {/* Sort Menu */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <ArrowUpDown className="h-4 w-4 mr-2" />
-                  Sort
-                  <ChevronDown className="h-4 w-4 ml-2" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={() => handleSort('name')}>
-                  <span className="flex-1">Name</span>
-                  {sortField === 'name' && <span className="text-xs">{sortOrder === 'asc' ? '↑' : '↓'}</span>}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleSort('created')}>
-                  <span className="flex-1">Date Added</span>
-                  {sortField === 'created' && <span className="text-xs">{sortOrder === 'asc' ? '↑' : '↓'}</span>}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleSort('type')}>
-                  <span className="flex-1">Entity Type</span>
-                  {sortField === 'type' && <span className="text-xs">{sortOrder === 'asc' ? '↑' : '↓'}</span>}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleSort('role')}>
-                  <span className="flex-1">Role</span>
-                  {sortField === 'role' && <span className="text-xs">{sortOrder === 'asc' ? '↑' : '↓'}</span>}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
         </div>
-
-        {/* Filters Panel */}
-        {showFilters && (
-          <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl">
-            <CardContent className="p-4">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                <div className="flex-1 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Role</label>
-                    <Select value={roleFilter} onValueChange={setRoleFilter}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Roles</SelectItem>
-                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Creative</div>
-                        {roleOptions.filter(r => r.category === 'creative').map(role => (
-                          <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>
-                        ))}
-                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t mt-1">Business</div>
-                        {roleOptions.filter(r => r.category === 'business').map(role => (
-                          <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Entity Type</label>
-                    <Select value={kindFilter} onValueChange={(value: any) => setKindFilter(value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Types</SelectItem>
-                        <SelectItem value="PF">Physical Persons</SelectItem>
-                        <SelectItem value="PJ">Legal Entities</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Status</label>
-                    <Select value={internalFilter} onValueChange={(value: any) => setInternalFilter(value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All</SelectItem>
-                        <SelectItem value="internal">Signed Artists</SelectItem>
-                        <SelectItem value="external">External</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {activeFiltersCount > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setRoleFilter('all');
-                      setKindFilter('all');
-                      setInternalFilter('all');
-                    }}
-                    className="sm:mt-6"
-                  >
-                    Clear Filters
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Content */}
         {isLoading ? (
@@ -501,7 +484,7 @@ export default function Entities() {
               </Card>
             ))}
           </div>
-        ) : filteredAndSortedEntities.length === 0 ? (
+        ) : entities.length === 0 ? (
           <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl">
             <CardContent className="p-12">
               <div className="flex flex-col items-center justify-center text-center">
@@ -519,8 +502,7 @@ export default function Entities() {
                     variant="outline"
                     onClick={() => {
                       setSearchQuery('');
-                      setRoleFilter('all');
-                      setKindFilter('all');
+                      setFilterState({});
                     }}
                   >
                     Clear All Filters
@@ -537,21 +519,21 @@ export default function Entities() {
         ) : viewMode === 'grid' ? (
           <>
             <GridView
-              entities={filteredAndSortedEntities}
+              entities={entities}
               onEntityClick={(id) => navigate(`/entities/${id}`)}
               getInitials={getInitials}
             />
             {/* Infinite scroll trigger and loading indicator */}
-            <div ref={loadMoreRef} className="flex items-center justify-center py-8">
+            <div className="flex items-center justify-center py-8">
               {isFetchingNextPage ? (
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Loader2 className="h-5 w-5 animate-spin" />
                   <span>Loading more entities...</span>
                 </div>
               ) : hasNextPage ? (
-                <p className="text-sm text-muted-foreground">
-                  Showing {entities.length} of {totalCount} entities
-                </p>
+                <Button variant="outline" onClick={() => fetchNextPage()}>
+                  Load more ({entities.length} of {totalCount})
+                </Button>
               ) : entities.length > 0 ? (
                 <p className="text-sm text-muted-foreground">
                   Showing all {totalCount} entities
@@ -560,51 +542,65 @@ export default function Entities() {
             </div>
           </>
         ) : (
-          <>
-            <TableView
-              entities={filteredAndSortedEntities}
-              onEntityClick={(id) => navigate(`/entities/${id}`)}
-              getInitials={getInitials}
-            />
-            {/* Infinite scroll trigger and loading indicator */}
-            <div ref={loadMoreRef} className="flex items-center justify-center py-8">
-              {isFetchingNextPage ? (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  <span>Loading more entities...</span>
+          <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl overflow-hidden">
+            <GenericTable
+              columns={columns}
+              data={entities}
+              getRowId={(row) => row.id}
+              sortState={sortState}
+              filterState={filterState}
+              onSort={handleSort}
+              onFilter={handleFilter}
+              onRowClick={(row) => navigate(`/entities/${row.id}`)}
+              infiniteScroll={{
+                enabled: true,
+                hasNextPage: hasNextPage || false,
+                isFetching: isFetchingNextPage,
+                fetchNextPage,
+                threshold: 200,
+              }}
+              loading={isLoading}
+              density="comfortable"
+              stickyHeader
+              stripedRows
+              persistKey="entities-table"
+              footer={
+                <div className="flex items-center justify-center py-2">
+                  {isFetchingNextPage ? (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="text-sm">Loading more...</span>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Showing {entities.length} of {totalCount} entities
+                    </p>
+                  )}
                 </div>
-              ) : hasNextPage ? (
-                <p className="text-sm text-muted-foreground">
-                  Showing {entities.length} of {totalCount} entities
-                </p>
-              ) : entities.length > 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Showing all {totalCount} entities
-                </p>
-              ) : null}
-            </div>
-          </>
+              }
+            />
+          </Card>
         )}
 
         {/* Dialogs */}
         <EntityFormDialog
           open={formDialogOpen}
           onOpenChange={setFormDialogOpen}
-          role={roleFilter === 'all' ? 'artist' : roleFilter}
+          role={filterState.role as string || 'artist'}
         />
       </div>
     </AppLayout>
   );
 }
 
-// Grid View Component
+// Grid View Component (unchanged)
 function GridView({
   entities,
   onEntityClick,
   getInitials,
 }: {
-  entities: Entity[];
-  onEntityClick: (id: string) => void;
+  entities: EntityListItem[];
+  onEntityClick: (id: number) => void;
   getInitials: (name: string) => string;
 }) {
   return (
@@ -711,134 +707,5 @@ function GridView({
         </Card>
       ))}
     </div>
-  );
-}
-
-// Table View Component
-function TableView({
-  entities,
-  onEntityClick,
-  getInitials,
-}: {
-  entities: Entity[];
-  onEntityClick: (id: string) => void;
-  getInitials: (name: string) => string;
-}) {
-  return (
-    <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Roles</TableHead>
-              <TableHead>Contact</TableHead>
-              <TableHead className="w-12"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {entities.map((entity) => (
-              <TableRow
-                key={entity.id}
-                className="cursor-pointer group hover:bg-muted/50"
-              >
-                <TableCell onClick={() => onEntityClick(entity.id)}>
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-9 w-9">
-                      <AvatarImage src={getMediaUrl(entity.profile_photo) || `https://avatar.vercel.sh/${entity.display_name}`} />
-                      <AvatarFallback className="text-xs">
-                        {getInitials(entity.display_name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium text-sm">{entity.display_name}</p>
-                      {entity.stage_name && (
-                        <p className="text-xs text-muted-foreground">
-                          aka "{entity.stage_name}"
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell onClick={() => onEntityClick(entity.id)}>
-                  <Badge variant="outline" className="text-xs">
-                    {entity.kind === 'PF' ? (
-                      <>
-                        <User className="h-3 w-3 mr-1" />
-                        Person
-                      </>
-                    ) : (
-                      <>
-                        <Building2 className="h-3 w-3 mr-1" />
-                        Company
-                      </>
-                    )}
-                  </Badge>
-                </TableCell>
-                <TableCell onClick={() => onEntityClick(entity.id)}>
-                  <div className="flex flex-wrap gap-1">
-                    {entity.has_internal_role && (
-                      <Badge variant="default" className="text-xs bg-green-600 hover:bg-green-700">
-                        Internal
-                      </Badge>
-                    )}
-                    {entity.roles?.slice(0, 3).map((role) => (
-                      <Badge
-                        key={role}
-                        className={cn('text-xs', roleColors[role] || 'bg-gray-100 text-gray-700')}
-                      >
-                        {role}
-                      </Badge>
-                    ))}
-                    {entity.roles && entity.roles.length > 3 && (
-                      <Badge variant="secondary" className="text-xs">
-                        +{entity.roles.length - 3}
-                      </Badge>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell onClick={() => onEntityClick(entity.id)}>
-                  <div className="space-y-1">
-                    {entity.email && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Mail className="h-3 w-3" />
-                        <span className="truncate max-w-[200px]">{entity.email}</span>
-                      </div>
-                    )}
-                    {entity.phone && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Phone className="h-3 w-3" />
-                        <span>{entity.phone}</span>
-                      </div>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onEntityClick(entity.id)}>
-                        <Edit className="h-4 w-4 mr-2" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-destructive">
-                        <Trash className="h-4 w-4 mr-2" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    </Card>
   );
 }

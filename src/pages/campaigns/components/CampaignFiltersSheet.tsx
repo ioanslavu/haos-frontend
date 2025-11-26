@@ -1,31 +1,34 @@
 /**
  * CampaignFiltersSheet - Right-side drawer for campaign filters
  *
- * Professional, functional filters with:
- * - Multi-select status
- * - Multi-select platforms
+ * Auto-applying filters with:
+ * - Status selection
+ * - Platform selection
  * - Period presets + custom date range
  * - Campaign type
- * - Budget range
- * - Apply/Reset actions
  */
 
-import { useState, useEffect, useMemo } from 'react'
-import { Calendar, RotateCcw, Check, SlidersHorizontal } from 'lucide-react'
+import { useMemo, useCallback, useRef, useEffect, useState, memo } from 'react'
+import { Calendar as CalendarIcon, RotateCcw, SlidersHorizontal } from 'lucide-react'
+import { format } from 'date-fns'
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
   SheetDescription,
-  SheetFooter,
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Calendar } from '@/components/ui/calendar'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import type { CampaignFilters, CampaignStatus, CampaignType, Platform } from '@/types/campaign'
 import {
@@ -33,6 +36,7 @@ import {
   CAMPAIGN_TYPE_CONFIG,
   PLATFORM_CONFIG,
 } from '@/types/campaign'
+import { PLATFORM_ICONS, PLATFORM_TEXT_COLORS } from '@/lib/platform-icons'
 
 // Period preset helpers
 function getDateRange(preset: string): { start: string; end: string } {
@@ -96,203 +100,196 @@ interface CampaignFiltersSheetProps {
   onFiltersChange: (filters: CampaignFilters) => void
 }
 
-export function CampaignFiltersSheet({
+export const CampaignFiltersSheet = memo(function CampaignFiltersSheet({
   open,
   onOpenChange,
   filters,
   onFiltersChange,
 }: CampaignFiltersSheetProps) {
-  // Local state for draft filters (applied on "Apply" button)
-  const [draftFilters, setDraftFilters] = useState<CampaignFilters>(filters)
-  const [selectedStatuses, setSelectedStatuses] = useState<Set<CampaignStatus>>(new Set())
-  const [selectedPlatforms, setSelectedPlatforms] = useState<Set<Platform>>(new Set())
-  const [selectedPeriod, setSelectedPeriod] = useState<string>('all')
-  const [customDateRange, setCustomDateRange] = useState({ start: '', end: '' })
+  // Local state for immediate UI feedback
+  const [localFilters, setLocalFilters] = useState<CampaignFilters>(filters)
 
-  // Sync draft with actual filters when sheet opens
+  // Sync local state when filters prop changes (e.g., from URL or external source)
   useEffect(() => {
-    if (open) {
-      setDraftFilters(filters)
-      // Parse status
-      if (filters.status) {
-        setSelectedStatuses(new Set([filters.status]))
-      } else {
-        setSelectedStatuses(new Set())
-      }
-      // Parse platform
-      if (filters.platform) {
-        setSelectedPlatforms(new Set([filters.platform]))
-      } else {
-        setSelectedPlatforms(new Set())
-      }
-      // Parse period
-      detectPeriodFromFilters(filters)
-    }
-  }, [open, filters])
+    setLocalFilters(filters)
+  }, [filters])
 
-  const detectPeriodFromFilters = (f: CampaignFilters) => {
-    if (!f.start_date_after && !f.start_date_before) {
-      setSelectedPeriod('all')
-      setCustomDateRange({ start: '', end: '' })
-      return
+  // Debounce filter changes to prevent excessive refetches
+  const debounceRef = useRef<NodeJS.Timeout>()
+
+  const debouncedFiltersChange = useCallback((newFilters: CampaignFilters) => {
+    // Update local state immediately for UI feedback
+    setLocalFilters(newFilters)
+
+    // Debounce the actual filter change
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current)
     }
+    debounceRef.current = setTimeout(() => {
+      onFiltersChange(newFilters)
+    }, 300)
+  }, [onFiltersChange])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current)
+      }
+    }
+  }, [])
+
+  // Detect current period preset from local filters
+  const selectedPeriod = useMemo(() => {
+    if (!localFilters.start_date_after && !localFilters.start_date_before) return 'all'
 
     for (const preset of PERIOD_PRESETS) {
       if (preset.id === 'all') continue
       const { start, end } = getDateRange(preset.id)
-      if (f.start_date_after === start && f.start_date_before === end) {
-        setSelectedPeriod(preset.id)
-        setCustomDateRange({ start: '', end: '' })
-        return
+      if (localFilters.start_date_after === start && localFilters.start_date_before === end) {
+        return preset.id
       }
     }
-
-    // Custom range
-    setSelectedPeriod('custom')
-    setCustomDateRange({
-      start: f.start_date_after || '',
-      end: f.start_date_before || '',
-    })
-  }
+    return 'custom'
+  }, [localFilters.start_date_after, localFilters.start_date_before])
 
   const toggleStatus = (status: CampaignStatus) => {
-    setSelectedStatuses((prev) => {
-      const next = new Set(prev)
-      if (next.has(status)) {
-        next.delete(status)
-      } else {
-        next.add(status)
-      }
-      return next
-    })
+    if (localFilters.status === status) {
+      const { status: _, ...rest } = localFilters
+      debouncedFiltersChange(rest)
+    } else {
+      debouncedFiltersChange({ ...localFilters, status })
+    }
   }
 
   const togglePlatform = (platform: Platform) => {
-    setSelectedPlatforms((prev) => {
-      const next = new Set(prev)
-      if (next.has(platform)) {
-        next.delete(platform)
-      } else {
-        next.add(platform)
-      }
-      return next
-    })
+    if (localFilters.platform === platform) {
+      const { platform: _, ...rest } = localFilters
+      debouncedFiltersChange(rest)
+    } else {
+      debouncedFiltersChange({ ...localFilters, platform })
+    }
   }
 
   const handlePeriodSelect = (presetId: string) => {
-    setSelectedPeriod(presetId)
-    if (presetId !== 'custom') {
-      setCustomDateRange({ start: '', end: '' })
+    if (presetId === 'all') {
+      const { start_date_after, start_date_before, ...rest } = localFilters
+      debouncedFiltersChange(rest)
+    } else if (presetId === 'custom') {
+      // Keep current custom dates
+    } else {
+      const { start, end } = getDateRange(presetId)
+      debouncedFiltersChange({
+        ...localFilters,
+        start_date_after: start,
+        start_date_before: end,
+      })
     }
   }
 
-  const handleApply = () => {
-    const newFilters: CampaignFilters = { ...draftFilters }
-
-    // Status (only support single for now due to API)
-    if (selectedStatuses.size === 1) {
-      newFilters.status = Array.from(selectedStatuses)[0]
-    } else {
-      delete newFilters.status
-    }
-
-    // Platform (only support single for now due to API)
-    if (selectedPlatforms.size === 1) {
-      newFilters.platform = Array.from(selectedPlatforms)[0]
-    } else {
-      delete newFilters.platform
-    }
-
-    // Period
-    if (selectedPeriod === 'all') {
-      delete newFilters.start_date_after
-      delete newFilters.start_date_before
-    } else if (selectedPeriod === 'custom') {
-      if (customDateRange.start) {
-        newFilters.start_date_after = customDateRange.start
+  const handleCustomDateChange = (field: 'start' | 'end', date: Date | undefined) => {
+    const dateStr = date ? format(date, 'yyyy-MM-dd') : undefined
+    if (field === 'start') {
+      if (dateStr) {
+        debouncedFiltersChange({ ...localFilters, start_date_after: dateStr })
       } else {
-        delete newFilters.start_date_after
-      }
-      if (customDateRange.end) {
-        newFilters.start_date_before = customDateRange.end
-      } else {
-        delete newFilters.start_date_before
+        const { start_date_after, ...rest } = localFilters
+        debouncedFiltersChange(rest)
       }
     } else {
-      const { start, end } = getDateRange(selectedPeriod)
-      newFilters.start_date_after = start
-      newFilters.start_date_before = end
+      if (dateStr) {
+        debouncedFiltersChange({ ...localFilters, start_date_before: dateStr })
+      } else {
+        const { start_date_before, ...rest } = localFilters
+        debouncedFiltersChange(rest)
+      }
     }
+  }
 
-    onFiltersChange(newFilters)
-    onOpenChange(false)
+  const handleTypeChange = (type: CampaignType | undefined) => {
+    if (type) {
+      debouncedFiltersChange({ ...localFilters, campaign_type: type })
+    } else {
+      const { campaign_type, ...rest } = localFilters
+      debouncedFiltersChange(rest)
+    }
   }
 
   const handleReset = () => {
-    setDraftFilters({})
-    setSelectedStatuses(new Set())
-    setSelectedPlatforms(new Set())
-    setSelectedPeriod('all')
-    setCustomDateRange({ start: '', end: '' })
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current)
+    }
+    setLocalFilters({})
+    onFiltersChange({})
   }
 
   const activeFilterCount = useMemo(() => {
     let count = 0
-    if (selectedStatuses.size > 0) count++
-    if (selectedPlatforms.size > 0) count++
-    if (selectedPeriod !== 'all') count++
-    if (draftFilters.campaign_type) count++
+    if (localFilters.status) count++
+    if (localFilters.platform) count++
+    if (localFilters.start_date_after || localFilters.start_date_before) count++
+    if (localFilters.campaign_type) count++
     return count
-  }, [selectedStatuses, selectedPlatforms, selectedPeriod, draftFilters.campaign_type])
+  }, [localFilters])
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[400px] sm:max-w-[400px] flex flex-col p-0">
+      <SheetContent side="right" className="w-[340px] sm:max-w-[340px] flex flex-col p-0">
         <SheetHeader className="px-6 pt-6 pb-4 border-b border-border/50">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <SlidersHorizontal className="h-5 w-5 text-primary" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                <SlidersHorizontal className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <SheetTitle className="text-lg">Filters</SheetTitle>
+                <SheetDescription className="text-xs">
+                  Auto-applied as you select
+                </SheetDescription>
+              </div>
             </div>
-            <div>
-              <SheetTitle className="text-xl">Filters</SheetTitle>
-              <SheetDescription>
-                Refine your campaign list
-              </SheetDescription>
-            </div>
+            {activeFilterCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleReset}
+                className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <RotateCcw className="h-3 w-3 mr-1" />
+                Reset
+              </Button>
+            )}
           </div>
         </SheetHeader>
 
         <ScrollArea className="flex-1 px-6">
-          <div className="py-6 space-y-8">
+          <div className="py-4 space-y-5">
             {/* Status Filter */}
-            <div className="space-y-3">
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-semibold">Status</Label>
-                {selectedStatuses.size > 0 && (
-                  <Badge variant="secondary" className="text-xs">
-                    {selectedStatuses.size} selected
+                <Label className="text-sm font-medium">Status</Label>
+                {localFilters.status && (
+                  <Badge variant="secondary" className="text-[10px] h-5">
+                    1 selected
                   </Badge>
                 )}
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-1.5">
                 {Object.entries(CAMPAIGN_STATUS_CONFIG).map(([status, config]) => {
-                  const isSelected = selectedStatuses.has(status as CampaignStatus)
+                  const isSelected = localFilters.status === status
                   return (
                     <button
                       key={status}
                       onClick={() => toggleStatus(status as CampaignStatus)}
                       className={cn(
-                        'flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-all text-left',
+                        'flex items-center gap-1.5 px-2 py-1.5 rounded-lg border transition-all text-left',
                         isSelected
-                          ? 'border-primary bg-primary/10 shadow-sm'
+                          ? 'border-primary bg-primary/10'
                           : 'border-border/60 hover:border-border hover:bg-muted/30'
                       )}
                     >
-                      <span className="text-lg">{config.emoji}</span>
-                      <span className="text-sm font-medium flex-1">{config.label}</span>
-                      {isSelected && (
-                        <Check className="h-4 w-4 text-primary" />
-                      )}
+                      <span className="text-sm">{config.emoji}</span>
+                      <span className="text-xs font-medium truncate">{config.label}</span>
                     </button>
                   )
                 })}
@@ -302,18 +299,18 @@ export function CampaignFiltersSheet({
             <Separator className="bg-border/50" />
 
             {/* Period Filter */}
-            <div className="space-y-3">
+            <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <Label className="text-sm font-semibold">Time Period</Label>
+                <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                <Label className="text-sm font-medium">Time Period</Label>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-4 gap-1.5">
                 {PERIOD_PRESETS.map((preset) => (
                   <button
                     key={preset.id}
                     onClick={() => handlePeriodSelect(preset.id)}
                     className={cn(
-                      'px-3 py-2 rounded-xl border text-sm font-medium transition-all',
+                      'px-2 py-1.5 rounded-lg border text-xs font-medium transition-all',
                       selectedPeriod === preset.id
                         ? 'border-primary bg-primary/10 text-primary'
                         : 'border-border/60 hover:border-border hover:bg-muted/30'
@@ -325,40 +322,72 @@ export function CampaignFiltersSheet({
                 <button
                   onClick={() => handlePeriodSelect('custom')}
                   className={cn(
-                    'px-3 py-2 rounded-xl border text-sm font-medium transition-all col-span-2',
+                    'px-2 py-1.5 rounded-lg border text-xs font-medium transition-all',
                     selectedPeriod === 'custom'
                       ? 'border-primary bg-primary/10 text-primary'
                       : 'border-border/60 hover:border-border hover:bg-muted/30'
                   )}
                 >
-                  Custom Range
+                  Custom
                 </button>
               </div>
 
               {/* Custom date inputs */}
               {selectedPeriod === 'custom' && (
-                <div className="grid grid-cols-2 gap-3 pt-2">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Start Date</Label>
-                    <Input
-                      type="date"
-                      value={customDateRange.start}
-                      onChange={(e) =>
-                        setCustomDateRange((prev) => ({ ...prev, start: e.target.value }))
-                      }
-                      className="h-9 rounded-lg"
-                    />
+                <div className="grid grid-cols-2 gap-2 pt-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Start</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            'w-full h-8 justify-start text-left text-xs font-normal rounded-lg',
+                            !localFilters.start_date_after && 'text-muted-foreground'
+                          )}
+                        >
+                          <CalendarIcon className="mr-1.5 h-3 w-3" />
+                          {localFilters.start_date_after
+                            ? format(new Date(localFilters.start_date_after), 'MMM d, yyyy')
+                            : 'Pick date'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={localFilters.start_date_after ? new Date(localFilters.start_date_after) : undefined}
+                          onSelect={(date) => handleCustomDateChange('start', date)}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">End Date</Label>
-                    <Input
-                      type="date"
-                      value={customDateRange.end}
-                      onChange={(e) =>
-                        setCustomDateRange((prev) => ({ ...prev, end: e.target.value }))
-                      }
-                      className="h-9 rounded-lg"
-                    />
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">End</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            'w-full h-8 justify-start text-left text-xs font-normal rounded-lg',
+                            !localFilters.start_date_before && 'text-muted-foreground'
+                          )}
+                        >
+                          <CalendarIcon className="mr-1.5 h-3 w-3" />
+                          {localFilters.start_date_before
+                            ? format(new Date(localFilters.start_date_before), 'MMM d, yyyy')
+                            : 'Pick date'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={localFilters.start_date_before ? new Date(localFilters.start_date_before) : undefined}
+                          onSelect={(date) => handleCustomDateChange('end', date)}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
                 </div>
               )}
@@ -367,31 +396,40 @@ export function CampaignFiltersSheet({
             <Separator className="bg-border/50" />
 
             {/* Platform Filter */}
-            <div className="space-y-3">
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-semibold">Platform</Label>
-                {selectedPlatforms.size > 0 && (
-                  <Badge variant="secondary" className="text-xs">
-                    {selectedPlatforms.size} selected
+                <Label className="text-sm font-medium">Platform</Label>
+                {localFilters.platform && (
+                  <Badge variant="secondary" className="text-[10px] h-5">
+                    1 selected
                   </Badge>
                 )}
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-4 gap-1.5">
                 {Object.entries(PLATFORM_CONFIG).map(([platform, config]) => {
-                  const isSelected = selectedPlatforms.has(platform as Platform)
+                  const isSelected = localFilters.platform === platform
+                  const Icon = PLATFORM_ICONS[platform as Platform]
+                  const colorClass = PLATFORM_TEXT_COLORS[platform as Platform]
                   return (
                     <button
                       key={platform}
                       onClick={() => togglePlatform(platform as Platform)}
+                      title={config.label}
                       className={cn(
-                        'flex items-center gap-1.5 px-3 py-2 rounded-xl border transition-all',
+                        'flex flex-col items-center gap-1 px-2 py-2 rounded-lg border transition-all',
                         isSelected
                           ? 'border-primary bg-primary/10'
                           : 'border-border/60 hover:border-border hover:bg-muted/30'
                       )}
                     >
-                      <span className="text-base">{config.emoji}</span>
-                      <span className="text-sm font-medium">{config.label}</span>
+                      {Icon ? (
+                        <Icon className={cn('h-4 w-4', isSelected ? 'text-primary' : colorClass)} />
+                      ) : (
+                        <span className="text-sm">📍</span>
+                      )}
+                      <span className="text-[10px] font-medium truncate w-full text-center">
+                        {config.label.split(' ')[0]}
+                      </span>
                     </button>
                   )
                 })}
@@ -401,34 +439,27 @@ export function CampaignFiltersSheet({
             <Separator className="bg-border/50" />
 
             {/* Campaign Type Filter */}
-            <div className="space-y-3">
-              <Label className="text-sm font-semibold">Campaign Type</Label>
-              <div className="flex gap-2">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Campaign Type</Label>
+              <div className="flex gap-1.5">
                 <button
-                  onClick={() =>
-                    setDraftFilters((prev) => ({ ...prev, campaign_type: undefined }))
-                  }
+                  onClick={() => handleTypeChange(undefined)}
                   className={cn(
-                    'flex-1 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all',
-                    !draftFilters.campaign_type
+                    'flex-1 px-2 py-1.5 rounded-lg border text-xs font-medium transition-all',
+                    !localFilters.campaign_type
                       ? 'border-primary bg-primary/10 text-primary'
                       : 'border-border/60 hover:border-border hover:bg-muted/30'
                   )}
                 >
-                  All Types
+                  All
                 </button>
                 {Object.entries(CAMPAIGN_TYPE_CONFIG).map(([type, config]) => (
                   <button
                     key={type}
-                    onClick={() =>
-                      setDraftFilters((prev) => ({
-                        ...prev,
-                        campaign_type: type as CampaignType,
-                      }))
-                    }
+                    onClick={() => handleTypeChange(type as CampaignType)}
                     className={cn(
-                      'flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all',
-                      draftFilters.campaign_type === type
+                      'flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg border text-xs font-medium transition-all',
+                      localFilters.campaign_type === type
                         ? 'border-primary bg-primary/10 text-primary'
                         : 'border-border/60 hover:border-border hover:bg-muted/30'
                     )}
@@ -441,30 +472,7 @@ export function CampaignFiltersSheet({
             </div>
           </div>
         </ScrollArea>
-
-        <SheetFooter className="px-6 py-4 border-t border-border/50 gap-2 sm:gap-2">
-          <Button
-            variant="outline"
-            onClick={handleReset}
-            className="flex-1 rounded-xl"
-          >
-            <RotateCcw className="h-4 w-4 mr-2" />
-            Reset
-          </Button>
-          <Button
-            onClick={handleApply}
-            className="flex-1 rounded-xl bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700"
-          >
-            <Check className="h-4 w-4 mr-2" />
-            Apply Filters
-            {activeFilterCount > 0 && (
-              <Badge variant="secondary" className="ml-2 bg-white/20 text-white">
-                {activeFilterCount}
-              </Badge>
-            )}
-          </Button>
-        </SheetFooter>
       </SheetContent>
     </Sheet>
   )
-}
+})

@@ -146,6 +146,17 @@ export const campaignsService = {
   },
 
   /**
+   * Reopen a campaign from terminal state (completed, lost, cancelled)
+   * - COMPLETED → ACTIVE
+   * - CANCELLED → CONFIRMED
+   * - LOST → NEGOTIATION
+   */
+  reopen: async (id: number): Promise<Campaign> => {
+    const response = await apiClient.post<Campaign>(`${BASE_PATH}/${id}/reopen/`)
+    return response.data
+  },
+
+  /**
    * Get campaign history/audit trail
    */
   getHistory: async (id: number): Promise<CampaignHistory[]> => {
@@ -456,6 +467,31 @@ export const campaignsService = {
     )
     return response.data
   },
+
+  /**
+   * Refresh signature status from Dropbox Sign
+   * Calls the contracts endpoint directly since it's on the Contract model
+   */
+  refreshSignatureStatus: async (contractId: number): Promise<SignatureStatusResponse> => {
+    const response = await apiClient.get<SignatureStatusResponse>(
+      `/api/v1/contracts/${contractId}/signature_status/`
+    )
+    return response.data
+  },
+
+  // ============================================
+  // CAMPAIGN REPORTS
+  // ============================================
+
+  /**
+   * Generate a PDF report for a completed campaign
+   */
+  generateReport: async (campaignId: number): Promise<GenerateReportResponse> => {
+    const response = await apiClient.post<GenerateReportResponse>(
+      `${BASE_PATH}/${campaignId}/generate_report/`
+    )
+    return response.data
+  },
 }
 
 // ============================================
@@ -479,8 +515,17 @@ export interface CampaignContract {
   created_by_name?: string
 }
 
+export interface SignerInfo {
+  email: string | null
+  name: string | null
+  role: string
+  is_valid?: boolean
+  missing_fields?: Array<{ field: string; label: string }>
+}
+
 export interface ContractValidation {
   can_generate: boolean
+  can_send_for_signature: boolean
   dates: {
     is_valid: boolean
     has_start_date: boolean
@@ -491,6 +536,10 @@ export interface ContractValidation {
     entity_type: string | null
     missing_fields: Array<{ field: string; label: string }>
     warnings: string[]
+  }
+  signers: {
+    hahaha_rep: SignerInfo
+    client: SignerInfo
   }
 }
 
@@ -508,6 +557,30 @@ export interface SendForSignatureData {
     role: string
   }>
   test_mode?: boolean
+}
+
+export interface SignatureStatusResponse {
+  signature_request_id: string
+  is_complete: boolean
+  has_error: boolean
+  signatures: unknown[]
+  contract: {
+    id: number
+    status: string
+    [key: string]: unknown
+  }
+}
+
+// ============================================
+// CAMPAIGN REPORT TYPES
+// ============================================
+
+export interface GenerateReportResponse {
+  success: boolean
+  report_url: string
+  filename: string
+  file_size: number
+  generated_at: string
 }
 
 export default campaignsService

@@ -107,7 +107,7 @@ export function FilterPopover({
       case 'select':
       case 'multi-select':
         return (
-          <Command>
+          <Command shouldFilter={false}>
             <CommandInput placeholder={filterPlaceholder || 'Search...'} />
             <CommandList>
               <CommandEmpty>No options found.</CommandEmpty>
@@ -215,7 +215,7 @@ export function FilterPopover({
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen} modal={true}>
       <PopoverTrigger asChild>
         <Button
           variant="ghost"
@@ -233,6 +233,7 @@ export function FilterPopover({
         className="w-64 p-0"
         align="start"
         onClick={(e) => e.stopPropagation()}
+        sideOffset={4}
       >
         <div className="flex items-center justify-between p-2 border-b">
           <span className="text-sm font-medium">Filter</span>

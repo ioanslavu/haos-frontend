@@ -149,3 +149,121 @@ export interface DistributionStats {
   by_deal_type: Record<DealType, number>
   total_tracks: number
 }
+
+// ============================================
+// UI CONFIG
+// ============================================
+
+export const DEAL_STATUS_CONFIG: Record<DealStatus, {
+  label: string
+  emoji: string
+  color: string
+  bgColor: string
+  dotColor: string
+}> = {
+  active: {
+    label: 'Active',
+    emoji: '🟢',
+    color: 'text-green-600 dark:text-green-400',
+    bgColor: 'bg-green-100 dark:bg-green-900/30',
+    dotColor: 'bg-green-500',
+  },
+  in_negotiation: {
+    label: 'In Negotiation',
+    emoji: '🤝',
+    color: 'text-yellow-600 dark:text-yellow-400',
+    bgColor: 'bg-yellow-100 dark:bg-yellow-900/30',
+    dotColor: 'bg-yellow-500',
+  },
+  expired: {
+    label: 'Expired',
+    emoji: '⏰',
+    color: 'text-gray-600 dark:text-gray-400',
+    bgColor: 'bg-gray-100 dark:bg-gray-800/30',
+    dotColor: 'bg-gray-500',
+  },
+}
+
+export const DEAL_TYPE_CONFIG: Record<DealType, {
+  label: string
+  emoji: string
+  color: string
+  bgColor: string
+  description: string
+}> = {
+  artist: {
+    label: 'Artist',
+    emoji: '🎤',
+    color: 'text-purple-600 dark:text-purple-400',
+    bgColor: 'bg-purple-100 dark:bg-purple-900/30',
+    description: 'Direct artist distribution deal',
+  },
+  label: {
+    label: 'Label',
+    emoji: '🏷️',
+    color: 'text-blue-600 dark:text-blue-400',
+    bgColor: 'bg-blue-100 dark:bg-blue-900/30',
+    description: 'Label distribution deal',
+  },
+  aggregator: {
+    label: 'Aggregator',
+    emoji: '🔀',
+    color: 'text-orange-600 dark:text-orange-400',
+    bgColor: 'bg-orange-100 dark:bg-orange-900/30',
+    description: 'Distribution through aggregator',
+  },
+  company: {
+    label: 'Company',
+    emoji: '🏢',
+    color: 'text-slate-600 dark:text-slate-400',
+    bgColor: 'bg-slate-100 dark:bg-slate-900/30',
+    description: 'Company distribution deal',
+  },
+}
+
+export const DISTRIBUTION_STATUS_CONFIG: Record<DistributionStatus, {
+  label: string
+  emoji: string
+  color: string
+  bgColor: string
+}> = {
+  pending: {
+    label: 'Pending',
+    emoji: '⏳',
+    color: 'text-yellow-600 dark:text-yellow-400',
+    bgColor: 'bg-yellow-100 dark:bg-yellow-900/30',
+  },
+  live: {
+    label: 'Live',
+    emoji: '🟢',
+    color: 'text-green-600 dark:text-green-400',
+    bgColor: 'bg-green-100 dark:bg-green-900/30',
+  },
+  taken_down: {
+    label: 'Taken Down',
+    emoji: '🔴',
+    color: 'text-red-600 dark:text-red-400',
+    bgColor: 'bg-red-100 dark:bg-red-900/30',
+  },
+}
+
+// Active statuses for filtering
+export const ACTIVE_DEAL_STATUSES: DealStatus[] = ['active', 'in_negotiation']
+
+// Platform labels (icons come from @/lib/platform-icons)
+export const DISTRIBUTION_PLATFORM_LABELS: Record<Platform, string> = {
+  meta: 'Meta (FB/IG)',
+  google: 'Google',
+  tiktok: 'TikTok',
+  youtube: 'YouTube',
+  spotify: 'Spotify',
+  apple_music: 'Apple Music',
+  amazon_music: 'Amazon Music',
+  deezer: 'Deezer',
+  soundcloud: 'SoundCloud',
+  twitter: 'X/Twitter',
+  linkedin: 'LinkedIn',
+  snapchat: 'Snapchat',
+  pinterest: 'Pinterest',
+  multi: 'Multi-Platform',
+}

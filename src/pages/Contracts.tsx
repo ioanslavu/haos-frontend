@@ -1,31 +1,24 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { Send, Eye, Edit, Trash2, RefreshCw, MoreVertical } from 'lucide-react';
-import { ColumnDef } from '@tanstack/react-table';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { FileText, Search, X, ChevronsUpDown, ChevronsDownUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { DataTable } from '@/components/ui/data-table';
-import { StatusBadge } from '@/components/ui/badge-examples';
-import { NoContractsEmptyState, NoSearchResultsEmptyState, ErrorEmptyState } from '@/components/ui/empty-states-presets';
-import { GenerateContractDialog } from '@/components/contracts/GenerateContractDialog';
+import { NoContractsEmptyState, ErrorEmptyState } from '@/components/ui/empty-states-presets';
 import { EditContractDialog } from '@/components/contracts/EditContractDialog';
 import { RegenerateContractDialog } from '@/components/contracts/RegenerateContractDialog';
 import { SendForSignatureDialog } from '@/components/contracts/SendForSignatureDialog';
 import { SignatureStatusDialog } from '@/components/contracts/SignatureStatusDialog';
 import { ContractDetailSheet } from '@/components/contracts/ContractDetailSheet';
-import { useContracts, useTemplates, useDeleteContract } from '@/api/hooks/useContracts';
+import { ContractsTable, type ContractWithAnnexes } from './contracts/components';
+import { useContracts, useDeleteContract } from '@/api/hooks/useContracts';
 import { useAuthStore } from '@/stores/authStore';
 import { useMyContractsMatrix } from '@/api/hooks/useContractsRBAC';
-import { Contract, ContractListItem, ContractTemplate } from '@/api/services/contracts.service';
-import { Badge } from '@/components/ui/badge';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { ContractListItem } from '@/api/services/contracts.service';
+import { useDebounce } from '@/hooks/use-debounce';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,35 +31,105 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Loader2 } from 'lucide-react';
 
-// Map contract status to our StatusBadge component status
-const mapContractStatus = (status: string): any => {
-  const statusMap: Record<string, any> = {
-    'processing': 'processing',
-    'draft': 'draft',
-    'pending_signature': 'pending',
-    'signed': 'signed',
-    'cancelled': 'cancelled',
-    'failed': 'failed',
-  };
-  return statusMap[status] || 'inactive';
-};
+export default function ContractsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
-export default function ContractsModern() {
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [showGenerateDialog, setShowGenerateDialog] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<ContractTemplate | null>(null);
+  // Expansion state - default all expanded
+  const [expandedContracts, setExpandedContracts] = useState<Set<number>>(new Set());
+  const [initialExpansionDone, setInitialExpansionDone] = useState(false);
+
   const [editContract, setEditContract] = useState<ContractListItem | null>(null);
   const [regenerateContract, setRegenerateContract] = useState<ContractListItem | null>(null);
   const [sendForSignatureContract, setSendForSignatureContract] = useState<ContractListItem | null>(null);
   const [signatureStatusContract, setSignatureStatusContract] = useState<ContractListItem | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [contractToDelete, setContractToDelete] = useState<ContractListItem | null>(null);
-  const [selectedRows, setSelectedRows] = useState<ContractListItem[]>([]);
   const [detailSheetContractId, setDetailSheetContractId] = useState<number | null>(null);
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
 
-  const { data: contracts, isLoading, error, refetch } = useContracts();
-  const { data: templates } = useTemplates();
+  const debouncedSearch = useDebounce(search, 300);
+
+  // Build API params
+  const apiParams = useMemo(() => {
+    const params: Record<string, unknown> = {};
+
+    if (debouncedSearch) {
+      params.search = debouncedSearch;
+    }
+
+    if (statusFilter && statusFilter !== 'all') {
+      params.status = statusFilter;
+    }
+
+    params.ordering = '-created_at';
+
+    return params;
+  }, [debouncedSearch, statusFilter]);
+
+  const { data: contracts, isLoading, error, refetch } = useContracts(apiParams);
+
+  // Group contracts with their annexes
+  const groupedContracts = useMemo(() => {
+    if (!contracts) return [];
+
+    // Separate master contracts and annexes
+    const masters: ContractListItem[] = [];
+    const annexesByParent: Map<number, ContractListItem[]> = new Map();
+
+    contracts.forEach(contract => {
+      if (contract.is_annex && contract.parent_contract) {
+        // It's an annex - group it by parent
+        const existing = annexesByParent.get(contract.parent_contract) || [];
+        existing.push(contract);
+        annexesByParent.set(contract.parent_contract, existing);
+      } else {
+        // It's a master contract (or standalone)
+        masters.push(contract);
+      }
+    });
+
+    // Combine masters with their annexes
+    const result: ContractWithAnnexes[] = masters.map(master => ({
+      ...master,
+      annexes: annexesByParent.get(master.id) || [],
+    }));
+
+    // Sort annexes by created_at within each group
+    result.forEach(contract => {
+      contract.annexes.sort((a, b) =>
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+    });
+
+    return result;
+  }, [contracts]);
+
+  // Default expand all contracts with annexes on initial load
+  useEffect(() => {
+    if (!initialExpansionDone && groupedContracts.length > 0) {
+      const contractsWithAnnexes = groupedContracts
+        .filter(c => c.annexes.length > 0)
+        .map(c => c.id);
+      setExpandedContracts(new Set(contractsWithAnnexes));
+      setInitialExpansionDone(true);
+    }
+  }, [groupedContracts, initialExpansionDone]);
+
+  // Handle URL param for opening specific contract detail
+  useEffect(() => {
+    const contractParam = searchParams.get('contract');
+    if (contractParam && contracts) {
+      const contractId = parseInt(contractParam, 10);
+      if (!isNaN(contractId)) {
+        setDetailSheetContractId(contractId);
+        setDetailSheetOpen(true);
+        setSearchParams({}, { replace: true });
+      }
+    }
+  }, [searchParams, contracts, setSearchParams]);
+
   const deleteContractMutation = useDeleteContract();
   const currentUser = useAuthStore((s) => s.user);
   const { data: myMatrix } = useMyContractsMatrix(currentUser?.id);
@@ -76,7 +139,6 @@ export default function ContractsModern() {
     const allDialogsClosed = !editContract && !regenerateContract && !sendForSignatureContract && !signatureStatusContract && !deleteDialogOpen && !detailSheetOpen;
 
     if (allDialogsClosed) {
-      // Small delay to let animations finish
       const timer = setTimeout(() => {
         document.body.style.pointerEvents = '';
       }, 300);
@@ -84,11 +146,9 @@ export default function ContractsModern() {
     }
   }, [editContract, regenerateContract, sendForSignatureContract, signatureStatusContract, deleteDialogOpen, detailSheetOpen]);
 
-  const canDo = (contract: ContractListItem, action: 'publish' | 'send' | 'update' | 'delete' | 'regenerate') => {
-    // Admin override
+  const canDo = useCallback((contract: ContractListItem, action: 'publish' | 'send' | 'update' | 'delete' | 'regenerate') => {
     if (currentUser?.role === 'administrator') return true;
     if (!myMatrix || !myMatrix.policies) return false;
-    // Use template name for permission matching since contract_type no longer exists
     const templateName = contract.template_name || '';
     const row = myMatrix.policies.find(p => p.contract_type === templateName);
     if (!row) return false;
@@ -99,7 +159,7 @@ export default function ContractsModern() {
       case 'delete': return !!row.can_delete;
       case 'regenerate': return !!row.can_regenerate;
     }
-  };
+  }, [currentUser, myMatrix]);
 
   const handleDeleteContract = async () => {
     if (!contractToDelete) return;
@@ -112,225 +172,113 @@ export default function ContractsModern() {
     }
   };
 
-  const handleGenerateFromTemplate = (template: ContractTemplate) => {
-    setSelectedTemplate(template);
-    setShowGenerateDialog(true);
-  };
+  // Expansion handlers
+  const toggleExpanded = useCallback((contractId: number) => {
+    setExpandedContracts(prev => {
+      const next = new Set(prev);
+      if (next.has(contractId)) {
+        next.delete(contractId);
+      } else {
+        next.add(contractId);
+      }
+      return next;
+    });
+  }, []);
 
-  const handleBulkDelete = () => {
-    // Bulk delete implementation
-  };
+  const expandAll = useCallback(() => {
+    const allWithAnnexes = groupedContracts
+      .filter(c => c.annexes.length > 0)
+      .map(c => c.id);
+    setExpandedContracts(new Set(allWithAnnexes));
+  }, [groupedContracts]);
 
-  // Filter contracts
-  const filteredContracts = contracts?.filter(contract => {
-    const matchesStatus = statusFilter === 'all' || contract.status === statusFilter;
-    return matchesStatus;
-  }) || [];
+  const collapseAll = useCallback(() => {
+    setExpandedContracts(new Set());
+  }, []);
 
-  // Define columns for DataTable (memoized to prevent infinite re-renders)
-  const columns: ColumnDef<ContractListItem>[] = useMemo(() => [
-    {
-      accessorKey: 'contract_number',
-      header: 'Contract #',
-      cell: ({ row }) => {
-        const contract = row.original;
-        return (
-          <div className="flex flex-col">
-            <span className="font-mono text-sm">{row.getValue('contract_number')}</span>
-            {contract.is_annex && (
-              <span className="text-xs text-muted-foreground">
-                Annex of {contract.parent_contract_number}
-              </span>
-            )}
-          </div>
-        );
-      },
-    },
-    {
-      accessorKey: 'title',
-      header: 'Title',
-      cell: ({ row }) => (
-        <span className="font-medium">{row.getValue('title')}</span>
-      ),
-    },
-    {
-      accessorKey: 'counterparty_name',
-      header: 'Counterparty',
-      cell: ({ row }) => {
-        const name = row.getValue('counterparty_name') as string | null;
-        return name ? (
-          <span className="text-sm">{name}</span>
-        ) : (
-          <span className="text-muted-foreground text-sm">-</span>
-        );
-      },
-    },
-    {
-      accessorKey: 'template_name',
-      header: 'Template',
-      cell: ({ row }) => (
-        <Badge variant="outline">{row.getValue('template_name')}</Badge>
-      ),
-    },
-    {
-      accessorKey: 'status',
-      header: 'Status',
-      cell: ({ row }) => {
-        const status = row.getValue('status') as string;
-        return (
-          <div className="flex items-center gap-2">
-            <StatusBadge status={mapContractStatus(status)} variant="subtle" />
-            {status === 'processing' && (
-              <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-            )}
-          </div>
-        );
-      },
-    },
-    {
-      accessorKey: 'start_date',
-      header: 'Start Date',
-      cell: ({ row }) => {
-        const date = row.getValue('start_date') as string | null;
-        return date ? (
-          <span className="text-sm">{new Date(date).toLocaleDateString()}</span>
-        ) : (
-          <span className="text-muted-foreground text-sm">-</span>
-        );
-      },
-    },
-    {
-      accessorKey: 'created_at',
-      header: 'Created',
-      cell: ({ row }) => {
-        const date = new Date(row.getValue('created_at'));
-        return <span>{date.toLocaleDateString()}</span>;
-      },
-    },
-    {
-      accessorKey: 'created_by_email',
-      header: 'Creator',
-    },
-    {
-      id: 'actions',
-      header: 'Actions',
-      cell: ({ row }) => {
-        const contract = row.original;
-        return (
-          <div className="flex items-center justify-end gap-2">
-            <DropdownMenu modal={false}>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => {
-                  setDetailSheetContractId(contract.id);
-                  setDetailSheetOpen(true);
-                }}>
-                  <Eye className="h-4 w-4 mr-2" />
-                  View Details
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setEditContract(contract)} disabled={!canDo(contract, 'update')}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit
-                </DropdownMenuItem>
-                {contract.status === 'draft' && (
-                  <>
-                    <DropdownMenuItem onClick={() => setRegenerateContract(contract)} disabled={!canDo(contract, 'regenerate')}>
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Regenerate
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setSendForSignatureContract(contract)} disabled={!canDo(contract, 'send')}>
-                      <Send className="h-4 w-4 mr-2" />
-                      Send for Signature
-                    </DropdownMenuItem>
-                  </>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onClick={() => {
-                    setContractToDelete(contract);
-                    setDeleteDialogOpen(true);
-                  }}
-                  disabled={!canDo(contract, 'delete')}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        );
-      },
-    },
-  ], [currentUser, myMatrix]);
+  const hasActiveFilters = statusFilter !== 'all' || search;
+  const contractsWithAnnexes = groupedContracts.filter(c => c.annexes.length > 0);
+  const allExpanded = contractsWithAnnexes.length > 0 &&
+    contractsWithAnnexes.every(c => expandedContracts.has(c.id));
+  const totalCount = contracts?.length || 0;
+  const annexCount = contracts?.filter(c => c.is_annex).length || 0;
+  const masterCount = totalCount - annexCount;
 
   return (
     <AppLayout>
-      <div className="space-y-8 pb-8">
-        {/* Modern Glassmorphic Header with Gradient */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-500/10 via-teal-500/10 to-cyan-500/10 backdrop-blur-xl border border-white/20 dark:border-white/10 p-8 shadow-2xl">
-          {/* Animated gradient orbs */}
-          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-emerald-400/30 to-teal-500/30 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-cyan-400/30 to-blue-500/30 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500/10 via-teal-500/10 to-cyan-500/10 backdrop-blur-xl border border-white/20 dark:border-white/10 px-6 py-4 shadow-xl">
+          {/* Gradient Orbs */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-emerald-400/30 to-teal-500/30 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-cyan-400/30 to-blue-500/30 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
 
           <div className="relative z-10">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
-                  Contracts
-                </h1>
-                <p className="text-muted-foreground text-lg mt-2">
-                  Manage generated contracts and signatures
-                </p>
+            <div className="flex items-center gap-4 flex-wrap">
+              {/* Title + Stats */}
+              <div className="flex items-center gap-3 mr-auto">
+                <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg">
+                  <FileText className="h-5 w-5 text-white" />
+                </div>
+                <h1 className="text-2xl font-bold tracking-tight">Contracts</h1>
+                <span className="text-sm text-muted-foreground">
+                  {masterCount} contract{masterCount !== 1 ? 's' : ''}
+                  {annexCount > 0 && ` + ${annexCount} annex${annexCount !== 1 ? 'es' : ''}`}
+                </span>
               </div>
-              <div className="flex gap-3">
-                {templates && templates.length > 0 && (
-                  <Select onValueChange={(value) => {
-                    const template = templates.find(t => t.id.toString() === value);
-                    if (template) handleGenerateFromTemplate(template);
-                  }}>
-                    <SelectTrigger className="w-[200px] backdrop-blur-sm bg-white/50 dark:bg-white/10 hover:bg-white/80 dark:hover:bg-white/20 border-white/20">
-                      <SelectValue placeholder="Generate from template..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {templates.filter(t => t.is_active).map((template) => (
-                        <SelectItem key={template.id} value={template.id.toString()}>
-                          {template.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+
+              {/* Search */}
+              <div className="relative w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search contracts..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9 h-9 rounded-xl border-white/10 bg-background/50 backdrop-blur-sm text-sm"
+                />
+                {search && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+                    onClick={() => setSearch('')}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
                 )}
               </div>
+
+              {/* Status Filter */}
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[160px] h-9 rounded-xl backdrop-blur-sm bg-background/50 border-white/10">
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="pending_signature">Pending Signature</SelectItem>
+                  <SelectItem value="signed">Signed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="failed">Failed</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Clear filters */}
+              {hasActiveFilters && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => { setSearch(''); setStatusFilter('all'); }}
+                  className="h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground"
+                  title="Clear filters"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </div>
         </div>
-
-        {/* Filter */}
-        <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl p-4">
-          <div className="flex gap-4 items-center">
-            <label className="text-sm font-semibold">Status:</label>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[200px] backdrop-blur-sm bg-background/50 border-white/20 dark:border-white/10">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="processing">Processing</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="pending_signature">Pending Signature</SelectItem>
-                <SelectItem value="signed">Signed</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
-                <SelectItem value="failed">Failed</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </Card>
 
         {/* Error State */}
         {error && (
@@ -340,70 +288,86 @@ export default function ContractsModern() {
           />
         )}
 
-        {/* Contracts Table or Empty State */}
+        {/* Contracts Table */}
         {!error && (
-          contracts && contracts.length === 0 ? (
-            <NoContractsEmptyState
-              onPrimaryAction={() => {
-                if (templates && templates[0]) {
-                  handleGenerateFromTemplate(templates[0]);
-                }
-              }}
-              onSecondaryAction={() => {
-                window.location.href = '/templates';
-              }}
-            />
-          ) : (
-            <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-white/20 dark:border-white/10 shadow-xl rounded-2xl">
-              <DataTable
-                columns={columns}
-                data={filteredContracts}
-                isLoading={isLoading}
-                searchKey="title"
-                searchPlaceholder="Search contracts..."
-                showDensityToggle
-                showColumnToggle
-                pagination
-                pageSize={20}
-                ariaLabel="Contracts table"
-                onRowSelectionChange={(rows) => {
-                  setSelectedRows(rows.map(r => r.original));
+          <>
+            {isLoading ? (
+              <Card className="rounded-2xl border-white/10 bg-background/50 backdrop-blur-xl shadow-xl overflow-hidden p-4">
+                <div className="space-y-3">
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              </Card>
+            ) : groupedContracts.length === 0 && !hasActiveFilters ? (
+              <NoContractsEmptyState
+                onPrimaryAction={() => {
+                  window.location.href = '/templates';
                 }}
-                bulkActions={
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleBulkDelete}
-                    className="h-6 text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="mr-2 h-3 w-3" />
-                    Delete
-                  </Button>
-                }
-                emptyState={
-                  <NoSearchResultsEmptyState
-                    onClearSearch={() => {
-                      // Clear handled by DataTable
-                    }}
-                  />
-                }
               />
-            </Card>
-          )
+            ) : groupedContracts.length === 0 ? (
+              <Card className="rounded-2xl border-white/10 bg-background/50 backdrop-blur-xl shadow-xl overflow-hidden">
+                <div className="text-center py-12">
+                  <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">No contracts found matching your filters.</p>
+                </div>
+              </Card>
+            ) : (
+              <Card className="rounded-2xl border-white/10 bg-background/50 backdrop-blur-xl shadow-xl overflow-hidden">
+                {/* Expand/Collapse All Toolbar */}
+                {contractsWithAnnexes.length > 0 && (
+                  <div className="flex items-center justify-end gap-2 px-4 py-2 border-b border-border/40">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={allExpanded ? collapseAll : expandAll}
+                      className="h-8 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      {allExpanded ? (
+                        <>
+                          <ChevronsDownUp className="h-3.5 w-3.5 mr-1.5" />
+                          Collapse All
+                        </>
+                      ) : (
+                        <>
+                          <ChevronsUpDown className="h-3.5 w-3.5 mr-1.5" />
+                          Expand All
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
+
+                <ContractsTable
+                  contracts={groupedContracts}
+                  expandedContracts={expandedContracts}
+                  onToggleExpand={toggleExpanded}
+                  onContractClick={(contract) => {
+                    setDetailSheetContractId(contract.id);
+                    setDetailSheetOpen(true);
+                  }}
+                  onViewDetails={(contract) => {
+                    setDetailSheetContractId(contract.id);
+                    setDetailSheetOpen(true);
+                  }}
+                  onEdit={(contract) => setEditContract(contract)}
+                  onRegenerate={(contract) => setRegenerateContract(contract)}
+                  onSendForSignature={(contract) => setSendForSignatureContract(contract)}
+                  onDelete={(contract) => {
+                    setContractToDelete(contract);
+                    setDeleteDialogOpen(true);
+                  }}
+                  canDo={canDo}
+                />
+              </Card>
+            )}
+          </>
         )}
       </div>
 
       {/* Dialogs */}
-      <GenerateContractDialog
-        template={selectedTemplate}
-        open={showGenerateDialog}
-        onOpenChange={(open) => {
-          setShowGenerateDialog(open);
-          if (!open) {
-            setTimeout(() => setSelectedTemplate(null), 200);
-          }
-        }}
-      />
       <EditContractDialog
         contract={editContract}
         open={!!editContract}
@@ -476,6 +440,9 @@ export default function ContractsModern() {
           if (!open) {
             setTimeout(() => setDetailSheetContractId(null), 200);
           }
+        }}
+        onAnnexClick={(annexId) => {
+          setDetailSheetContractId(annexId);
         }}
       />
     </AppLayout>

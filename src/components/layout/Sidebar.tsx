@@ -62,7 +62,9 @@ interface NavigationItem {
   show?: (user: any) => boolean;
 }
 
-const navigation: NavigationItem[] = [
+// Navigation items organized by workflow sections
+// DAILY WORK - What do I need to do today?
+const dailyWorkNavigation: NavigationItem[] = [
   {
     name: 'Overview',
     href: '/',
@@ -75,18 +77,32 @@ const navigation: NavigationItem[] = [
     },
   },
   {
-    name: 'Contracts',
-    href: '/contracts',
-    icon: FileText,
-    show: (user) => user?.role === 'administrator' || (user?.role_detail?.level ?? 0) >= 300, // Admins and managers
+    name: 'Workboard',
+    href: '/workboard',
+    icon: FolderKanban,
+    show: (user) => user?.role !== 'guest' && (user?.department || user?.role === 'administrator'),
   },
   {
-    name: 'Templates',
-    href: '/templates',
-    icon: Layout,
-    show: (user) => user?.role === 'administrator' || (user?.role_detail?.level ?? 0) >= 300, // Admins and managers
+    name: 'Task Management',
+    href: '/task-management',
+    icon: CheckSquare,
+    show: (user) => {
+      // Hide for digital department users (they have their own tasks page)
+      const isDigital = user?.department?.name?.toLowerCase() === 'digital' ||
+                        user?.department?.toLowerCase() === 'digital';
+      return user?.role !== 'guest' && (user?.department || user?.role === 'administrator') && !isDigital;
+    },
   },
-  // { name: 'BI & Analytics', href: '/analytics', icon: BarChart3 },
+  {
+    name: 'Notes',
+    href: '/notes',
+    icon: StickyNote,
+    show: (user) => user?.role !== 'guest',
+  },
+];
+
+// MUSIC & CONTENT - Core creative work
+const musicNavigation: NavigationItem[] = [
   {
     name: 'Camps',
     href: '/camps',
@@ -115,28 +131,56 @@ const navigation: NavigationItem[] = [
       return user?.role !== 'guest' && (user?.department || user?.role === 'administrator') && !isDigital && !isMarketing;
     },
   },
+];
+
+// BUSINESS & SALES - Revenue-generating activities
+const businessNavigation: NavigationItem[] = [
   {
-    name: 'Task Management',
-    href: '/task-management',
-    icon: CheckSquare,
+    name: 'Contracts',
+    href: '/contracts',
+    icon: FileText,
+    show: (user) => user?.role === 'administrator' || (user?.role_detail?.level ?? 0) >= 300, // Admins and managers
+  },
+  {
+    name: 'Templates',
+    href: '/templates',
+    icon: Layout,
+    show: (user) => user?.role === 'administrator' || (user?.role_detail?.level ?? 0) >= 300, // Admins and managers
+  },
+  {
+    name: 'Invoices',
+    href: '/invoices',
+    icon: Receipt,
     show: (user) => {
-      // Hide for digital department users (they have their own tasks page)
-      const isDigital = user?.department?.name?.toLowerCase() === 'digital' ||
-                        user?.department?.toLowerCase() === 'digital';
-      return user?.role !== 'guest' && (user?.department || user?.role === 'administrator') && !isDigital;
+      // Show for managers and admins (level >= 300) - all departments
+      return user?.role === 'administrator' || (user?.role_detail?.level ?? 0) >= 300;
+    },
+  },
+];
+
+// CRM & DATA - Reference information
+const crmNavigation: NavigationItem[] = [
+  {
+    name: 'Entities',
+    href: '/entities',
+    icon: Users,
+    show: (user) => {
+      // Hide for marketing department
+      const isMarketing = user?.department?.name?.toLowerCase() === 'marketing' ||
+                          user?.department?.toLowerCase() === 'marketing';
+      return user?.role !== 'guest' && !isMarketing;
     },
   },
   {
-    name: 'Workboard',
-    href: '/workboard',
-    icon: FolderKanban,
-    show: (user) => user?.role !== 'guest' && (user?.department || user?.role === 'administrator'),
-  },
-  {
-    name: 'Notes',
-    href: '/notes',
-    icon: StickyNote,
-    show: (user) => user?.role !== 'guest',
+    name: 'Activities',
+    href: '/activities',
+    icon: Activity,
+    show: (user) => {
+      // Hide for marketing department
+      const isMarketing = user?.department?.name?.toLowerCase() === 'marketing' ||
+                          user?.department?.toLowerCase() === 'marketing';
+      return user?.role !== 'guest' && !isMarketing;
+    },
   },
   {
     name: 'Teams',
@@ -148,7 +192,6 @@ const navigation: NavigationItem[] = [
       return canManageTeams && (user?.department || user?.role === 'administrator');
     },
   },
-  // { name: 'Studio', href: '/studio', icon: Calendar },
 ];
 
 // Digital navigation items - shown as regular nav items for digital users
@@ -197,17 +240,6 @@ const digitalNavigation: NavigationItem[] = [
     },
   },
   {
-    name: 'Invoices',
-    href: '/invoices',
-    icon: Receipt,
-    show: (user) => {
-      const isDigital = user?.department?.name?.toLowerCase() === 'digital' ||
-                        user?.department?.toLowerCase() === 'digital';
-      // Hide for digital_employee, show only for digital_manager
-      return isDigital && user?.role !== 'administrator' && user?.role !== 'digital_employee';
-    },
-  },
-  {
     name: 'Tasks',
     href: '/digital/tasks',
     icon: CheckSquare,
@@ -245,35 +277,10 @@ const marketingNavigation: NavigationItem[] = [
   },
 ];
 
-// Bottom navigation items - shown at the bottom for everyone
-const bottomNavigation: NavigationItem[] = [
-  {
-    name: 'Entities',
-    href: '/entities',
-    icon: Users,
-    show: (user) => {
-      // Hide for marketing department
-      const isMarketing = user?.department?.name?.toLowerCase() === 'marketing' ||
-                          user?.department?.toLowerCase() === 'marketing';
-      return user?.role !== 'guest' && !isMarketing;
-    },
-  },
-  {
-    name: 'Activities',
-    href: '/activities',
-    icon: Activity,
-    show: (user) => {
-      // Hide for marketing department
-      const isMarketing = user?.department?.name?.toLowerCase() === 'marketing' ||
-                          user?.department?.toLowerCase() === 'marketing';
-      return user?.role !== 'guest' && !isMarketing;
-    },
-  },
-];
 
 const digitalSubmenu: NavigationItem[] = [
   { name: 'Overview', href: '/digital/overview', icon: LayoutDashboard },
-  { name: 'Campanii', href: '/digital/campaigns', icon: Megaphone },
+  { name: 'Campaigns', href: '/digital/campaigns', icon: Megaphone },
   // { name: 'Servicii', href: '/digital/services', icon: Settings2 },
   {
     name: 'Distributions',
@@ -285,12 +292,6 @@ const digitalSubmenu: NavigationItem[] = [
     name: 'Financiar',
     href: '/digital/financial',
     icon: DollarSign,
-    show: (user) => user?.role !== 'digital_employee' // Hide for digital_employee
-  },
-  {
-    name: 'Invoices',
-    href: '/invoices',
-    icon: Receipt,
     show: (user) => user?.role !== 'digital_employee' // Hide for digital_employee
   },
   { name: 'Task-uri', href: '/digital/tasks', icon: CheckSquare },
@@ -365,8 +366,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
 
       <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 min-h-0">
         <ul className="space-y-1.5">
-          {navigation.map((item) => {
-            // Check if item should be shown based on user role
+          {/* DAILY WORK Section */}
+          {dailyWorkNavigation.map((item) => {
             const shouldShow = !item.show || item.show(user);
             if (!shouldShow) return null;
 
@@ -450,68 +451,40 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             );
           })}
 
-          {/* Digital Dropdown - Show only for admins (digital users get regular nav items above) */}
-          {(() => {
-            const canSeeDigital = user?.role === 'administrator';
+          {/* MUSIC & CONTENT Section - only show label if any items visible */}
+          {musicNavigation.some((item) => !item.show || item.show(user)) && !collapsed && (
+            <li className="mt-3 mb-1.5">
+              <div className="px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                Music
+              </div>
+            </li>
+          )}
+          {musicNavigation.map((item) => {
+            const shouldShow = !item.show || item.show(user);
+            if (!shouldShow) return null;
 
-            return canSeeDigital && (
-              <li>
-                <button
-                  onClick={() => setDigitalOpen(!digitalOpen)}
-                  aria-label={digitalOpen ? "Collapse digital menu" : "Expand digital menu"}
-                  aria-expanded={digitalOpen}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-semibold transition-all duration-300 w-full",
-                    "hover:bg-white/20 dark:hover:bg-white/10 backdrop-blur-sm text-foreground hover:scale-105",
-                    collapsed && "justify-center px-3"
-                  )}
+            return (
+              <li key={item.name}>
+                <NavLink
+                  to={item.href}
+                  aria-label={`Navigate to ${item.name}`}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-semibold transition-all duration-300",
+                      "hover:scale-105",
+                      isActive
+                        ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/30"
+                        : "text-foreground hover:bg-white/20 dark:hover:bg-white/10 backdrop-blur-sm",
+                      collapsed && "justify-center px-3"
+                    )
+                  }
                 >
-                  <Sparkles className="h-5 w-5 flex-shrink-0" />
-                  {!collapsed && (
-                    <>
-                      <span className="flex-1 text-left">Digital</span>
-                      <ChevronDown
-                        className={cn(
-                          "h-4 w-4 transition-transform duration-300",
-                          digitalOpen && "rotate-180"
-                        )}
-                      />
-                    </>
-                  )}
-                </button>
-                {!collapsed && digitalOpen && (
-                  <ul className="ml-4 mt-2 space-y-1.5">
-                    {digitalSubmenu.map((item) => {
-                      // Check if item should be shown based on user role
-                      const shouldShow = !item.show || item.show(user);
-                      if (!shouldShow) return null;
-
-                      return (
-                        <li key={item.name}>
-                          <NavLink
-                            to={item.href}
-                            aria-label={`Navigate to ${item.name}`}
-                            className={({ isActive }) =>
-                              cn(
-                                "flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-300",
-                                "hover:bg-white/10 dark:hover:bg-white/5 backdrop-blur-sm",
-                                isActive
-                                  ? "bg-gradient-to-r from-blue-500/20 to-purple-600/20 text-foreground font-semibold"
-                                  : "text-muted-foreground"
-                              )
-                            }
-                          >
-                            <item.icon className="h-4 w-4 flex-shrink-0" />
-                            <span>{item.name}</span>
-                          </NavLink>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
+                  <item.icon className="h-5 w-5 flex-shrink-0" />
+                  {!collapsed && <span>{item.name}</span>}
+                </NavLink>
               </li>
             );
-          })()}
+          })}
 
           {/* Artist Sales Dropdown - Hide for digital and marketing users */}
           {(() => {
@@ -574,8 +547,50 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             );
           })()}
 
-          {/* Bottom Navigation - Catalog, Entities, and Activities */}
-          {bottomNavigation.map((item) => {
+          {/* BUSINESS & SALES Section - only show label if any items visible */}
+          {businessNavigation.some((item) => !item.show || item.show(user)) && !collapsed && (
+            <li className="mt-3 mb-1.5">
+              <div className="px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                Business
+              </div>
+            </li>
+          )}
+          {businessNavigation.map((item) => {
+            const shouldShow = !item.show || item.show(user);
+            if (!shouldShow) return null;
+
+            return (
+              <li key={item.name}>
+                <NavLink
+                  to={item.href}
+                  aria-label={`Navigate to ${item.name}`}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-semibold transition-all duration-300",
+                      "hover:scale-105",
+                      isActive
+                        ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/30"
+                        : "text-foreground hover:bg-white/20 dark:hover:bg-white/10 backdrop-blur-sm",
+                      collapsed && "justify-center px-3"
+                    )
+                  }
+                >
+                  <item.icon className="h-5 w-5 flex-shrink-0" />
+                  {!collapsed && <span>{item.name}</span>}
+                </NavLink>
+              </li>
+            );
+          })}
+
+          {/* CRM & DATA Section - only show label if any items visible */}
+          {crmNavigation.some((item) => !item.show || item.show(user)) && !collapsed && (
+            <li className="mt-3 mb-1.5">
+              <div className="px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                CRM
+              </div>
+            </li>
+          )}
+          {crmNavigation.map((item) => {
             const shouldShow = !item.show || item.show(user);
             if (!shouldShow) return null;
 
@@ -610,6 +625,69 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
               </li>
             );
           })}
+
+          {/* Digital Dropdown - Show only for admins (digital users get regular nav items above) */}
+          {(() => {
+            const canSeeDigital = user?.role === 'administrator';
+
+            return canSeeDigital && (
+              <li>
+                <button
+                  onClick={() => setDigitalOpen(!digitalOpen)}
+                  aria-label={digitalOpen ? "Collapse digital menu" : "Expand digital menu"}
+                  aria-expanded={digitalOpen}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-semibold transition-all duration-300 w-full",
+                    "hover:bg-white/20 dark:hover:bg-white/10 backdrop-blur-sm text-foreground hover:scale-105",
+                    collapsed && "justify-center px-3"
+                  )}
+                >
+                  <Sparkles className="h-5 w-5 flex-shrink-0" />
+                  {!collapsed && (
+                    <>
+                      <span className="flex-1 text-left">Digital</span>
+                      <ChevronDown
+                        className={cn(
+                          "h-4 w-4 transition-transform duration-300",
+                          digitalOpen && "rotate-180"
+                        )}
+                      />
+                    </>
+                  )}
+                </button>
+                {!collapsed && digitalOpen && (
+                  <ul className="ml-4 mt-2 space-y-1.5">
+                    {digitalSubmenu.map((item) => {
+                      // Check if item should be shown based on user role
+                      const shouldShow = !item.show || item.show(user);
+                      if (!shouldShow) return null;
+
+                      return (
+                        <li key={item.name}>
+                          <NavLink
+                            to={item.href}
+                            aria-label={`Navigate to ${item.name}`}
+                            className={({ isActive }) =>
+                              cn(
+                                "flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-300",
+                                "hover:bg-white/10 dark:hover:bg-white/5 backdrop-blur-sm",
+                                isActive
+                                  ? "bg-gradient-to-r from-blue-500/20 to-purple-600/20 text-foreground font-semibold"
+                                  : "text-muted-foreground"
+                              )
+                            }
+                          >
+                            <item.icon className="h-4 w-4 flex-shrink-0" />
+                            <span>{item.name}</span>
+                          </NavLink>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </li>
+            );
+          })()}
 
           {/* Department Requests - For admins and managers only */}
           {isAdminOrManager() && (

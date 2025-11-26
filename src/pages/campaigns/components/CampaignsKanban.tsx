@@ -11,6 +11,7 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { formatMoney, cn } from '@/lib/utils'
+import { PLATFORM_ICONS, PLATFORM_TEXT_COLORS } from '@/lib/platform-icons'
 import type { Campaign, CampaignStatus } from '@/types/campaign'
 import {
   CAMPAIGN_STATUS_CONFIG,
@@ -37,6 +38,7 @@ import { Clock, Activity, CheckCircle, Target, AlertTriangle, XCircle, Ban } fro
 interface CampaignsKanbanProps {
   campaigns: Campaign[]
   onCampaignClick?: (id: number) => void
+  onClientClick?: (clientId: number) => void
 }
 
 // Statuses to show in kanban
@@ -105,7 +107,7 @@ function DraggableCampaignCard({
   )
 }
 
-export function CampaignsKanban({ campaigns, onCampaignClick }: CampaignsKanbanProps) {
+export function CampaignsKanban({ campaigns, onCampaignClick, onClientClick }: CampaignsKanbanProps) {
   const navigate = useNavigate()
   const [activeCampaign, setActiveCampaign] = useState<Campaign | null>(null)
   const updateStatus = useUpdateCampaignStatus()
@@ -124,6 +126,14 @@ export function CampaignsKanban({ campaigns, onCampaignClick }: CampaignsKanbanP
       onCampaignClick(id)
     } else {
       navigate(`/campaigns/${id}`)
+    }
+  }
+
+  const handleClientClick = (clientId: number) => {
+    if (onClientClick) {
+      onClientClick(clientId)
+    } else {
+      navigate(`/entities/${clientId}`)
     }
   }
 
@@ -224,7 +234,10 @@ export function CampaignsKanban({ campaigns, onCampaignClick }: CampaignsKanbanP
                           campaign={campaign}
                           onClick={() => handleClick(campaign.id)}
                         >
-                          <KanbanCard campaign={campaign} />
+                          <KanbanCard
+                            campaign={campaign}
+                            onClientClick={() => campaign.client?.id && handleClientClick(campaign.client.id)}
+                          />
                         </DraggableCampaignCard>
                       ))
                     )}
@@ -260,9 +273,10 @@ export function CampaignsKanban({ campaigns, onCampaignClick }: CampaignsKanbanP
 interface KanbanCardProps {
   campaign: Campaign
   isDragging?: boolean
+  onClientClick?: () => void
 }
 
-function KanbanCard({ campaign, isDragging }: KanbanCardProps) {
+function KanbanCard({ campaign, isDragging, onClientClick }: KanbanCardProps) {
   const budget = parseFloat(campaign.total_budget || '0')
   const spent = parseFloat(campaign.total_spent || '0')
   const utilization = budget > 0 ? (spent / budget) * 100 : 0
@@ -296,7 +310,18 @@ function KanbanCard({ campaign, isDragging }: KanbanCardProps) {
         </div>
 
         {/* Client */}
-        <div className="flex items-center gap-1.5">
+        <div
+          className={cn(
+            "flex items-center gap-1.5 rounded px-1 -mx-1 py-0.5 transition-colors",
+            campaign.client?.id && onClientClick && "hover:bg-primary/10 cursor-pointer"
+          )}
+          onClick={(e) => {
+            if (campaign.client?.id && onClientClick) {
+              e.stopPropagation()
+              onClientClick()
+            }
+          }}
+        >
           <div className="h-4 w-4 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center flex-shrink-0">
             <span className="text-[8px] font-semibold">
               {campaign.client?.display_name?.charAt(0) || '?'}
@@ -310,17 +335,17 @@ function KanbanCard({ campaign, isDragging }: KanbanCardProps) {
         {/* Platforms */}
         {uniquePlatforms.length > 0 && (
           <div className="flex items-center gap-1">
-            <div className="flex gap-0.5">
+            <div className="flex gap-1">
               {uniquePlatforms.slice(0, 5).map((platform) => {
                 const pConfig = PLATFORM_CONFIG[platform]
+                const Icon = PLATFORM_ICONS[platform]
+                const colorClass = PLATFORM_TEXT_COLORS[platform]
                 return (
-                  <span
+                  <Icon
                     key={platform}
-                    className="text-sm"
+                    className={cn('h-4 w-4', colorClass)}
                     title={pConfig?.label}
-                  >
-                    {pConfig?.emoji}
-                  </span>
+                  />
                 )
               })}
             </div>

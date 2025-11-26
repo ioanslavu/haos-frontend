@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Plus, Trash2, Upload, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,6 +54,7 @@ interface FormFieldInput {
 
 export default function ImportTemplate() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const importTemplate = useImportTemplate();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -176,6 +178,10 @@ export default function ImportTemplate() {
         gdrive_output_folder_id: gdriveOutputFolderId,
         form_schema,
       });
+
+      // Ensure templates list is refetched before navigating
+      // This prevents showing stale data on the templates page
+      await queryClient.refetchQueries({ queryKey: ['contracts', 'templates'] });
 
       // Navigate back to templates page
       navigate('/templates');

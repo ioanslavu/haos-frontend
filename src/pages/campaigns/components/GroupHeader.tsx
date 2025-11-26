@@ -5,6 +5,7 @@
  */
 
 import { ChevronDown, ChevronRight } from 'lucide-react'
+import type { IconType } from 'react-icons'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
@@ -14,6 +15,9 @@ interface GroupHeaderProps {
   title: string
   subtitle?: string
   emoji?: string
+  icon?: IconType
+  iconBgColor?: string
+  iconTextColor?: string
   imageUrl?: string
   campaignCount: number
   activeCount?: number
@@ -30,6 +34,9 @@ export function GroupHeader({
   title,
   subtitle,
   emoji,
+  icon: Icon,
+  iconBgColor,
+  iconTextColor,
   imageUrl,
   campaignCount,
   activeCount = 0,
@@ -69,6 +76,13 @@ export function GroupHeader({
             alt={title}
             className="h-10 w-10 rounded-full object-cover"
           />
+        ) : Icon ? (
+          <div className={cn(
+            'h-10 w-10 rounded-xl flex items-center justify-center',
+            iconBgColor || 'bg-muted'
+          )}>
+            <Icon className={cn('h-5 w-5', iconTextColor || 'text-foreground')} />
+          </div>
         ) : emoji ? (
           <div className="text-3xl">{emoji}</div>
         ) : (
@@ -177,6 +191,7 @@ export function ClientGroupHeader({
 
 import type { Platform } from '@/types/campaign'
 import { PLATFORM_CONFIG } from '@/types/campaign'
+import { PLATFORM_ICONS, PLATFORM_COLORS } from '@/lib/platform-icons'
 
 interface PlatformGroupHeaderProps {
   platform: Platform
@@ -198,12 +213,20 @@ export function PlatformGroupHeader({
   onToggle,
 }: PlatformGroupHeaderProps) {
   const platformConfig = PLATFORM_CONFIG[platform]
+  const Icon = PLATFORM_ICONS[platform]
+  const brandColor = PLATFORM_COLORS[platform]
+
+  // Parse brand color into bg and text colors
+  const bgColor = brandColor ? brandColor.split(' ')[1] : undefined
+  const textColor = brandColor ? brandColor.split(' ')[0] : undefined
 
   return (
     <GroupHeader
       title={platformConfig?.label || platform}
       subtitle={`${subcampaignCount} subcampaign${subcampaignCount !== 1 ? 's' : ''}`}
-      emoji={platformConfig?.emoji}
+      icon={Icon}
+      iconBgColor={bgColor}
+      iconTextColor={textColor}
       campaignCount={subcampaignCount}
       activeCount={activeCount}
       totalBudget={totalBudget}

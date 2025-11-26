@@ -61,10 +61,47 @@ export type ServiceType =
   | 'other'
 
 export type PaymentMethod =
-  | 'invoice'
-  | 'credit_card'
-  | 'prepaid'
+  | 'service_fee'
   | 'revenue_share'
+
+// KPI Types based on CampaignMetrics model
+export type KPIType =
+  // Performance
+  | 'impressions'
+  | 'clicks'
+  | 'ctr'
+  | 'conversions'
+  | 'conversion_rate'
+  | 'cpc'
+  | 'cpa'
+  // Social
+  | 'reach'
+  | 'engagement'
+  | 'engagement_rate'
+  | 'followers_gained'
+  // Content
+  | 'views'
+  | 'watch_time_minutes'
+  | 'shares'
+  | 'comments'
+  | 'likes'
+  // Music
+  | 'streams'
+  | 'downloads'
+  | 'playlist_adds'
+  | 'radio_plays'
+  // Revenue
+  | 'revenue'
+  | 'roi'
+  | 'cost'
+
+export type KPIUnit = 'count' | 'percent' | 'currency' | 'minutes'
+
+export interface KPITarget {
+  target: number
+  unit: KPIUnit
+  actual?: number
+}
 
 export type CampaignAssignmentRole = 'lead' | 'support' | 'observer'
 
@@ -115,6 +152,62 @@ export interface SubCampaignContractInfo {
   is_annex: boolean
 }
 
+/** SubCampaign Invoice Link */
+export interface SubCampaignInvoiceLink {
+  id: number
+  subcampaign: number
+  invoice: number
+  invoice_number: string
+  invoice_name: string
+  invoice_type: 'income' | 'expense'
+  amount: string | null
+  currency: string
+  status: 'draft' | 'uploaded' | 'paid' | 'cancelled'
+  status_display: string
+  extraction_status: 'pending' | 'processing' | 'success' | 'failed' | 'manual'
+  has_file: boolean
+  needs_manual_amount: boolean
+  created_at: string
+  created_by?: number
+  created_by_email?: string
+}
+
+/** Campaign Invoice Link (campaign-level invoices, typically income from client) */
+export interface CampaignInvoiceLink {
+  id: number
+  campaign: number
+  invoice: number
+  invoice_number: string
+  invoice_name: string
+  invoice_type: 'income' | 'expense'
+  amount: string | null
+  currency: string
+  status: 'draft' | 'uploaded' | 'paid' | 'cancelled'
+  status_display: string
+  extraction_status: 'pending' | 'processing' | 'success' | 'failed' | 'manual'
+  has_file: boolean
+  needs_manual_amount: boolean
+  created_at: string
+  created_by?: number
+  created_by_email?: string
+}
+
+/** Upload invoice payload */
+export interface SubCampaignInvoiceUploadPayload {
+  file: File
+  name: string
+  invoice_type?: 'income' | 'expense'
+  currency?: string
+  amount?: string
+  notes?: string
+}
+
+/** Set amount payload */
+export interface InvoiceAmountUpdatePayload {
+  amount: string
+  currency?: string
+}
+
 /** SubCampaign - platform-level campaign */
 export interface SubCampaign {
   id: number
@@ -130,8 +223,10 @@ export interface SubCampaign {
   status_display?: string
 
   // Budget & Payment
+  client_value: string
   budget: string
   spent: string
+  internal_cost: string
   currency: string
   payment_method: PaymentMethod
   payment_method_display?: string
@@ -143,7 +238,7 @@ export interface SubCampaign {
   artists: Entity[]
 
   // KPIs
-  kpi_targets?: Record<string, { target: number; unit: string }>
+  kpi_targets?: Record<string, KPITarget>
 
   // Period
   start_date?: string
@@ -152,6 +247,10 @@ export interface SubCampaign {
   // Contract coverage
   contract_info?: SubCampaignContractInfo | null
   has_contract: boolean
+
+  // Invoices (platform spend tracking)
+  invoices?: SubCampaignInvoiceLink[]
+  invoice_count?: number
 
   // Metadata
   notes?: string
@@ -273,7 +372,7 @@ export interface SubCampaignCreateData {
   revenue_share_percentage?: string
   song_ids?: number[]
   artist_ids?: number[]
-  kpi_targets?: Record<string, { target: number; unit: string }>
+  kpi_targets?: Record<string, KPITarget>
   start_date?: string
   end_date?: string
   notes?: string
@@ -284,13 +383,15 @@ export interface SubCampaignUpdateData {
   platform_other?: string
   service_type?: ServiceType
   status?: SubCampaignStatus
+  client_value?: string
   budget?: string
   spent?: string
+  internal_cost?: string
   currency?: string
   payment_method?: PaymentMethod
   revenue_share_percentage?: string
   revenue_generated?: string
-  kpi_targets?: Record<string, { target: number; unit: string }>
+  kpi_targets?: Record<string, KPITarget>
   start_date?: string
   end_date?: string
   notes?: string
@@ -513,20 +614,10 @@ export const PAYMENT_METHOD_CONFIG: Record<PaymentMethod, {
   emoji: string
   description: string
 }> = {
-  invoice: {
-    label: 'Invoice',
-    emoji: '📄',
-    description: 'Payment via invoice',
-  },
-  credit_card: {
-    label: 'Credit Card',
-    emoji: '💳',
-    description: 'Direct credit card payment',
-  },
-  prepaid: {
-    label: 'Prepaid',
+  service_fee: {
+    label: 'Service Fee',
     emoji: '💰',
-    description: 'Full payment before campaign starts',
+    description: 'Fixed service fee pricing',
   },
   revenue_share: {
     label: 'Revenue Share',
@@ -612,9 +703,7 @@ export const CAMPAIGN_ASSIGNMENT_ROLE_LABELS: Record<CampaignAssignmentRole, str
 
 /** Pricing/Payment model labels */
 export const PRICING_MODEL_LABELS: Record<PaymentMethod, string> = {
-  invoice: 'Invoice',
-  credit_card: 'Credit Card',
-  prepaid: 'Prepaid',
+  service_fee: 'Service Fee',
   revenue_share: 'Revenue Share',
 }
 
@@ -635,4 +724,62 @@ export const INVOICE_STATUS_COLORS: Record<InvoiceStatus, string> = {
   paid: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
   overdue: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
   cancelled: 'bg-gray-100 text-gray-500 dark:bg-gray-800/30 dark:text-gray-500',
+}
+
+// ============================================
+// KPI CONFIGURATION
+// ============================================
+
+export const KPI_CONFIG: Record<KPIType, {
+  label: string
+  unit: KPIUnit
+  category: 'performance' | 'social' | 'content' | 'music' | 'revenue'
+  icon?: string
+}> = {
+  // Performance
+  impressions: { label: 'Impressions', unit: 'count', category: 'performance' },
+  clicks: { label: 'Clicks', unit: 'count', category: 'performance' },
+  ctr: { label: 'CTR', unit: 'percent', category: 'performance' },
+  conversions: { label: 'Conversions', unit: 'count', category: 'performance' },
+  conversion_rate: { label: 'Conversion Rate', unit: 'percent', category: 'performance' },
+  cpc: { label: 'CPC', unit: 'currency', category: 'performance' },
+  cpa: { label: 'CPA', unit: 'currency', category: 'performance' },
+  // Social
+  reach: { label: 'Reach', unit: 'count', category: 'social' },
+  engagement: { label: 'Engagement', unit: 'count', category: 'social' },
+  engagement_rate: { label: 'Engagement Rate', unit: 'percent', category: 'social' },
+  followers_gained: { label: 'Followers Gained', unit: 'count', category: 'social' },
+  // Content
+  views: { label: 'Views', unit: 'count', category: 'content' },
+  watch_time_minutes: { label: 'Watch Time', unit: 'minutes', category: 'content' },
+  shares: { label: 'Shares', unit: 'count', category: 'content' },
+  comments: { label: 'Comments', unit: 'count', category: 'content' },
+  likes: { label: 'Likes', unit: 'count', category: 'content' },
+  // Music
+  streams: { label: 'Streams', unit: 'count', category: 'music' },
+  downloads: { label: 'Downloads', unit: 'count', category: 'music' },
+  playlist_adds: { label: 'Playlist Adds', unit: 'count', category: 'music' },
+  radio_plays: { label: 'Radio Plays', unit: 'count', category: 'music' },
+  // Revenue
+  revenue: { label: 'Revenue', unit: 'currency', category: 'revenue' },
+  roi: { label: 'ROI', unit: 'percent', category: 'revenue' },
+  cost: { label: 'Cost', unit: 'currency', category: 'revenue' },
+}
+
+export const KPI_CATEGORIES = [
+  { key: 'performance', label: 'Performance', kpis: ['impressions', 'clicks', 'ctr', 'conversions', 'conversion_rate', 'cpc', 'cpa'] as KPIType[] },
+  { key: 'social', label: 'Social', kpis: ['reach', 'engagement', 'engagement_rate', 'followers_gained'] as KPIType[] },
+  { key: 'content', label: 'Content', kpis: ['views', 'watch_time_minutes', 'shares', 'comments', 'likes'] as KPIType[] },
+  { key: 'music', label: 'Music', kpis: ['streams', 'downloads', 'playlist_adds', 'radio_plays'] as KPIType[] },
+  { key: 'revenue', label: 'Revenue', kpis: ['revenue', 'roi', 'cost'] as KPIType[] },
+]
+
+// Platform-specific default KPIs
+export const PLATFORM_DEFAULT_KPIS: Partial<Record<Platform, KPIType[]>> = {
+  spotify: ['streams', 'playlist_adds', 'followers_gained'],
+  apple_music: ['streams', 'downloads', 'playlist_adds'],
+  youtube: ['views', 'watch_time_minutes', 'engagement'],
+  tiktok: ['views', 'engagement', 'shares'],
+  meta: ['impressions', 'reach', 'engagement', 'clicks'],
+  google: ['impressions', 'clicks', 'conversions', 'cpc'],
 }

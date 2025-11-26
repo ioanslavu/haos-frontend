@@ -3,12 +3,12 @@ import { TableHead } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { SortIndicator } from './SortIndicator';
 import { FilterPopover } from './FilterPopover';
-import type { ColumnDef, SortDirection, SortState, FilterState, RowDensity, DENSITY_CLASSES, FilterOption } from '../types';
+import type { ColumnDef, SortDirection, SortState, RowDensity, DENSITY_CLASSES, FilterOption } from '../types';
 
 interface HeaderCellProps<T> {
   column: ColumnDef<T>;
   sortState: SortState | null;
-  filterState?: FilterState;
+  filterState?: { columnId: string; value: unknown };
   onSort?: (columnId: string, direction: SortDirection) => void;
   onFilter?: (columnId: string, value: unknown) => void;
   onClearFilter?: (columnId: string) => void;
@@ -44,9 +44,9 @@ export function HeaderCell<T>({
     onSort(column.id, nextDirection);
   }, [column.id, column.sortable, currentDirection, onSort]);
 
-  const handleFilterChange = useCallback((value: unknown) => {
-    onFilter?.(column.id, value);
-  }, [column.id, onFilter]);
+  const handleFilterChange = useCallback((columnId: string, value: unknown) => {
+    onFilter?.(columnId, value);
+  }, [onFilter]);
 
   const handleClearFilter = useCallback(() => {
     onClearFilter?.(column.id);
@@ -61,6 +61,7 @@ export function HeaderCell<T>({
     <TableHead
       className={cn(
         densityClasses.head,
+        'font-semibold group',
         column.headerClassName,
         column.align === 'center' && 'text-center',
         column.align === 'right' && 'text-right'
@@ -76,7 +77,7 @@ export function HeaderCell<T>({
         <div
           className={cn(
             'flex items-center gap-1 flex-1 min-w-0',
-            column.sortable && 'cursor-pointer select-none hover:text-foreground'
+            column.sortable && 'cursor-pointer select-none'
           )}
           onClick={column.sortable ? handleSortClick : undefined}
           role={column.sortable ? 'button' : undefined}
@@ -100,22 +101,27 @@ export function HeaderCell<T>({
           }
         >
           {headerContent && <span className="truncate">{headerContent}</span>}
-          {column.sortable && (
+          {/* Only show sort indicator when actively sorted */}
+          {column.sortable && isSorted && (
             <SortIndicator direction={currentDirection} />
           )}
         </div>
 
-        {/* Filter popover */}
+        {/* Filter popover - only visible on hover or when active */}
         {column.filterable && column.filterType && (
-          <FilterPopover
-            filterType={column.filterType}
-            value={isFiltered ? filterState?.value : undefined}
-            onChange={handleFilterChange}
-            onClear={handleClearFilter}
-            options={filterOptions}
-            placeholder={column.filterPlaceholder}
-            isActive={isFiltered}
-          />
+          <div className={cn(
+            'transition-opacity',
+            isFiltered ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+          )}>
+            <FilterPopover
+              columnId={column.id}
+              filterType={column.filterType}
+              filterOptions={filterOptions}
+              filterPlaceholder={column.filterPlaceholder}
+              currentValue={isFiltered ? filterState?.value : undefined}
+              onFilterChange={handleFilterChange}
+            />
+          </div>
         )}
       </div>
     </TableHead>

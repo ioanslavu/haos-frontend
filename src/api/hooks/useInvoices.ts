@@ -41,8 +41,10 @@ const fetchInvoices = async (filters: InvoiceFilters = {}): Promise<InvoiceListR
   if (filters.uploaded_before) params.append('uploaded_before', filters.uploaded_before);
   if (filters.paid_after) params.append('paid_after', filters.paid_after);
   if (filters.paid_before) params.append('paid_before', filters.paid_before);
+  if (filters.ordering) params.append('ordering', filters.ordering);
   if (filters.page) params.append('page', filters.page.toString());
   if (filters.page_size) params.append('page_size', filters.page_size.toString());
+  if (filters.origin) params.append('origin', filters.origin);
 
   const response = await apiClient.get(`/api/v1/invoices/?${params.toString()}`);
   return response.data;

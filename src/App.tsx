@@ -44,10 +44,12 @@ const ProjectDetailPage = lazy(() => import("./pages/workboard/ProjectDetailPage
 
 // Digital pages (lazy loaded)
 const DigitalOverview = lazy(() => import("./pages/digital/OverviewPage"));
-const DigitalDistributions = lazy(() => import("./pages/digital/DistributionsPage"));
-const DigitalDistributionDetail = lazy(() => import("./pages/digital/DistributionDetailPage"));
-const DigitalDistributionForm = lazy(() => import("./pages/digital/DistributionFormPage"));
 const DigitalFinancial = lazy(() => import("./pages/digital/FinancialPage"));
+
+// Distributions pages (new architecture - like campaigns)
+const DistributionsPage = lazy(() => import("./pages/distributions/index"));
+const DistributionDetailPage = lazy(() => import("./pages/distributions/DistributionDetailPage"));
+const DistributionFormPage = lazy(() => import("./pages/distributions/DistributionFormPage"));
 const DigitalTasks = lazy(() => import("./pages/digital/TasksPage"));
 const DigitalReporting = lazy(() => import("./pages/digital/ReportingPage"));
 const Settings = lazy(() => import("./pages/Settings"));
@@ -308,26 +310,32 @@ const App = () => (
             {/* Redirect old digital campaigns to new campaigns page */}
             <Route path="/digital/campaigns" element={<Navigate to="/campaigns" replace />} />
             <Route path="/digital/campaigns/:id" element={<Navigate to="/campaigns/:id" replace />} />
-            <Route path="/digital/distributions" element={
+            {/* Distributions routes (new architecture) */}
+            <Route path="/distributions" element={
               <ProtectedRoute>
-                <DigitalDistributions />
+                <DistributionsPage />
               </ProtectedRoute>
             } />
-            <Route path="/digital/distributions/new" element={
+            <Route path="/distributions/new" element={
               <ProtectedRoute>
-                <DigitalDistributionForm />
+                <DistributionFormPage />
               </ProtectedRoute>
             } />
-            <Route path="/digital/distributions/:id/edit" element={
+            <Route path="/distributions/:id/edit" element={
               <ProtectedRoute>
-                <DigitalDistributionForm />
+                <DistributionFormPage />
               </ProtectedRoute>
             } />
-            <Route path="/digital/distributions/:id" element={
+            <Route path="/distributions/:id" element={
               <ProtectedRoute>
-                <DigitalDistributionDetail />
+                <DistributionDetailPage />
               </ProtectedRoute>
             } />
+            {/* Redirect old digital distributions routes */}
+            <Route path="/digital/distributions" element={<Navigate to="/distributions" replace />} />
+            <Route path="/digital/distributions/new" element={<Navigate to="/distributions/new" replace />} />
+            <Route path="/digital/distributions/:id/edit" element={<Navigate to="/distributions/:id/edit" replace />} />
+            <Route path="/digital/distributions/:id" element={<Navigate to="/distributions/:id" replace />} />
             <Route path="/digital/financial" element={
               <ProtectedRoute>
                 <DigitalFinancial />

@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Filter, FileText, Loader2, Eye, Copy, Edit, Trash2, MoreVertical, CheckCircle2 } from 'lucide-react';
+import { Plus, Search, FileText, Loader2, Eye, Edit, Trash2, MoreVertical, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { GenerateContractDialog } from '@/components/contracts/GenerateContractDialog';
 import { NoTemplatesEmptyState, NoSearchResultsEmptyState, ErrorEmptyState } from '@/components/ui/empty-states-presets';
 import { useTemplates, useDeleteTemplate } from '@/api/hooks/useContracts';
 import { ContractTemplate } from '@/api/services/contracts.service';
@@ -34,7 +33,6 @@ export default function Templates() {
   const { data: templates, isLoading, error } = useTemplates();
   const deleteTemplate = useDeleteTemplate();
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedTemplate, setSelectedTemplate] = useState<ContractTemplate | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [templateToDelete, setTemplateToDelete] = useState<ContractTemplate | null>(null);
 
@@ -208,14 +206,6 @@ export default function Templates() {
                       <Eye className="h-4 w-4 mr-2" />
                       View
                     </Button>
-                    <Button
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => setSelectedTemplate(template)}
-                    >
-                      <Copy className="h-4 w-4 mr-2" />
-                      Generate
-                    </Button>
                     <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>
                         <Button variant="outline" size="sm">
@@ -261,13 +251,6 @@ export default function Templates() {
           )
         )}
       </div>
-
-      {/* Generate Contract Dialog */}
-      <GenerateContractDialog
-        template={selectedTemplate}
-        open={!!selectedTemplate}
-        onOpenChange={(open) => !open && setSelectedTemplate(null)}
-      />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

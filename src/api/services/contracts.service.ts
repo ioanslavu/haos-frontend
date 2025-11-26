@@ -100,6 +100,27 @@ export interface EntityReference {
   email?: string;
 }
 
+// Contract origin information (from registry)
+export interface ContractOriginInfo {
+  contract_id: number;
+  origin_type: string;
+  source_app: string;
+  source_model: string;
+  source_id: number;
+  display_name: string;
+  url: string | null;
+  extra: {
+    campaign_type?: string;
+    status?: string;
+    status_display?: string;
+    entity_id?: number | null;
+    entity_name?: string | null;
+    department_name?: string | null;
+    linked_at?: string | null;
+    linked_by?: string | null;
+  } | null;
+}
+
 export interface Contract {
   id: number;
   template: number;
@@ -147,6 +168,17 @@ export interface Contract {
   is_master_contract: boolean;
   parent_contract_number: string | null;
   annexes_count: number;
+  // Origin information
+  origins: ContractOriginInfo[];
+  origin_count: number;
+  has_origins: boolean;
+}
+
+// Lightweight origin for list views
+export interface ContractListOrigin {
+  origin_type: string;
+  display_name: string;
+  url: string | null;
 }
 
 // Lightweight contract for list views (excludes heavy fields)
@@ -173,6 +205,9 @@ export interface ContractListItem {
   is_master_contract: boolean;
   parent_contract_number: string | null;
   parent_contract: number | null;
+  // Origin fields
+  has_origins: boolean;
+  primary_origin: ContractListOrigin | null;
 }
 
 export interface ImportTemplatePayload {
@@ -296,6 +331,8 @@ class ContractsService {
     template?: number;
     counterparty_entity?: number;
     is_annex?: boolean;
+    ordering?: string;
+    search?: string;
   }): Promise<ContractListItem[]> {
     const response = await apiClient.get<PaginatedResponse<ContractListItem>>(`${CONTRACTS_BASE}/contracts/`, { params });
     return response.data.results;

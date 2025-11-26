@@ -155,6 +155,8 @@ export const useContracts = (params?: {
   template?: number;
   counterparty_entity?: number;
   is_annex?: boolean;
+  ordering?: string;
+  search?: string;
 }) => {
   return useQuery({
     queryKey: [...QUERY_KEYS.CONTRACTS, params],
@@ -331,6 +333,44 @@ export const useSignatureStatus = (id: number, enabled: boolean = false) => {
   });
 };
 
+/**
+ * Hook to manually refresh signature status from Dropbox Sign
+ */
+export const useRefreshSignatureStatus = () => {
+  const queryClient = useQueryClient();
+  const { addNotification } = useUIStore();
+
+  return useMutation({
+    mutationFn: (contractId: number) => contractsService.getSignatureStatus(contractId),
+    onSuccess: (data, contractId) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CONTRACT(contractId) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CONTRACTS });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SIGNATURE_STATUS(contractId) });
+
+      if (data.is_complete) {
+        addNotification({
+          type: 'success',
+          title: 'All Signatures Complete',
+          description: 'The contract has been fully signed.',
+        });
+      } else {
+        addNotification({
+          type: 'info',
+          title: 'Status Updated',
+          description: 'Signature status has been refreshed from Dropbox Sign.',
+        });
+      }
+    },
+    onError: (error: any) => {
+      addNotification({
+        type: 'error',
+        title: 'Refresh Failed',
+        description: error.response?.data?.error || 'Failed to refresh signature status.',
+      });
+    },
+  });
+};
+
 export const useCheckContractStatus = (id: number | null, enabled: boolean = false) => {
   const queryClient = useQueryClient();
 
@@ -358,6 +398,54 @@ export const useCheckContractStatus = (id: number | null, enabled: boolean = fal
     refetchIntervalInBackground: false, // Don't poll when tab is not focused
     retry: false, // Don't retry on error
     staleTime: 0, // Always consider data stale
+  });
+};
+
+/**
+ * Hook to manually refresh contract generation status (for processing contracts).
+ * Use this when user clicks a refresh button to check if generation is complete.
+ */
+export const useRefreshContractGeneration = () => {
+  const queryClient = useQueryClient();
+  const { addNotification } = useUIStore();
+
+  return useMutation({
+    mutationFn: (contractId: number) => contractsService.checkContractStatus(contractId),
+    onSuccess: (data, contractId) => {
+      // Always invalidate to get fresh data
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CONTRACT(contractId) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CONTRACTS });
+      // Also invalidate campaign contracts queries (they contain contract data)
+      queryClient.invalidateQueries({ queryKey: ['campaigns'], exact: false });
+
+      // Show appropriate notification based on new status
+      if (data.status === 'draft') {
+        addNotification({
+          type: 'success',
+          title: 'Contract Generated',
+          description: 'The contract has been successfully generated and is ready.',
+        });
+      } else if (data.status === 'failed') {
+        addNotification({
+          type: 'error',
+          title: 'Generation Failed',
+          description: data.error_message || 'Contract generation failed. Please try again.',
+        });
+      } else if (data.status === 'processing') {
+        addNotification({
+          type: 'info',
+          title: 'Still Processing',
+          description: 'Contract generation is still in progress. Please wait.',
+        });
+      }
+    },
+    onError: (error: any) => {
+      addNotification({
+        type: 'error',
+        title: 'Refresh Failed',
+        description: error.response?.data?.error || 'Failed to check contract status.',
+      });
+    },
   });
 };
 

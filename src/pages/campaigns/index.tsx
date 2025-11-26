@@ -238,6 +238,10 @@ export default function CampaignsPage() {
     navigate(`/campaigns/${id}`)
   }
 
+  const handleClientClick = (clientId: number) => {
+    navigate(`/entities/${clientId}`)
+  }
+
   const clearFilters = () => {
     setFilters({})
     setSearchInput('')
@@ -246,7 +250,9 @@ export default function CampaignsPage() {
 
   const hasActiveFilters = Object.keys(filters).length > 0 || debouncedSearch
 
-  if (isLoading) {
+  // Only show full-page loader on initial load (no data yet)
+  // During filter changes, keep UI mounted and show inline loading
+  if (isLoading && campaigns.length === 0) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-[calc(100vh-200px)]">
@@ -258,12 +264,12 @@ export default function CampaignsPage() {
 
   return (
     <AppLayout>
-      <div className="container max-w-full py-6 space-y-6">
+      <div className="space-y-6">
         {/* Header */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-background to-background border border-white/10 px-6 py-4 shadow-xl">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-pink-500/10 backdrop-blur-xl border border-white/20 dark:border-white/10 px-6 py-4 shadow-xl">
           {/* Gradient Orbs */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-blue-400/20 to-purple-500/20 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-purple-400/20 to-blue-500/20 rounded-full blur-3xl" />
+          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-blue-400/30 to-purple-500/30 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-purple-400/30 to-pink-500/30 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
 
           <div className="relative z-10">
             <div className="flex items-center gap-4 flex-wrap">
@@ -425,11 +431,13 @@ export default function CampaignsPage() {
                   <CampaignsTable
                     campaigns={activeCampaigns}
                     onCampaignClick={handleCampaignClick}
+                    onClientClick={handleClientClick}
                   />
                 ) : (
                   <CampaignsKanban
                     campaigns={activeCampaigns}
                     onCampaignClick={handleCampaignClick}
+                    onClientClick={handleClientClick}
                   />
                 )}
               </div>
@@ -446,11 +454,13 @@ export default function CampaignsPage() {
                   <CampaignsTable
                     campaigns={otherCampaigns}
                     onCampaignClick={handleCampaignClick}
+                    onClientClick={handleClientClick}
                   />
                 ) : (
                   <CampaignsKanban
                     campaigns={otherCampaigns}
                     onCampaignClick={handleCampaignClick}
+                    onClientClick={handleClientClick}
                   />
                 )}
               </div>
@@ -482,12 +492,14 @@ export default function CampaignsPage() {
                         <CampaignsTable
                           campaigns={clientCampaigns}
                           onCampaignClick={handleCampaignClick}
+                          onClientClick={handleClientClick}
                         />
                       ) : (
                         <div className="p-4">
                           <CampaignsKanban
                             campaigns={clientCampaigns}
                             onCampaignClick={handleCampaignClick}
+                            onClientClick={handleClientClick}
                           />
                         </div>
                       )}
@@ -596,7 +608,6 @@ import {
 import { Progress } from '@/components/ui/progress'
 import { formatMoney } from '@/lib/utils'
 import {
-  SUBCAMPAIGN_STATUS_CONFIG,
   SERVICE_TYPE_CONFIG,
 } from '@/types/campaign'
 
@@ -610,7 +621,6 @@ function PlatformSubcampaignsTable({ subcampaigns, onCampaignClick }: PlatformSu
     <Table>
       <TableHeader>
         <TableRow className="hover:bg-transparent border-white/10">
-          <TableHead className="w-[100px]">Status</TableHead>
           <TableHead>Campaign</TableHead>
           <TableHead>Client</TableHead>
           <TableHead>Service</TableHead>
@@ -620,7 +630,6 @@ function PlatformSubcampaignsTable({ subcampaigns, onCampaignClick }: PlatformSu
       </TableHeader>
       <TableBody>
         {subcampaigns.map((sub) => {
-          const statusConfig = SUBCAMPAIGN_STATUS_CONFIG[sub.status]
           const serviceConfig = SERVICE_TYPE_CONFIG[sub.service_type]
           const budget = parseFloat(sub.budget || '0')
           const spent = parseFloat(sub.spent || '0')
@@ -632,14 +641,6 @@ function PlatformSubcampaignsTable({ subcampaigns, onCampaignClick }: PlatformSu
               className="cursor-pointer hover:bg-muted/50 border-white/10"
               onClick={() => onCampaignClick(sub.campaignId)}
             >
-              <TableCell>
-                <Badge
-                  variant="secondary"
-                  className={cn('text-xs', statusConfig?.bgColor, statusConfig?.color)}
-                >
-                  {statusConfig?.emoji} {statusConfig?.label}
-                </Badge>
-              </TableCell>
               <TableCell className="font-medium">{sub.campaignName}</TableCell>
               <TableCell className="text-muted-foreground">{sub.clientName}</TableCell>
               <TableCell>
