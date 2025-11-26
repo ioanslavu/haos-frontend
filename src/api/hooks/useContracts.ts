@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import contractsService, {
   Contract,
+  ContractListItem,
   ContractTemplate,
   ContractTemplateVersion,
   ImportTemplatePayload,
@@ -16,8 +17,9 @@ const QUERY_KEYS = {
   TEMPLATES: ['contracts', 'templates'],
   TEMPLATE: (id: number) => ['contracts', 'templates', id],
   TEMPLATE_VERSIONS: (id: number) => ['contracts', 'templates', id, 'versions'],
-  CONTRACTS: ['contracts', 'list'], // Simplified - no params in key
+  CONTRACTS: ['contracts', 'list'],
   CONTRACT: (id: number) => ['contracts', 'detail', id],
+  CONTRACT_ANNEXES: (id: number) => ['contracts', id, 'annexes'],
   SIGNATURE_STATUS: (id: number) => ['contracts', id, 'signature-status'],
   AUDIT_TRAIL: (id: number) => ['contracts', id, 'audit-trail'],
 };
@@ -148,9 +150,14 @@ export const useCreateTemplateVersion = () => {
 };
 
 // Contracts
-export const useContracts = (params?: { status?: string; template?: number }) => {
+export const useContracts = (params?: {
+  status?: string;
+  template?: number;
+  counterparty_entity?: number;
+  is_annex?: boolean;
+}) => {
   return useQuery({
-    queryKey: [...QUERY_KEYS.CONTRACTS, params], // Include params in key
+    queryKey: [...QUERY_KEYS.CONTRACTS, params],
     queryFn: () => contractsService.getContracts(params),
   });
 };
@@ -359,5 +366,46 @@ export const useContractAuditTrail = (id: number) => {
     queryKey: QUERY_KEYS.AUDIT_TRAIL(id),
     queryFn: () => contractsService.getContractAuditTrail(id),
     enabled: !!id,
+  });
+};
+
+// Annexes
+export const useContractAnnexes = (contractId: number) => {
+  return useQuery({
+    queryKey: QUERY_KEYS.CONTRACT_ANNEXES(contractId),
+    queryFn: () => contractsService.getContractAnnexes(contractId),
+    enabled: !!contractId,
+  });
+};
+
+export const useCreateAnnex = () => {
+  const queryClient = useQueryClient();
+  const { addNotification } = useUIStore();
+
+  return useMutation({
+    mutationFn: ({
+      parentContractId,
+      payload,
+    }: {
+      parentContractId: number;
+      payload: Omit<GenerateContractPayload, 'parent_contract_id'>;
+    }) => contractsService.createAnnex(parentContractId, payload),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CONTRACTS });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CONTRACT(variables.parentContractId) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CONTRACT_ANNEXES(variables.parentContractId) });
+      addNotification({
+        type: 'success',
+        title: 'Annex Created',
+        description: 'Contract annex has been successfully created.',
+      });
+    },
+    onError: (error: any) => {
+      addNotification({
+        type: 'error',
+        title: 'Annex Creation Failed',
+        description: error.response?.data?.error || 'Failed to create annex.',
+      });
+    },
   });
 };

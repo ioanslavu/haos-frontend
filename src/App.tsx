@@ -44,9 +44,6 @@ const ProjectDetailPage = lazy(() => import("./pages/workboard/ProjectDetailPage
 
 // Digital pages (lazy loaded)
 const DigitalOverview = lazy(() => import("./pages/digital/OverviewPage"));
-const DigitalCampaigns = lazy(() => import("./pages/digital/CampaignsPage"));
-const DigitalCampaignDetail = lazy(() => import("./pages/digital/CampaignDetailPage"));
-const DigitalCampaignFormPage = lazy(() => import("./pages/digital/DigitalCampaignFormPage"));
 const DigitalDistributions = lazy(() => import("./pages/digital/DistributionsPage"));
 const DigitalDistributionDetail = lazy(() => import("./pages/digital/DistributionDetailPage"));
 const DigitalDistributionForm = lazy(() => import("./pages/digital/DistributionFormPage"));
@@ -109,6 +106,14 @@ const NotesPage = lazy(() => import("./pages/notes/Index"));
 // Marketing pages
 const MarketingTeam = lazy(() => import("./pages/marketing/MarketingTeam"));
 
+// Campaigns pages (new architecture)
+const CampaignsPage = lazy(() => import("./pages/campaigns/index"));
+const CampaignDetailPage = lazy(() => import("./pages/campaigns/CampaignDetailPage"));
+
+// Invoice pages
+const InvoicesPage = lazy(() => import("./pages/invoices/InvoicesPage"));
+const InvoiceDetailPage = lazy(() => import("./pages/invoices/InvoiceDetailPage"));
+
 const App = () => (
   <ErrorBoundary>
     <QueryProvider>
@@ -150,7 +155,7 @@ const App = () => (
                 <Contracts />
               </ProtectedRoute>
             } />
-            <Route path="/entity/:id/generate-contract" element={
+            <Route path="/entities/:id/generate-contract" element={
               <ProtectedRoute>
                 <ContractGeneration />
               </ProtectedRoute>
@@ -226,12 +231,7 @@ const App = () => (
                 <Entities />
               </ProtectedRoute>
             } />
-            <Route path="/entities/:role" element={
-              <ProtectedRoute>
-                <Entities />
-              </ProtectedRoute>
-            } />
-            <Route path="/entity/:id" element={
+            <Route path="/entities/:id" element={
               <ProtectedRoute>
                 <EntityDetail />
               </ProtectedRoute>
@@ -305,26 +305,9 @@ const App = () => (
             } />
             {/* Redirect old clients page to entities */}
             <Route path="/digital/clients" element={<Navigate to="/entities" replace />} />
-            <Route path="/digital/campaigns" element={
-              <ProtectedRoute>
-                <DigitalCampaigns />
-              </ProtectedRoute>
-            } />
-            <Route path="/digital/campaigns/create" element={
-              <ProtectedRoute>
-                <DigitalCampaignFormPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/digital/campaigns/:id/edit" element={
-              <ProtectedRoute>
-                <DigitalCampaignFormPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/digital/campaigns/:id" element={
-              <ProtectedRoute>
-                <DigitalCampaignDetail />
-              </ProtectedRoute>
-            } />
+            {/* Redirect old digital campaigns to new campaigns page */}
+            <Route path="/digital/campaigns" element={<Navigate to="/campaigns" replace />} />
+            <Route path="/digital/campaigns/:id" element={<Navigate to="/campaigns/:id" replace />} />
             <Route path="/digital/distributions" element={
               <ProtectedRoute>
                 <DigitalDistributions />
@@ -364,6 +347,28 @@ const App = () => (
             <Route path="/marketing/team" element={
               <ProtectedRoute>
                 <MarketingTeam />
+              </ProtectedRoute>
+            } />
+            {/* Campaigns routes (new architecture) */}
+            <Route path="/campaigns" element={
+              <ProtectedRoute>
+                <CampaignsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/campaigns/:id" element={
+              <ProtectedRoute>
+                <CampaignDetailPage />
+              </ProtectedRoute>
+            } />
+            {/* Invoice routes */}
+            <Route path="/invoices" element={
+              <ProtectedRoute>
+                <InvoicesPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/invoices/:id" element={
+              <ProtectedRoute>
+                <InvoiceDetailPage />
               </ProtectedRoute>
             } />
             <Route path="/notes" element={

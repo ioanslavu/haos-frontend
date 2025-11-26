@@ -332,7 +332,7 @@ export default function ContractGeneration() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate(`/entity/${entityId}`)}
+              onClick={() => navigate(`/entities/${entityId}`)}
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Artist

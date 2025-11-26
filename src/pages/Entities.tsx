@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus,
@@ -16,7 +16,7 @@ import {
   Trash,
   ChevronDown,
   ArrowUpDown,
-  Download,
+  Loader2,
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -24,7 +24,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { useEntities, useEntityStats } from '@/api/hooks/useEntities';
+import { useInfiniteEntities, useEntityStats } from '@/api/hooks/useEntities';
 import { EntityFormDialog } from '@/components/entities/EntityFormDialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -54,15 +54,6 @@ import {
 import { cn } from '@/lib/utils';
 import { Entity } from '@/api/services/entities.service';
 import { getMediaUrl } from '@/lib/media';
-import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from '@/components/ui/pagination';
 
 type ViewMode = 'grid' | 'table';
 type SortField = 'name' | 'created' | 'role' | 'type';
@@ -110,23 +101,55 @@ export default function Entities() {
   const [sortField, setSortField] = useState<SortField>('created');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [showFilters, setShowFilters] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(20);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  // Fetch entities based on filters with backend pagination
+  // Fetch entities based on filters with infinite scrolling
   const entityParams = {
     ...(roleFilter !== 'all' && { has_role: roleFilter }),
     ...(internalFilter !== 'all' && { is_internal: internalFilter === 'internal' }),
     ...(searchQuery && { search: searchQuery }),
+    page_size: 20,
   };
 
-  const { data: entitiesData, isLoading } = useEntities({
-    ...entityParams,
-    page: currentPage,
-    page_size: itemsPerPage,
-  });
-  const entities = entitiesData?.results || [];
-  const totalCount = entitiesData?.count || 0;
+  const {
+    data: entitiesData,
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteEntities(entityParams);
+
+  // Flatten all pages into a single array
+  const entities = useMemo(() => {
+    return entitiesData?.pages.flatMap(page => page.results) || [];
+  }, [entitiesData]);
+
+  const totalCount = entitiesData?.pages[0]?.count || 0;
+
+  // Intersection observer for infinite scroll
+  const handleObserver = useCallback(
+    (entries: IntersectionObserverEntry[]) => {
+      const [target] = entries;
+      if (target.isIntersecting && hasNextPage && !isFetchingNextPage) {
+        fetchNextPage();
+      }
+    },
+    [hasNextPage, isFetchingNextPage, fetchNextPage]
+  );
+
+  useEffect(() => {
+    const element = loadMoreRef.current;
+    if (!element) return;
+
+    const observer = new IntersectionObserver(handleObserver, {
+      root: null,
+      rootMargin: '100px',
+      threshold: 0,
+    });
+
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [handleObserver]);
 
   // Fetch stats using the same filters (without pagination)
   const { data: statsData } = useEntityStats(entityParams);
@@ -165,14 +188,6 @@ export default function Entities() {
 
     return filtered;
   }, [entities, kindFilter, sortField, sortOrder]);
-
-  // Pagination (backend handles the actual pagination)
-  const totalPages = Math.ceil(totalCount / itemsPerPage);
-
-  // Reset to page 1 when filters change
-  React.useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, roleFilter, kindFilter, internalFilter, sortField, sortOrder]);
 
   const getInitials = (name: string) => {
     return name
@@ -523,117 +538,51 @@ export default function Entities() {
           <>
             <GridView
               entities={filteredAndSortedEntities}
-              onEntityClick={(id) => navigate(`/entity/${id}`)}
+              onEntityClick={(id) => navigate(`/entities/${id}`)}
               getInitials={getInitials}
             />
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between pt-4">
+            {/* Infinite scroll trigger and loading indicator */}
+            <div ref={loadMoreRef} className="flex items-center justify-center py-8">
+              {isFetchingNextPage ? (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span>Loading more entities...</span>
+                </div>
+              ) : hasNextPage ? (
                 <p className="text-sm text-muted-foreground">
-                  Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} entities
+                  Showing {entities.length} of {totalCount} entities
                 </p>
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious
-                        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                        className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                      />
-                    </PaginationItem>
-                    {[...Array(totalPages)].map((_, i) => {
-                      const pageNum = i + 1;
-                      if (
-                        pageNum === 1 ||
-                        pageNum === totalPages ||
-                        (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
-                      ) {
-                        return (
-                          <PaginationItem key={pageNum}>
-                            <PaginationLink
-                              onClick={() => setCurrentPage(pageNum)}
-                              isActive={currentPage === pageNum}
-                              className="cursor-pointer"
-                            >
-                              {pageNum}
-                            </PaginationLink>
-                          </PaginationItem>
-                        );
-                      } else if (pageNum === currentPage - 2 || pageNum === currentPage + 2) {
-                        return (
-                          <PaginationItem key={pageNum}>
-                            <PaginationEllipsis />
-                          </PaginationItem>
-                        );
-                      }
-                      return null;
-                    })}
-                    <PaginationItem>
-                      <PaginationNext
-                        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                        className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-              </div>
-            )}
+              ) : entities.length > 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Showing all {totalCount} entities
+                </p>
+              ) : null}
+            </div>
           </>
         ) : (
           <>
             <TableView
               entities={filteredAndSortedEntities}
-              onEntityClick={(id) => navigate(`/entity/${id}`)}
+              onEntityClick={(id) => navigate(`/entities/${id}`)}
               getInitials={getInitials}
             />
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between pt-4">
+            {/* Infinite scroll trigger and loading indicator */}
+            <div ref={loadMoreRef} className="flex items-center justify-center py-8">
+              {isFetchingNextPage ? (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span>Loading more entities...</span>
+                </div>
+              ) : hasNextPage ? (
                 <p className="text-sm text-muted-foreground">
-                  Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} entities
+                  Showing {entities.length} of {totalCount} entities
                 </p>
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious
-                        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                        className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                      />
-                    </PaginationItem>
-                    {[...Array(totalPages)].map((_, i) => {
-                      const pageNum = i + 1;
-                      if (
-                        pageNum === 1 ||
-                        pageNum === totalPages ||
-                        (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
-                      ) {
-                        return (
-                          <PaginationItem key={pageNum}>
-                            <PaginationLink
-                              onClick={() => setCurrentPage(pageNum)}
-                              isActive={currentPage === pageNum}
-                              className="cursor-pointer"
-                            >
-                              {pageNum}
-                            </PaginationLink>
-                          </PaginationItem>
-                        );
-                      } else if (pageNum === currentPage - 2 || pageNum === currentPage + 2) {
-                        return (
-                          <PaginationItem key={pageNum}>
-                            <PaginationEllipsis />
-                          </PaginationItem>
-                        );
-                      }
-                      return null;
-                    })}
-                    <PaginationItem>
-                      <PaginationNext
-                        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                        className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-              </div>
-            )}
+              ) : entities.length > 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Showing all {totalCount} entities
+                </p>
+              ) : null}
+            </div>
           </>
         )}
 
@@ -785,7 +734,6 @@ function TableView({
               <TableHead>Type</TableHead>
               <TableHead>Roles</TableHead>
               <TableHead>Contact</TableHead>
-              <TableHead>Added</TableHead>
               <TableHead className="w-12"></TableHead>
             </TableRow>
           </TableHeader>
@@ -865,11 +813,6 @@ function TableView({
                       </div>
                     )}
                   </div>
-                </TableCell>
-                <TableCell onClick={() => onEntityClick(entity.id)}>
-                  <span className="text-sm text-muted-foreground">
-                    {format(new Date(entity.created_at), 'MMM d, yyyy')}
-                  </span>
                 </TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   <DropdownMenu>

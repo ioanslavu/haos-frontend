@@ -11,12 +11,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Loader2, Send, Plus, X } from 'lucide-react';
-import { Contract } from '@/api/services/contracts.service';
+import { ContractListItem } from '@/api/services/contracts.service';
 import { useSendForSignature } from '@/api/hooks/useContracts';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface SendForSignatureDialogProps {
-  contract: Contract | null;
+  contract: ContractListItem | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }

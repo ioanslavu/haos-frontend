@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import entitiesService, {
   Entity,
   EntityListItem,
@@ -36,6 +36,25 @@ export const useEntities = (params?: EntitySearchParams) => {
     queryKey: entityKeys.list(params),
     queryFn: () => entitiesService.getEntities(params),
     refetchOnMount: 'always',
+  });
+};
+
+// Infinite scrolling hook for entities
+export const useInfiniteEntities = (params?: Omit<EntitySearchParams, 'page'>) => {
+  return useInfiniteQuery({
+    queryKey: [...entityKeys.lists(), 'infinite', params],
+    queryFn: async ({ pageParam = 1 }) => {
+      return entitiesService.getEntities({ ...params, page: pageParam });
+    },
+    getNextPageParam: (lastPage) => {
+      if (lastPage.next) {
+        const url = new URL(lastPage.next);
+        const nextPage = url.searchParams.get('page');
+        return nextPage ? parseInt(nextPage) : undefined;
+      }
+      return undefined;
+    },
+    initialPageParam: 1,
   });
 };
 

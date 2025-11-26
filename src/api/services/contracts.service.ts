@@ -10,21 +10,47 @@ export interface PaginatedResponse<T> {
   results: T[];
 }
 
+// Form schema field definition (for dynamic form generation)
+export interface FormSchemaField {
+  name: string;
+  label: string;
+  type: 'text' | 'number' | 'date' | 'select' | 'textarea' | 'checkbox' | 'email' | 'phone';
+  required: boolean;
+  description?: string;
+  options?: Array<{ value: string; label: string }>;
+  validation?: {
+    min?: number;
+    max?: number;
+    pattern?: string;
+    message?: string;
+  };
+  default_value?: any;
+  placeholder?: string;
+  // For entity auto-population
+  entity_field?: string;
+}
+
+// Form schema for template (defines dynamic form structure)
+export interface FormSchema {
+  fields: FormSchemaField[];
+  layout?: {
+    columns?: number;
+    sections?: Array<{
+      title: string;
+      fields: string[];
+    }>;
+  };
+}
+
 export interface ContractTemplate {
   id: number;
   name: string;
   description: string;
   series: string;
+  department: number | null;
+  department_name: string | null;
   gdrive_template_file_id: string;
-  placeholders: Array<{
-    key: string;
-    label: string;
-    type: string;
-    required: boolean;
-    description?: string;
-    options?: string[];
-    validation?: string;
-  }>;
+  form_schema: FormSchema;
   gdrive_output_folder_id: string;
   is_active: boolean;
   created_by: number;
@@ -40,7 +66,7 @@ export interface ContractTemplateVersion {
   template_name: string;
   version_number: number;
   gdrive_file_id: string;
-  placeholders_snapshot: any[];
+  form_schema_snapshot: FormSchema;
   change_description: string;
   created_by: number;
   created_by_email: string;
@@ -64,6 +90,16 @@ export interface ContractSignature {
   updated_at: string;
 }
 
+// Entity reference (lightweight, from EntityListSerializer)
+export interface EntityReference {
+  id: number;
+  display_name: string;
+  entity_type: 'PF' | 'PJ';
+  cnp?: string;
+  cui?: string;
+  email?: string;
+}
+
 export interface Contract {
   id: number;
   template: number;
@@ -72,76 +108,91 @@ export interface Contract {
   template_version_number: number | null;
   contract_number: string;
   title: string;
-  contract_type?: string | null;
-  department?: string | null;
-  placeholder_values: Record<string, any>;
+  department: number | null;
+  // Entity references
+  counterparty_entity: number | null;
+  counterparty: EntityReference | null;
+  label_entity: number | null;
+  label: EntityReference | null;
+  // Contract dates
+  start_date: string | null;
+  end_date: string | null;
+  // Form data snapshot (all submitted values)
+  data: Record<string, any>;
+  // Google Drive
   gdrive_file_id: string;
   gdrive_file_url: string;
+  gdrive_pdf_file_id: string | null;
+  gdrive_pdf_file_url: string | null;
+  // Public sharing
   is_public: boolean;
   public_share_url: string;
+  // Status and processing
   status: 'processing' | 'draft' | 'pending_signature' | 'signed' | 'cancelled' | 'failed';
+  celery_task_id: string | null;
   error_message?: string;
+  // Dropbox Sign
   dropbox_sign_request_id: string;
+  // Audit
   created_by: number;
   created_by_email: string;
   created_at: string;
   updated_at: string;
   signed_at: string | null;
+  // Signatures
   signatures: ContractSignature[];
+  // Annex support
+  parent_contract: number | null;
+  is_annex: boolean;
+  is_master_contract: boolean;
+  parent_contract_number: string | null;
+  annexes_count: number;
 }
 
-export interface ShareType {
+// Lightweight contract for list views (excludes heavy fields)
+export interface ContractListItem {
   id: number;
-  code: string;
-  name: string;
-  description: string;
-  placeholder_keys: string[];
-  contract_types: string[];
+  template: number;
+  template_name: string;
+  contract_number: string;
+  title: string;
+  counterparty_entity: number | null;
+  counterparty_name: string | null;
+  label_entity: number | null;
+  start_date: string | null;
+  end_date: string | null;
+  department: number | null;
+  status: 'processing' | 'draft' | 'pending_signature' | 'signed' | 'cancelled' | 'failed';
+  created_by: number;
+  created_by_email: string;
   created_at: string;
   updated_at: string;
-}
-
-export interface ContractShare {
-  id: number;
-  contract: number;
-  share_type: number;
-  share_type_code: string;
-  share_type_name: string;
-  value: string;
-  unit: 'percent' | 'points' | 'flat';
-  valid_from: string;
-  valid_to: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface EntityLatestShares {
-  contract_id: number | null;
-  contract_number?: string;
-  contract_type: string | null;
-  contract_title?: string;
-  shares: ContractShare[];
+  signed_at: string | null;
+  // Annex fields
+  is_annex: boolean;
+  is_master_contract: boolean;
+  parent_contract_number: string | null;
+  parent_contract: number | null;
 }
 
 export interface ImportTemplatePayload {
   gdrive_file_id: string;
   name: string;
   description?: string;
-  placeholders: Array<{
-    key: string;
-    label: string;
-    type: string;
-    required: boolean;
-    description?: string;
-    options?: string[];
-  }>;
+  series: string;
+  form_schema: FormSchema;
   gdrive_output_folder_id: string;
 }
 
 export interface GenerateContractPayload {
   template_id: number;
-  title: string;
-  placeholder_values: Record<string, any>;
+  counterparty_entity_id: number;
+  start_date: string;
+  end_date?: string | null;
+  parent_contract_id?: number | null;
+  label_entity_id?: number | null;
+  title?: string | null;
+  form_data: Record<string, any>;
 }
 
 export interface SendForSignaturePayload {
@@ -154,14 +205,14 @@ export interface SendForSignaturePayload {
 }
 
 export interface CreateVersionPayload {
-  gdrive_file_id: string;
-  placeholders: any[];
+  gdrive_file_id?: string;
+  form_schema?: FormSchema;
   change_description: string;
-  update_template: boolean;
+  update_template?: boolean;
 }
 
 export interface RegenerateContractPayload {
-  placeholder_values: Record<string, any>;
+  form_data: Record<string, any>;
 }
 
 export interface AuditEvent {
@@ -240,8 +291,13 @@ class ContractsService {
   }
 
   // Contracts
-  async getContracts(params?: { status?: string; template?: number }): Promise<Contract[]> {
-    const response = await apiClient.get<PaginatedResponse<Contract>>(`${CONTRACTS_BASE}/contracts/`, { params });
+  async getContracts(params?: {
+    status?: string;
+    template?: number;
+    counterparty_entity?: number;
+    is_annex?: boolean;
+  }): Promise<ContractListItem[]> {
+    const response = await apiClient.get<PaginatedResponse<ContractListItem>>(`${CONTRACTS_BASE}/contracts/`, { params });
     return response.data.results;
   }
 
@@ -315,6 +371,22 @@ class ContractsService {
       `${CONTRACTS_BASE}/contracts/${id}/audit_trail/`
     );
     return response.data;
+  }
+
+  // Annexes
+  async getContractAnnexes(contractId: number): Promise<ContractListItem[]> {
+    const response = await apiClient.get<PaginatedResponse<ContractListItem>>(
+      `${CONTRACTS_BASE}/contracts/`,
+      { params: { parent_contract: contractId } }
+    );
+    return response.data.results;
+  }
+
+  async createAnnex(parentContractId: number, payload: Omit<GenerateContractPayload, 'parent_contract_id'>): Promise<Contract> {
+    return this.generateContract({
+      ...payload,
+      parent_contract_id: parentContractId,
+    });
   }
 
   // Google Drive Search

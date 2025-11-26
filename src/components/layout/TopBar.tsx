@@ -34,8 +34,17 @@ export const TopBar: React.FC<TopBarProps> = ({
           <Menu className="h-5 w-5" />
         </Button>
 
-        <div className="font-bold text-lg bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hidden sm:block">
-          HaOS Platform
+        <div className="flex items-center gap-3 hidden sm:flex">
+          <div className="w-18 h-12 rounded-full overflow-hidden flex-shrink-0">
+            <img
+              src="/ezgif-1368066d3f3d1a33.gif"
+              alt="HaOS Logo"
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <span className="font-bold text-lg bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            HaOS Platform
+          </span>
         </div>
       </div>
 

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, ExternalLink, Share2, Send, Eye, Edit, Trash2, RefreshCw, MoreVertical } from 'lucide-react';
+import { Send, Eye, Edit, Trash2, RefreshCw, MoreVertical } from 'lucide-react';
 import { ColumnDef } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -14,10 +14,10 @@ import { RegenerateContractDialog } from '@/components/contracts/RegenerateContr
 import { SendForSignatureDialog } from '@/components/contracts/SendForSignatureDialog';
 import { SignatureStatusDialog } from '@/components/contracts/SignatureStatusDialog';
 import { ContractDetailSheet } from '@/components/contracts/ContractDetailSheet';
-import { useContracts, useTemplates, useMakeContractPublic, useDeleteContract } from '@/api/hooks/useContracts';
+import { useContracts, useTemplates, useDeleteContract } from '@/api/hooks/useContracts';
 import { useAuthStore } from '@/stores/authStore';
 import { useMyContractsMatrix } from '@/api/hooks/useContractsRBAC';
-import { Contract, ContractTemplate } from '@/api/services/contracts.service';
+import { Contract, ContractListItem, ContractTemplate } from '@/api/services/contracts.service';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -55,19 +55,18 @@ export default function ContractsModern() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<ContractTemplate | null>(null);
-  const [editContract, setEditContract] = useState<Contract | null>(null);
-  const [regenerateContract, setRegenerateContract] = useState<Contract | null>(null);
-  const [sendForSignatureContract, setSendForSignatureContract] = useState<Contract | null>(null);
-  const [signatureStatusContract, setSignatureStatusContract] = useState<Contract | null>(null);
+  const [editContract, setEditContract] = useState<ContractListItem | null>(null);
+  const [regenerateContract, setRegenerateContract] = useState<ContractListItem | null>(null);
+  const [sendForSignatureContract, setSendForSignatureContract] = useState<ContractListItem | null>(null);
+  const [signatureStatusContract, setSignatureStatusContract] = useState<ContractListItem | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [contractToDelete, setContractToDelete] = useState<Contract | null>(null);
-  const [selectedRows, setSelectedRows] = useState<Contract[]>([]);
+  const [contractToDelete, setContractToDelete] = useState<ContractListItem | null>(null);
+  const [selectedRows, setSelectedRows] = useState<ContractListItem[]>([]);
   const [detailSheetContractId, setDetailSheetContractId] = useState<number | null>(null);
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
 
   const { data: contracts, isLoading, error, refetch } = useContracts();
   const { data: templates } = useTemplates();
-  const makePublic = useMakeContractPublic();
   const deleteContractMutation = useDeleteContract();
   const currentUser = useAuthStore((s) => s.user);
   const { data: myMatrix } = useMyContractsMatrix(currentUser?.id);
@@ -85,12 +84,13 @@ export default function ContractsModern() {
     }
   }, [editContract, regenerateContract, sendForSignatureContract, signatureStatusContract, deleteDialogOpen, detailSheetOpen]);
 
-  const canDo = (contract: Contract, action: 'publish' | 'send' | 'update' | 'delete' | 'regenerate') => {
+  const canDo = (contract: ContractListItem, action: 'publish' | 'send' | 'update' | 'delete' | 'regenerate') => {
     // Admin override
     if (currentUser?.role === 'administrator') return true;
     if (!myMatrix || !myMatrix.policies) return false;
-    const type = (contract.contract_type as string) || '';
-    const row = myMatrix.policies.find(p => p.contract_type === type);
+    // Use template name for permission matching since contract_type no longer exists
+    const templateName = contract.template_name || '';
+    const row = myMatrix.policies.find(p => p.contract_type === templateName);
     if (!row) return false;
     switch (action) {
       case 'publish': return !!row.can_publish;
@@ -112,14 +112,6 @@ export default function ContractsModern() {
     }
   };
 
-  const handleMakePublic = async (contract: Contract) => {
-    if (contract.is_public) {
-      window.open(contract.public_share_url, '_blank');
-    } else {
-      await makePublic.mutateAsync(contract.id);
-    }
-  };
-
   const handleGenerateFromTemplate = (template: ContractTemplate) => {
     setSelectedTemplate(template);
     setShowGenerateDialog(true);
@@ -136,13 +128,23 @@ export default function ContractsModern() {
   }) || [];
 
   // Define columns for DataTable (memoized to prevent infinite re-renders)
-  const columns: ColumnDef<Contract>[] = useMemo(() => [
+  const columns: ColumnDef<ContractListItem>[] = useMemo(() => [
     {
       accessorKey: 'contract_number',
       header: 'Contract #',
-      cell: ({ row }) => (
-        <span className="font-mono text-sm">{row.getValue('contract_number')}</span>
-      ),
+      cell: ({ row }) => {
+        const contract = row.original;
+        return (
+          <div className="flex flex-col">
+            <span className="font-mono text-sm">{row.getValue('contract_number')}</span>
+            {contract.is_annex && (
+              <span className="text-xs text-muted-foreground">
+                Annex of {contract.parent_contract_number}
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       accessorKey: 'title',
@@ -150,6 +152,18 @@ export default function ContractsModern() {
       cell: ({ row }) => (
         <span className="font-medium">{row.getValue('title')}</span>
       ),
+    },
+    {
+      accessorKey: 'counterparty_name',
+      header: 'Counterparty',
+      cell: ({ row }) => {
+        const name = row.getValue('counterparty_name') as string | null;
+        return name ? (
+          <span className="text-sm">{name}</span>
+        ) : (
+          <span className="text-muted-foreground text-sm">-</span>
+        );
+      },
     },
     {
       accessorKey: 'template_name',
@@ -174,36 +188,14 @@ export default function ContractsModern() {
       },
     },
     {
-      id: 'signatures',
-      header: 'Signatures',
+      accessorKey: 'start_date',
+      header: 'Start Date',
       cell: ({ row }) => {
-        const contract = row.original;
-        if (!contract.signatures || contract.signatures.length === 0) {
-          return <span className="text-muted-foreground text-sm">-</span>;
-        }
-        return (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-auto p-2"
-            onClick={() => setSignatureStatusContract(contract)}
-          >
-            <div className="flex flex-col gap-1 text-left">
-              {contract.signatures.slice(0, 2).map((sig, idx) => (
-                <div key={idx} className="text-xs">
-                  <span className="font-medium">{sig.signer_name}</span>
-                  <Badge variant="outline" className="ml-2 text-xs">
-                    {sig.status}
-                  </Badge>
-                </div>
-              ))}
-              {contract.signatures.length > 2 && (
-                <span className="text-xs text-muted-foreground">
-                  +{contract.signatures.length - 2} more
-                </span>
-              )}
-            </div>
-          </Button>
+        const date = row.getValue('start_date') as string | null;
+        return date ? (
+          <span className="text-sm">{new Date(date).toLocaleDateString()}</span>
+        ) : (
+          <span className="text-muted-foreground text-sm">-</span>
         );
       },
     },
@@ -226,25 +218,6 @@ export default function ContractsModern() {
         const contract = row.original;
         return (
           <div className="flex items-center justify-end gap-2">
-            {contract.gdrive_file_url && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => window.open(contract.gdrive_file_url, '_blank')}
-                title="Open in Google Drive"
-              >
-                <ExternalLink className="h-4 w-4" />
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleMakePublic(contract)}
-              disabled={makePublic.isPending || (!contract.is_public && !canDo(contract, 'publish'))}
-              title={contract.is_public ? 'View public link' : 'Make public'}
-            >
-              {contract.is_public ? <Eye className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
-            </Button>
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm">
@@ -294,7 +267,7 @@ export default function ContractsModern() {
         );
       },
     },
-  ], [makePublic.isPending, currentUser, myMatrix]);
+  ], [currentUser, myMatrix]);
 
   return (
     <AppLayout>

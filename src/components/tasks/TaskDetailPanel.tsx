@@ -942,7 +942,7 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, 
                 {localArtist && task?.entity_detail && (
                   <button
                     onClick={() => {
-                      navigate(`/entity/${task.entity}`);
+                      navigate(`/entities/${task.entity}`);
                       onOpenChange(false);
                     }}
                     className="flex items-center gap-2 p-2 rounded-lg bg-accent/50 hover:bg-accent transition-colors cursor-pointer w-full text-left group relative"
@@ -1035,7 +1035,7 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, 
                 {localClient && task?.entity_detail && (
                   <button
                     onClick={() => {
-                      navigate(`/entity/${task.entity}`);
+                      navigate(`/entities/${task.entity}`);
                       onOpenChange(false);
                     }}
                     className="flex items-center gap-2 p-2 rounded-lg bg-accent/50 hover:bg-accent transition-colors cursor-pointer w-full text-left group relative"

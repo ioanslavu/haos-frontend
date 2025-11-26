@@ -1,22 +1,54 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Upload, Loader2 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Upload, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { GoogleDrivePickerButton } from '@/components/contracts/GoogleDrivePickerButton';
 import { useImportTemplate } from '@/api/hooks/useContracts';
+import { FormSchemaField } from '@/api/services/contracts.service';
 
-interface PlaceholderInput {
-  key: string;
+// Field types supported by the form schema
+const FIELD_TYPES = [
+  { value: 'text', label: 'Text' },
+  { value: 'textarea', label: 'Multi-line Text' },
+  { value: 'number', label: 'Number' },
+  { value: 'date', label: 'Date' },
+  { value: 'email', label: 'Email' },
+  { value: 'phone', label: 'Phone' },
+  { value: 'select', label: 'Dropdown' },
+  { value: 'checkbox', label: 'Checkbox' },
+] as const;
+
+// Common entity fields for auto-population
+const ENTITY_FIELDS = [
+  { value: '', label: 'None (manual input)' },
+  { value: 'display_name', label: 'Display Name' },
+  { value: 'email', label: 'Email' },
+  { value: 'phone', label: 'Phone' },
+  { value: 'address', label: 'Address' },
+  { value: 'cnp', label: 'CNP (Personal ID)' },
+  { value: 'cui', label: 'CUI (Company ID)' },
+  { value: 'bank_account', label: 'Bank Account' },
+  { value: 'bank_name', label: 'Bank Name' },
+];
+
+interface FormFieldInput {
+  name: string;
   label: string;
-  type: string;
+  type: FormSchemaField['type'];
   required: boolean;
   description?: string;
+  placeholder?: string;
+  entity_field?: string;
+  options?: Array<{ value: string; label: string }>;
+  default_value?: string;
+  expanded?: boolean; // UI state for advanced options
 }
 
 export default function ImportTemplate() {
@@ -29,28 +61,60 @@ export default function ImportTemplate() {
   const [gdriveFileName, setGdriveFileName] = useState('');
   const [gdriveOutputFolderId, setGdriveOutputFolderId] = useState('');
   const [gdriveOutputFolderName, setGdriveOutputFolderName] = useState('');
-  const [placeholders, setPlaceholders] = useState<PlaceholderInput[]>([
-    { key: '', label: '', type: 'text', required: false },
+  const [formFields, setFormFields] = useState<FormFieldInput[]>([
+    { name: '', label: '', type: 'text', required: false, expanded: false },
   ]);
 
-  const addPlaceholder = () => {
-    setPlaceholders([...placeholders, { key: '', label: '', type: 'text', required: false }]);
+  const addFormField = () => {
+    setFormFields([...formFields, { name: '', label: '', type: 'text', required: false, expanded: false }]);
   };
 
-  const removePlaceholder = (index: number) => {
-    setPlaceholders(placeholders.filter((_, i) => i !== index));
+  const removeFormField = (index: number) => {
+    setFormFields(formFields.filter((_, i) => i !== index));
   };
 
-  const updatePlaceholder = (index: number, field: keyof PlaceholderInput, value: any) => {
-    const updated = [...placeholders];
+  const updateFormField = (index: number, field: keyof FormFieldInput, value: any) => {
+    const updated = [...formFields];
     updated[index] = { ...updated[index], [field]: value };
-    setPlaceholders(updated);
+    // If type changed to select, initialize options array
+    if (field === 'type' && value === 'select' && !updated[index].options) {
+      updated[index].options = [{ value: '', label: '' }];
+    }
+    setFormFields(updated);
+  };
+
+  const toggleFieldExpanded = (index: number) => {
+    const updated = [...formFields];
+    updated[index] = { ...updated[index], expanded: !updated[index].expanded };
+    setFormFields(updated);
+  };
+
+  const addSelectOption = (fieldIndex: number) => {
+    const updated = [...formFields];
+    const options = updated[fieldIndex].options || [];
+    updated[fieldIndex].options = [...options, { value: '', label: '' }];
+    setFormFields(updated);
+  };
+
+  const removeSelectOption = (fieldIndex: number, optionIndex: number) => {
+    const updated = [...formFields];
+    const options = updated[fieldIndex].options || [];
+    updated[fieldIndex].options = options.filter((_, i) => i !== optionIndex);
+    setFormFields(updated);
+  };
+
+  const updateSelectOption = (fieldIndex: number, optionIndex: number, key: 'value' | 'label', value: string) => {
+    const updated = [...formFields];
+    const options = [...(updated[fieldIndex].options || [])];
+    options[optionIndex] = { ...options[optionIndex], [key]: value };
+    updated[fieldIndex].options = options;
+    setFormFields(updated);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate
+    // Validate required fields
     if (!name || !series || !gdriveFileId || !gdriveOutputFolderId) {
       alert('Please fill in all required fields');
       return;
@@ -62,13 +126,46 @@ export default function ImportTemplate() {
       return;
     }
 
-    // Filter out empty placeholders
-    const validPlaceholders = placeholders.filter(p => p.key && p.label);
+    // Filter out empty form fields
+    const validFields = formFields.filter(f => f.name && f.label);
 
-    if (validPlaceholders.length === 0) {
-      alert('Please add at least one placeholder');
+    if (validFields.length === 0) {
+      alert('Please add at least one form field');
       return;
     }
+
+    // Validate select fields have options
+    const selectFieldsWithoutOptions = validFields.filter(
+      f => f.type === 'select' && (!f.options || f.options.filter(o => o.value && o.label).length === 0)
+    );
+    if (selectFieldsWithoutOptions.length > 0) {
+      alert(`Please add options for dropdown field(s): ${selectFieldsWithoutOptions.map(f => f.label).join(', ')}`);
+      return;
+    }
+
+    // Build form_schema from fields
+    const form_schema = {
+      fields: validFields.map(field => {
+        const schemaField: FormSchemaField = {
+          name: field.name,
+          label: field.label,
+          type: field.type,
+          required: field.required,
+        };
+
+        if (field.description) schemaField.description = field.description;
+        if (field.placeholder) schemaField.placeholder = field.placeholder;
+        if (field.entity_field) schemaField.entity_field = field.entity_field;
+        if (field.default_value) schemaField.default_value = field.default_value;
+
+        // For select fields, include filtered options
+        if (field.type === 'select' && field.options) {
+          schemaField.options = field.options.filter(o => o.value && o.label);
+        }
+
+        return schemaField;
+      }),
+    };
 
     try {
       await importTemplate.mutateAsync({
@@ -77,7 +174,7 @@ export default function ImportTemplate() {
         series,
         gdrive_file_id: gdriveFileId,
         gdrive_output_folder_id: gdriveOutputFolderId,
-        placeholders: validPlaceholders,
+        form_schema,
       });
 
       // Navigate back to templates page
@@ -233,108 +330,222 @@ export default function ImportTemplate() {
             </CardContent>
           </Card>
 
-          {/* Placeholders */}
+          {/* Form Fields */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Placeholders</CardTitle>
+                  <CardTitle>Form Fields</CardTitle>
                   <CardDescription>
-                    Define the placeholders that will be filled when generating contracts. Use &#123;&#123;key&#125;&#125; format in your Google Doc.
+                    Define the fields that will be filled when generating contracts. Use &#123;&#123;field_name&#125;&#125; format in your Google Doc.
                   </CardDescription>
                 </div>
-                <Button type="button" variant="outline" size="sm" onClick={addPlaceholder}>
+                <Button type="button" variant="outline" size="sm" onClick={addFormField}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Placeholder
+                  Add Field
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {placeholders.map((placeholder, index) => (
+                {formFields.map((field, index) => (
                   <div key={index} className="border rounded-lg p-4 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Placeholder {index + 1}</span>
-                      {placeholders.length > 1 && (
+                      <span className="text-sm font-medium">Field {index + 1}</span>
+                      <div className="flex items-center gap-2">
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
-                          onClick={() => removePlaceholder(index)}
+                          onClick={() => toggleFieldExpanded(index)}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          {field.expanded ? (
+                            <ChevronUp className="h-4 w-4" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4" />
+                          )}
+                          <span className="ml-1 text-xs">
+                            {field.expanded ? 'Less' : 'More'}
+                          </span>
                         </Button>
-                      )}
+                        {formFields.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeFormField(index)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
 
+                    {/* Basic fields - always visible */}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-2">
-                        <Label>Key</Label>
+                        <Label>Field Name</Label>
                         <Input
                           placeholder="e.g., employee_name"
-                          value={placeholder.key}
-                          onChange={(e) => updatePlaceholder(index, 'key', e.target.value)}
+                          value={field.name}
+                          onChange={(e) => updateFormField(index, 'name', e.target.value.toLowerCase().replace(/\s+/g, '_'))}
                         />
                         <p className="text-xs text-muted-foreground">
-                          Use in template as: &#123;&#123;{placeholder.key || 'key'}&#125;&#125;
+                          Use in template as: &#123;&#123;{field.name || 'field_name'}&#125;&#125;
                         </p>
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Label</Label>
+                        <Label>Display Label</Label>
                         <Input
                           placeholder="e.g., Employee Name"
-                          value={placeholder.label}
-                          onChange={(e) => updatePlaceholder(index, 'label', e.target.value)}
+                          value={field.label}
+                          onChange={(e) => updateFormField(index, 'label', e.target.value)}
                         />
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-2">
-                        <Label>Type</Label>
+                        <Label>Field Type</Label>
                         <Select
-                          value={placeholder.type}
-                          onValueChange={(value) => updatePlaceholder(index, 'type', value)}
+                          value={field.type}
+                          onValueChange={(value) => updateFormField(index, 'type', value)}
                         >
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="text">Text</SelectItem>
-                            <SelectItem value="number">Number</SelectItem>
-                            <SelectItem value="date">Date</SelectItem>
+                            {FIELD_TYPES.map((type) => (
+                              <SelectItem key={type.value} value={type.value}>
+                                {type.label}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Required</Label>
-                        <Select
-                          value={placeholder.required ? 'yes' : 'no'}
-                          onValueChange={(value) =>
-                            updatePlaceholder(index, 'required', value === 'yes')
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="yes">Yes</SelectItem>
-                            <SelectItem value="no">No</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <Label className="flex items-center gap-2">
+                          Required
+                        </Label>
+                        <div className="flex items-center space-x-2 h-10">
+                          <Checkbox
+                            id={`required-${index}`}
+                            checked={field.required}
+                            onCheckedChange={(checked) => updateFormField(index, 'required', !!checked)}
+                          />
+                          <label
+                            htmlFor={`required-${index}`}
+                            className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
+                            This field is required
+                          </label>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label>Description (optional)</Label>
-                      <Input
-                        placeholder="Helper text for this field"
-                        value={placeholder.description || ''}
-                        onChange={(e) => updatePlaceholder(index, 'description', e.target.value)}
-                      />
-                    </div>
+                    {/* Select options - only for dropdown type */}
+                    {field.type === 'select' && (
+                      <div className="space-y-2 border-t pt-3">
+                        <div className="flex items-center justify-between">
+                          <Label>Dropdown Options</Label>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => addSelectOption(index)}
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            Add Option
+                          </Button>
+                        </div>
+                        <div className="space-y-2">
+                          {(field.options || []).map((option, optIndex) => (
+                            <div key={optIndex} className="flex gap-2 items-center">
+                              <Input
+                                placeholder="Value"
+                                value={option.value}
+                                onChange={(e) => updateSelectOption(index, optIndex, 'value', e.target.value)}
+                                className="flex-1"
+                              />
+                              <Input
+                                placeholder="Display Label"
+                                value={option.label}
+                                onChange={(e) => updateSelectOption(index, optIndex, 'label', e.target.value)}
+                                className="flex-1"
+                              />
+                              {(field.options?.length || 0) > 1 && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeSelectOption(index, optIndex)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Advanced options - collapsed by default */}
+                    {field.expanded && (
+                      <div className="space-y-3 border-t pt-3">
+                        <p className="text-xs text-muted-foreground font-medium">Advanced Options</p>
+
+                        <div className="space-y-2">
+                          <Label>Description / Help Text</Label>
+                          <Input
+                            placeholder="Helper text shown below the field"
+                            value={field.description || ''}
+                            onChange={(e) => updateFormField(index, 'description', e.target.value)}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Placeholder Text</Label>
+                          <Input
+                            placeholder="Placeholder shown inside the field"
+                            value={field.placeholder || ''}
+                            onChange={(e) => updateFormField(index, 'placeholder', e.target.value)}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Default Value</Label>
+                          <Input
+                            placeholder="Pre-filled value (optional)"
+                            value={field.default_value || ''}
+                            onChange={(e) => updateFormField(index, 'default_value', e.target.value)}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Auto-populate from Entity</Label>
+                          <Select
+                            value={field.entity_field || ''}
+                            onValueChange={(value) => updateFormField(index, 'entity_field', value || undefined)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select entity field..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {ENTITY_FIELDS.map((entityField) => (
+                                <SelectItem key={entityField.value || 'none'} value={entityField.value}>
+                                  {entityField.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground">
+                            Automatically fill this field from the counterparty entity's data
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

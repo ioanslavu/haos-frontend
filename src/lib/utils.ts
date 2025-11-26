@@ -34,3 +34,18 @@ export function formatMoney(amount: number | string, currency: string = 'EUR'): 
   const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount
   return formatCurrency(numAmount, currency)
 }
+
+/**
+ * Format a date string or Date object to a localized date and time string
+ */
+export function formatDateTime(date: string | Date | null | undefined): string {
+  if (!date) return '-'
+  const d = typeof date === 'string' ? new Date(date) : date
+  return d.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}

@@ -1,14 +1,18 @@
-import type { Entity } from '@/api/services/entities.service'
-import type { ContactPerson } from './contact'
+/**
+ * Campaign Types - Matching new backend structure
+ *
+ * Architecture:
+ * - Campaign = "who" (client) - simple identity + status
+ * - SubCampaign = "where" (platform) + budget + payment method
+ */
 
-// Minimal Recording type for campaign songs
-export interface Recording {
-  id: number
-  title: string
-  type: string
-  status: string
-  isrc?: string
-}
+import type { Entity, ContactPerson } from '@/api/services/entities.service'
+
+// ============================================
+// ENUMS & CONSTANTS
+// ============================================
+
+export type CampaignType = 'internal' | 'external'
 
 export type CampaignStatus =
   | 'lead'
@@ -17,204 +21,555 @@ export type CampaignStatus =
   | 'active'
   | 'completed'
   | 'lost'
+  | 'cancelled'
 
-export type CampaignType =
-  | 'endorsement'
-  | 'post'
-  | 'song'
-  | 'sale'
+export type SubCampaignStatus =
+  | 'draft'
+  | 'active'
+  | 'paused'
+  | 'completed'
+  | 'cancelled'
+
+export type Platform =
+  | 'meta'
+  | 'google'
+  | 'tiktok'
+  | 'youtube'
+  | 'spotify'
+  | 'apple_music'
+  | 'amazon_music'
+  | 'deezer'
+  | 'soundcloud'
+  | 'twitter'
+  | 'linkedin'
+  | 'snapchat'
+  | 'pinterest'
+  | 'other'
+
+export type ServiceType =
+  | 'ppc'
+  | 'influencer'
+  | 'ugc'
+  | 'dsp'
+  | 'playlist'
+  | 'pr'
+  | 'social'
+  | 'content'
+  | 'radio'
+  | 'seo'
+  | 'email'
+  | 'other'
+
+export type PaymentMethod =
+  | 'invoice'
+  | 'credit_card'
+  | 'prepaid'
+  | 'revenue_share'
 
 export type CampaignAssignmentRole = 'lead' | 'support' | 'observer'
 
-export interface CampaignAssignment {
-  id?: number
-  user: number  // User ID
-  user_email?: string  // Derived from user.email (read-only)
-  user_name?: string  // Derived from user.get_full_name() (read-only)
-  role: CampaignAssignmentRole
-  role_display?: string  // Human-readable role label (read-only)
-  assigned_at?: string  // ISO datetime (read-only)
-  assigned_by?: number  // User ID who created the assignment (read-only)
-  assigned_by_email?: string  // Derived from assigned_by.email (read-only)
+export type CampaignHistoryEventType =
+  | 'created'
+  | 'status_changed'
+  | 'subcampaign_added'
+  | 'subcampaign_removed'
+  | 'budget_updated'
+  | 'contract_signed'
+  | 'contract_added'
+  | 'note_added'
+  | 'assignment_added'
+  | 'assignment_removed'
+  | 'field_changed'
+
+// ============================================
+// CORE MODELS
+// ============================================
+
+/** Recording/Song reference */
+export interface Recording {
+  id: number
+  title: string
+  type?: string
+  status?: string
+  isrc?: string
 }
 
-export type PricingModel = 'service_fee' | 'revenue_share'
-export type InvoiceStatus = 'not_issued' | 'issued' | 'collected' | 'delayed'
+/** Campaign Assignment */
+export interface CampaignAssignment {
+  id?: number
+  user: number
+  user_email?: string
+  user_name?: string
+  role: CampaignAssignmentRole
+  role_display?: string
+  assigned_at?: string
+  assigned_by?: number
+  assigned_by_name?: string
+}
 
-export interface Campaign {
+/** Contract info for subcampaign display */
+export interface SubCampaignContractInfo {
   id: number
-  campaign_name: string
-  campaign_type?: CampaignType | null
-  client: Entity
-  artist?: Entity | null
-  brand: Entity
-  song?: Recording | null
-  contact_person?: ContactPerson | null
-  department?: number | null
-  department_display?: string
+  contract_number: string
+  status: string
+  is_annex: boolean
+}
 
-  // Financial
-  value?: string | null  // Decimal as string (for service_fee model)
+/** SubCampaign - platform-level campaign */
+export interface SubCampaign {
+  id: number
+  campaign: number
+
+  // Platform & Service
+  platform: Platform
+  platform_display?: string
+  platform_other?: string
+  service_type: ServiceType
+  service_type_display?: string
+  status: SubCampaignStatus
+  status_display?: string
+
+  // Budget & Payment
+  budget: string
+  spent: string
   currency: string
-  pricing_model?: PricingModel
-  revenue_generated?: string | null  // For revenue_share model
-  partner_share_percentage?: string | null  // For revenue_share model
-  partner_payout?: string | null  // Calculated
-  our_revenue?: string | null  // Calculated
-  calculated_profit?: string | null  // Calculated profit based on pricing model
-  budget_allocated?: string | null
-  budget_spent?: string | null
-  profit?: string | null  // Legacy calculated profit for completed campaigns
-  internal_cost_estimate?: string | null  // Estimated internal costs
-  invoice_status?: InvoiceStatus | null  // Invoice tracking status
+  payment_method: PaymentMethod
+  payment_method_display?: string
+  revenue_share_percentage?: string
+  revenue_generated?: string
 
-  // Status and timeline
-  status: CampaignStatus
-  confirmed_at: string | null  // ISO datetime
-  start_date?: string | null
-  end_date?: string | null
-
-  // Digital department fields
-  service_types?: string[]
-  service_types_display?: string[]
-  platforms?: string[]
-  platforms_display?: string[]
-  client_health_score?: number | null
+  // Content
+  songs: Recording[]
+  artists: Entity[]
 
   // KPIs
   kpi_targets?: Record<string, { target: number; unit: string }>
-  kpi_actuals?: Record<string, { actual: number; unit: string; last_updated?: string }>
-  kpi_completion?: number | null
 
-  // Department-specific data
-  department_data?: Record<string, any>
-
-  // Relationships
-  assignments?: CampaignAssignment[]
-  tasks_count?: number
-  activities_count?: number
-
-  // Metadata
-  notes: string
-  created_by: number
-  created_by_name: string | null
-  created_at: string  // ISO datetime
-  updated_at: string  // ISO datetime
-}
-
-export interface CampaignFormData {
-  campaign_name: string
-  campaign_type?: CampaignType | null
-  client: number
-  artist?: number | null
-  brand: number
-  song?: number | null
-  contact_person?: number | null
-  department?: number | null
-  value?: string | null
-  currency?: string
-  pricing_model?: PricingModel
-  revenue_generated?: string | null
-  partner_share_percentage?: string | null
-  budget_allocated?: string
-  budget_spent?: string
-  profit?: string
-  internal_cost_estimate?: string
-  invoice_status?: InvoiceStatus
-  status: CampaignStatus
-  service_types?: string[]
-  platforms?: string[]
+  // Period
   start_date?: string
   end_date?: string
-  client_health_score?: number
-  kpi_targets?: Record<string, { target: number; unit: string }>
-  kpi_actuals?: Record<string, { actual: number; unit: string }>
-  department_data?: Record<string, any>
-  confirmed_at?: string
+
+  // Contract coverage
+  contract_info?: SubCampaignContractInfo | null
+  has_contract: boolean
+
+  // Metadata
   notes?: string
-  assignments?: CampaignAssignment[]
+  created_by?: number
+  created_by_name?: string
+  created_at: string
+  updated_at: string
+
+  // Computed
+  budget_remaining?: string
+  budget_utilization?: number
+  song_count?: number
+  artist_count?: number
 }
+
+/** Campaign - the master campaign (WHO) */
+export interface Campaign {
+  id: number
+  name: string
+
+  // Type
+  campaign_type: CampaignType
+  campaign_type_display?: string
+
+  // Client (the WHO)
+  client: Entity
+  contact_person?: ContactPerson | null
+
+  // Status
+  status: CampaignStatus
+  status_display?: string
+  confirmed_at?: string | null
+
+  // Period
+  start_date?: string | null
+  end_date?: string | null
+
+  // Department
+  department?: number | null
+  department_name?: string
+
+  // Relationships
+  subcampaigns?: SubCampaign[]
+  assignments?: CampaignAssignment[]
+  contracts?: CampaignContractLink[]
+
+  // Computed (from subcampaigns)
+  subcampaign_count?: number
+  total_budget?: string
+  total_spent?: string
+
+  // Metadata
+  notes?: string
+  created_by?: number
+  created_by_name?: string
+  created_at: string
+  updated_at: string
+}
+
+/** Campaign-Contract Link */
+export interface CampaignContractLink {
+  id: number
+  campaign: number
+  contract: number
+  contract_number?: string
+  contract_status?: string
+  created_at: string
+  created_by?: number
+  created_by_name?: string
+}
+
+/** Campaign History Entry */
+export interface CampaignHistory {
+  id: number
+  campaign: number
+  event_type: CampaignHistoryEventType
+  event_type_display?: string
+  description: string
+  old_value?: string
+  new_value?: string
+  subcampaign?: number
+  contract?: number
+  metadata?: Record<string, any>
+  created_by?: number
+  created_by_name?: string
+  created_at: string
+}
+
+// ============================================
+// FORM DATA
+// ============================================
+
+export interface CampaignCreateData {
+  name: string
+  client_id: number
+  campaign_type?: CampaignType
+  contact_person_id?: number
+  start_date?: string
+  end_date?: string
+  notes?: string
+}
+
+export interface CampaignUpdateData {
+  name?: string
+  campaign_type?: CampaignType
+  contact_person_id?: number | null
+  start_date?: string
+  end_date?: string | null
+  notes?: string
+}
+
+export interface SubCampaignCreateData {
+  platform: Platform
+  platform_other?: string
+  service_type: ServiceType
+  budget?: string
+  currency?: string
+  payment_method: PaymentMethod
+  revenue_share_percentage?: string
+  song_ids?: number[]
+  artist_ids?: number[]
+  kpi_targets?: Record<string, { target: number; unit: string }>
+  start_date?: string
+  end_date?: string
+  notes?: string
+}
+
+export interface SubCampaignUpdateData {
+  platform?: Platform
+  platform_other?: string
+  service_type?: ServiceType
+  status?: SubCampaignStatus
+  budget?: string
+  spent?: string
+  currency?: string
+  payment_method?: PaymentMethod
+  revenue_share_percentage?: string
+  revenue_generated?: string
+  kpi_targets?: Record<string, { target: number; unit: string }>
+  start_date?: string
+  end_date?: string
+  notes?: string
+}
+
+// ============================================
+// FILTERS
+// ============================================
 
 export interface CampaignFilters {
   status?: CampaignStatus | CampaignStatus[]
+  campaign_type?: CampaignType
   client?: number
-  artist?: number
-  brand?: number
-  song?: number
+  platform?: Platform
+  is_active?: boolean
+  has_subcampaigns?: boolean
   created_after?: string
   created_before?: string
   confirmed_after?: string
   confirmed_before?: string
+  start_date_after?: string
+  start_date_before?: string
+  end_date_after?: string
+  end_date_before?: string
   search?: string
+  ordering?: string
 }
+
+export interface SubCampaignFilters {
+  platform?: Platform | Platform[]
+  status?: SubCampaignStatus | SubCampaignStatus[]
+  service_type?: ServiceType | ServiceType[]
+  payment_method?: PaymentMethod
+  min_budget?: string
+  max_budget?: string
+}
+
+// ============================================
+// STATS & ANALYTICS
+// ============================================
 
 export interface CampaignStats {
-  total_campaigns: number
-  total_value: string
+  total: number
   by_status: Record<CampaignStatus, number>
-  recent_campaigns: Campaign[]
+  by_type: Record<CampaignType, number>
+  active: number
 }
 
-export interface BrandAnalytics {
-  brand_id: number
-  brand_name: string
-  total_campaigns: number
-  total_value: string
-  unique_artists: number
-  campaigns_by_status: Record<CampaignStatus, number>
-  artists: Array<{
-    id: number
-    name: string
-    campaign_count: number
-  }>
-  recent_campaigns: Campaign[]
-  campaigns?: Campaign[]  // Full list when viewing specific brand
+export interface CampaignFinancials {
+  total_budget: string
+  total_spent: string
+  total_revenue: string
+  budget_remaining: string
+  budget_utilization: string
+  subcampaign_count: number
+  active_subcampaigns: number
 }
 
-export interface ArtistAnalytics {
-  artist_id: number
-  artist_name: string
-  total_campaigns: number
-  total_value: string
-  unique_clients: number
-  unique_brands: number
-  campaigns_by_status: Record<CampaignStatus, number>
-  brands: Array<{
-    id: number
-    name: string
-    campaign_count: number
-  }>
-  clients: Array<{
-    id: number
-    name: string
-    campaign_count: number
-  }>
-  recent_campaigns: Campaign[]
-  campaigns?: Campaign[]  // Full list when viewing specific artist
+export interface PlatformPerformance {
+  platform: Platform
+  platform_display: string
+  total_budget: string
+  total_spent: string
+  total_revenue: string
+  avg_budget: string
+  avg_spent: string
+  subcampaign_count: number
 }
 
-export interface ClientAnalytics {
-  client_id: number
-  client_name: string
-  total_campaigns: number
-  total_value: string
-  unique_artists: number
-  unique_brands: number
-  campaigns_by_status: Record<CampaignStatus, number>
-  artists: Array<{
-    id: number
-    name: string
+export interface PortfolioFinancials {
+  totals: {
+    budget: string
+    spent: string
+    revenue: string
+    remaining: string
+    campaign_count: number
+  }
+  by_platform?: PlatformPerformance[]
+  by_month?: Array<{
+    month: string
+    budget: string
+    spent: string
     campaign_count: number
   }>
-  brands: Array<{
-    id: number
-    name: string
-    campaign_count: number
-  }>
-  recent_campaigns: Campaign[]
-  campaigns?: Campaign[]  // Full list when viewing specific client
 }
 
+// ============================================
+// UI CONFIG
+// ============================================
+
+export const CAMPAIGN_STATUS_CONFIG: Record<CampaignStatus, {
+  label: string
+  emoji: string
+  color: string
+  bgColor: string
+}> = {
+  lead: {
+    label: 'Lead',
+    emoji: '🎯',
+    color: 'text-blue-600 dark:text-blue-400',
+    bgColor: 'bg-blue-100 dark:bg-blue-900/30',
+  },
+  negotiation: {
+    label: 'Negotiation',
+    emoji: '🤝',
+    color: 'text-amber-600 dark:text-amber-400',
+    bgColor: 'bg-amber-100 dark:bg-amber-900/30',
+  },
+  confirmed: {
+    label: 'Confirmed',
+    emoji: '✅',
+    color: 'text-green-600 dark:text-green-400',
+    bgColor: 'bg-green-100 dark:bg-green-900/30',
+  },
+  active: {
+    label: 'Active',
+    emoji: '🚀',
+    color: 'text-purple-600 dark:text-purple-400',
+    bgColor: 'bg-purple-100 dark:bg-purple-900/30',
+  },
+  completed: {
+    label: 'Completed',
+    emoji: '🏁',
+    color: 'text-gray-600 dark:text-gray-400',
+    bgColor: 'bg-gray-100 dark:bg-gray-900/30',
+  },
+  lost: {
+    label: 'Lost',
+    emoji: '❌',
+    color: 'text-red-600 dark:text-red-400',
+    bgColor: 'bg-red-100 dark:bg-red-900/30',
+  },
+  cancelled: {
+    label: 'Cancelled',
+    emoji: '🚫',
+    color: 'text-gray-500 dark:text-gray-500',
+    bgColor: 'bg-gray-100 dark:bg-gray-800/30',
+  },
+}
+
+export const SUBCAMPAIGN_STATUS_CONFIG: Record<SubCampaignStatus, {
+  label: string
+  emoji: string
+  color: string
+  bgColor: string
+}> = {
+  draft: {
+    label: 'Draft',
+    emoji: '📝',
+    color: 'text-gray-600 dark:text-gray-400',
+    bgColor: 'bg-gray-100 dark:bg-gray-900/30',
+  },
+  active: {
+    label: 'Active',
+    emoji: '🟢',
+    color: 'text-green-600 dark:text-green-400',
+    bgColor: 'bg-green-100 dark:bg-green-900/30',
+  },
+  paused: {
+    label: 'Paused',
+    emoji: '⏸️',
+    color: 'text-amber-600 dark:text-amber-400',
+    bgColor: 'bg-amber-100 dark:bg-amber-900/30',
+  },
+  completed: {
+    label: 'Completed',
+    emoji: '✅',
+    color: 'text-blue-600 dark:text-blue-400',
+    bgColor: 'bg-blue-100 dark:bg-blue-900/30',
+  },
+  cancelled: {
+    label: 'Cancelled',
+    emoji: '🚫',
+    color: 'text-red-600 dark:text-red-400',
+    bgColor: 'bg-red-100 dark:bg-red-900/30',
+  },
+}
+
+export const PLATFORM_CONFIG: Record<Platform, {
+  label: string
+  emoji: string
+  color: string
+}> = {
+  meta: { label: 'Meta (FB/IG)', emoji: '📱', color: 'text-blue-600' },
+  google: { label: 'Google Ads', emoji: '🔍', color: 'text-blue-500' },
+  tiktok: { label: 'TikTok', emoji: '🎭', color: 'text-black dark:text-white' },
+  youtube: { label: 'YouTube', emoji: '▶️', color: 'text-red-500' },
+  spotify: { label: 'Spotify', emoji: '🎵', color: 'text-green-500' },
+  apple_music: { label: 'Apple Music', emoji: '🍎', color: 'text-pink-500' },
+  amazon_music: { label: 'Amazon Music', emoji: '🛒', color: 'text-orange-500' },
+  deezer: { label: 'Deezer', emoji: '🎧', color: 'text-purple-500' },
+  soundcloud: { label: 'SoundCloud', emoji: '☁️', color: 'text-orange-400' },
+  twitter: { label: 'X/Twitter', emoji: '𝕏', color: 'text-black dark:text-white' },
+  linkedin: { label: 'LinkedIn', emoji: '💼', color: 'text-blue-700' },
+  snapchat: { label: 'Snapchat', emoji: '👻', color: 'text-yellow-400' },
+  pinterest: { label: 'Pinterest', emoji: '📌', color: 'text-red-600' },
+  other: { label: 'Other', emoji: '📱', color: 'text-gray-500' },
+}
+
+export const SERVICE_TYPE_CONFIG: Record<ServiceType, {
+  label: string
+  emoji: string
+}> = {
+  ppc: { label: 'PPC Advertising', emoji: '💰' },
+  influencer: { label: 'Influencer Marketing', emoji: '⭐' },
+  ugc: { label: 'UGC Content', emoji: '📱' },
+  dsp: { label: 'DSP Distribution', emoji: '📊' },
+  playlist: { label: 'Playlist Pitching', emoji: '📋' },
+  pr: { label: 'PR Campaign', emoji: '📰' },
+  social: { label: 'Social Media Management', emoji: '📢' },
+  content: { label: 'Content Creation', emoji: '🎬' },
+  radio: { label: 'Radio Plugging', emoji: '📻' },
+  seo: { label: 'SEO Optimization', emoji: '🔍' },
+  email: { label: 'Email Marketing', emoji: '📧' },
+  other: { label: 'Other', emoji: '📦' },
+}
+
+export const PAYMENT_METHOD_CONFIG: Record<PaymentMethod, {
+  label: string
+  emoji: string
+  description: string
+}> = {
+  invoice: {
+    label: 'Invoice',
+    emoji: '📄',
+    description: 'Payment via invoice',
+  },
+  credit_card: {
+    label: 'Credit Card',
+    emoji: '💳',
+    description: 'Direct credit card payment',
+  },
+  prepaid: {
+    label: 'Prepaid',
+    emoji: '💰',
+    description: 'Full payment before campaign starts',
+  },
+  revenue_share: {
+    label: 'Revenue Share',
+    emoji: '📊',
+    description: 'Split based on generated revenue',
+  },
+}
+
+export const CAMPAIGN_TYPE_CONFIG: Record<CampaignType, {
+  label: string
+  emoji: string
+  description: string
+}> = {
+  internal: {
+    label: 'Internal',
+    emoji: '🏠',
+    description: 'For our label artists',
+  },
+  external: {
+    label: 'External',
+    emoji: '🌍',
+    description: 'Client campaigns',
+  },
+}
+
+// Status flow for UI
+export const STATUS_FLOW: CampaignStatus[] = [
+  'lead',
+  'negotiation',
+  'confirmed',
+  'active',
+  'completed',
+]
+
+// Active statuses
+export const ACTIVE_STATUSES: CampaignStatus[] = ['confirmed', 'active']
+
+// ============================================
+// BACKWARDS COMPATIBILITY EXPORTS
+// These are used by existing components
+// ============================================
+
+/** @deprecated Use CAMPAIGN_STATUS_CONFIG instead */
 export const CAMPAIGN_STATUS_LABELS: Record<CampaignStatus, string> = {
   lead: 'Lead',
   negotiation: 'Negotiation',
@@ -222,63 +577,62 @@ export const CAMPAIGN_STATUS_LABELS: Record<CampaignStatus, string> = {
   active: 'Active',
   completed: 'Completed',
   lost: 'Lost',
+  cancelled: 'Cancelled',
 }
 
+/** @deprecated Use CAMPAIGN_STATUS_CONFIG instead */
 export const CAMPAIGN_STATUS_COLORS: Record<CampaignStatus, string> = {
-  lead: 'bg-blue-100 text-blue-800',
-  negotiation: 'bg-yellow-100 text-yellow-800',
-  confirmed: 'bg-green-100 text-green-800',
-  active: 'bg-purple-100 text-purple-800',
-  completed: 'bg-gray-100 text-gray-800',
-  lost: 'bg-red-100 text-red-800',
+  lead: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+  negotiation: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
+  confirmed: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+  active: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
+  completed: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400',
+  lost: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+  cancelled: 'bg-gray-100 text-gray-500 dark:bg-gray-800/30 dark:text-gray-500',
 }
 
+/** @deprecated Use CAMPAIGN_TYPE_CONFIG instead */
+export const CAMPAIGN_TYPE_LABELS: Record<CampaignType, string> = {
+  internal: 'Internal',
+  external: 'External',
+}
+
+/** @deprecated Use CAMPAIGN_TYPE_CONFIG instead */
+export const CAMPAIGN_TYPE_COLORS: Record<CampaignType, string> = {
+  internal: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400',
+  external: 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400',
+}
+
+/** Assignment role labels */
 export const CAMPAIGN_ASSIGNMENT_ROLE_LABELS: Record<CampaignAssignmentRole, string> = {
   lead: 'Lead',
   support: 'Support',
   observer: 'Observer',
 }
 
-export const CAMPAIGN_ASSIGNMENT_ROLE_COLORS: Record<CampaignAssignmentRole, string> = {
-  lead: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-  support: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  observer: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
-}
-
-export const PRICING_MODEL_LABELS: Record<PricingModel, string> = {
-  service_fee: 'Service Fee',
+/** Pricing/Payment model labels */
+export const PRICING_MODEL_LABELS: Record<PaymentMethod, string> = {
+  invoice: 'Invoice',
+  credit_card: 'Credit Card',
+  prepaid: 'Prepaid',
   revenue_share: 'Revenue Share',
 }
 
-export const PRICING_MODEL_COLORS: Record<PricingModel, string> = {
-  service_fee: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  revenue_share: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-}
+// Invoice types (for backwards compatibility with digital module)
+export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled'
 
 export const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {
-  not_issued: 'Not Issued (Neemisă)',
-  issued: 'Issued (Emisă)',
-  collected: 'Collected (Încasată)',
-  delayed: 'Delayed (Întârziată)',
+  draft: 'Draft',
+  sent: 'Sent',
+  paid: 'Paid',
+  overdue: 'Overdue',
+  cancelled: 'Cancelled',
 }
 
 export const INVOICE_STATUS_COLORS: Record<InvoiceStatus, string> = {
-  not_issued: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
-  issued: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  collected: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-  delayed: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-}
-
-export const CAMPAIGN_TYPE_LABELS: Record<CampaignType, string> = {
-  endorsement: 'Endorsement',
-  post: 'Post',
-  song: 'Song',
-  sale: 'Sale',
-}
-
-export const CAMPAIGN_TYPE_COLORS: Record<CampaignType, string> = {
-  endorsement: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-  post: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  song: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200',
-  sale: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+  draft: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400',
+  sent: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+  paid: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+  overdue: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+  cancelled: 'bg-gray-100 text-gray-500 dark:bg-gray-800/30 dark:text-gray-500',
 }

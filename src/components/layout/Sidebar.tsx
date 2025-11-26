@@ -32,7 +32,8 @@ import {
   Music,
   CheckCircle2,
   FolderKanban,
-  UsersRound
+  UsersRound,
+  Receipt
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -77,13 +78,13 @@ const navigation: NavigationItem[] = [
     name: 'Contracts',
     href: '/contracts',
     icon: FileText,
-    show: (user) => user?.role === 'administrator', // Only admins
+    show: (user) => user?.role === 'administrator' || (user?.role_detail?.level ?? 0) >= 300, // Admins and managers
   },
   {
     name: 'Templates',
     href: '/templates',
     icon: Layout,
-    show: (user) => user?.role === 'administrator', // Only admins
+    show: (user) => user?.role === 'administrator' || (user?.role_detail?.level ?? 0) >= 300, // Admins and managers
   },
   // { name: 'BI & Analytics', href: '/analytics', icon: BarChart3 },
   {
@@ -196,6 +197,17 @@ const digitalNavigation: NavigationItem[] = [
     },
   },
   {
+    name: 'Invoices',
+    href: '/invoices',
+    icon: Receipt,
+    show: (user) => {
+      const isDigital = user?.department?.name?.toLowerCase() === 'digital' ||
+                        user?.department?.toLowerCase() === 'digital';
+      // Hide for digital_employee, show only for digital_manager
+      return isDigital && user?.role !== 'administrator' && user?.role !== 'digital_employee';
+    },
+  },
+  {
     name: 'Tasks',
     href: '/digital/tasks',
     icon: CheckSquare,
@@ -273,6 +285,12 @@ const digitalSubmenu: NavigationItem[] = [
     name: 'Financiar',
     href: '/digital/financial',
     icon: DollarSign,
+    show: (user) => user?.role !== 'digital_employee' // Hide for digital_employee
+  },
+  {
+    name: 'Invoices',
+    href: '/invoices',
+    icon: Receipt,
     show: (user) => user?.role !== 'digital_employee' // Hide for digital_employee
   },
   { name: 'Task-uri', href: '/digital/tasks', icon: CheckSquare },

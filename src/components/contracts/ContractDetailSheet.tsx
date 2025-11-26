@@ -23,6 +23,9 @@ import {
   XCircle,
   AlertCircle,
   EyeOff,
+  Users,
+  Tag,
+  GitBranch,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -224,21 +227,106 @@ export function ContractDetailSheet({
                           <p className="font-medium mt-1">v{contract.template_version_number}</p>
                         </div>
                       )}
-                      {contract.contract_type && (
-                        <div>
-                          <span className="text-muted-foreground">Type</span>
-                          <p className="font-medium mt-1 capitalize">{contract.contract_type}</p>
+                      {contract.is_annex && (
+                        <div className="col-span-2">
+                          <span className="text-muted-foreground flex items-center gap-1">
+                            <GitBranch className="h-3 w-3" />
+                            Parent Contract
+                          </span>
+                          <p className="font-medium mt-1 font-mono">
+                            {contract.parent_contract_number || `#${contract.parent_contract}`}
+                          </p>
                         </div>
                       )}
-                      {contract.department && (
-                        <div>
-                          <span className="text-muted-foreground">Department</span>
-                          <p className="font-medium mt-1 capitalize">{contract.department}</p>
+                      {contract.is_master_contract && contract.annexes_count > 0 && (
+                        <div className="col-span-2">
+                          <span className="text-muted-foreground">Annexes</span>
+                          <p className="font-medium mt-1">{contract.annexes_count} annex(es)</p>
                         </div>
                       )}
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Counterparty Info */}
+                {contract.counterparty && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        Counterparty
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Name</span>
+                        <span className="font-medium">{contract.counterparty.display_name}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Type</span>
+                        <Badge variant="outline">
+                          {contract.counterparty.entity_type === 'PF' ? 'Individual' : 'Legal Entity'}
+                        </Badge>
+                      </div>
+                      {contract.counterparty.email && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Email</span>
+                          <span className="font-medium">{maskEmail(contract.counterparty.email)}</span>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Label Entity */}
+                {contract.label && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        <Tag className="h-4 w-4" />
+                        Label
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-sm">
+                      <span className="font-medium">{contract.label.display_name}</span>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Contract Period */}
+                {(contract.start_date || contract.end_date) && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        Contract Period
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-sm">
+                      {contract.start_date && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Start Date</span>
+                          <span className="font-medium">
+                            {format(new Date(contract.start_date), 'MMM dd, yyyy')}
+                          </span>
+                        </div>
+                      )}
+                      {contract.end_date ? (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">End Date</span>
+                          <span className="font-medium">
+                            {format(new Date(contract.end_date), 'MMM dd, yyyy')}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">End Date</span>
+                          <Badge variant="outline">Perpetual</Badge>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
 
                 {/* Dates */}
                 <Card>
@@ -322,8 +410,8 @@ export function ContractDetailSheet({
                   </Card>
                 )}
 
-                {/* Placeholder Values - Non-sensitive only */}
-                {contract.placeholder_values && Object.keys(contract.placeholder_values).length > 0 && (
+                {/* Form Data - Non-sensitive only */}
+                {contract.data && Object.keys(contract.data).length > 0 && (
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -336,7 +424,7 @@ export function ContractDetailSheet({
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2 text-sm">
-                        {Object.entries(contract.placeholder_values).map(([key, value]) => {
+                        {Object.entries(contract.data).map(([key, value]) => {
                           const isSensitive = isSensitiveField(key);
                           const displayValue = isSensitive
                             ? redactValue(value)

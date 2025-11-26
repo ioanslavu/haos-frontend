@@ -10,12 +10,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, RefreshCw, XCircle } from 'lucide-react';
-import { Contract } from '@/api/services/contracts.service';
-import { useRegenerateContract, useCheckContractStatus } from '@/api/hooks/useContracts';
+import { ContractListItem } from '@/api/services/contracts.service';
+import { useRegenerateContract, useCheckContractStatus, useContract } from '@/api/hooks/useContracts';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface RegenerateContractDialogProps {
-  contract: Contract | null;
+  contract: ContractListItem | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -26,9 +26,12 @@ export const RegenerateContractDialog: React.FC<RegenerateContractDialogProps> =
   onOpenChange,
 }) => {
   const regenerateContract = useRegenerateContract();
-  const [placeholderValues, setPlaceholderValues] = useState<Record<string, any>>({});
+  const [formData, setFormData] = useState<Record<string, any>>({});
   const [processingContractId, setProcessingContractId] = useState<number | null>(null);
   const [shouldPoll, setShouldPoll] = useState(false);
+
+  // Fetch full contract details to get the data field
+  const { data: fullContract, isLoading: isLoadingContract } = useContract(contract?.id ?? 0);
 
   // Poll for contract status while processing
   const { data: statusData } = useCheckContractStatus(
@@ -44,11 +47,12 @@ export const RegenerateContractDialog: React.FC<RegenerateContractDialogProps> =
     }
   }, [open]);
 
+  // Initialize form data when full contract is loaded
   useEffect(() => {
-    if (contract) {
-      setPlaceholderValues(contract.placeholder_values || {});
+    if (fullContract) {
+      setFormData(fullContract.data || {});
     }
-  }, [contract]);
+  }, [fullContract]);
 
   // Handle status changes
   useEffect(() => {
@@ -67,8 +71,8 @@ export const RegenerateContractDialog: React.FC<RegenerateContractDialogProps> =
     }
   }, [statusData, processingContractId, onOpenChange]);
 
-  const handlePlaceholderChange = (key: string, value: any) => {
-    setPlaceholderValues(prev => ({ ...prev, [key]: value }));
+  const handleFieldChange = (key: string, value: any) => {
+    setFormData(prev => ({ ...prev, [key]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -80,7 +84,7 @@ export const RegenerateContractDialog: React.FC<RegenerateContractDialogProps> =
       const updatedContract = await regenerateContract.mutateAsync({
         id: contract.id,
         payload: {
-          placeholder_values: placeholderValues,
+          form_data: formData,
         },
       });
 
@@ -97,6 +101,7 @@ export const RegenerateContractDialog: React.FC<RegenerateContractDialogProps> =
   const canRegenerate = contract.status === 'draft';
   const isProcessing = processingContractId !== null && shouldPoll;
   const isFailed = statusData?.status === 'failed';
+  const isLoading = isLoadingContract;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -121,6 +126,11 @@ export const RegenerateContractDialog: React.FC<RegenerateContractDialogProps> =
             <div className="flex justify-end mt-4">
               <Button onClick={() => onOpenChange(false)}>Close</Button>
             </div>
+          </div>
+        ) : isLoading ? (
+          <div className="py-8 flex items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin mr-2" />
+            <span>Loading contract data...</span>
           </div>
         ) : (
           <>
@@ -151,19 +161,23 @@ export const RegenerateContractDialog: React.FC<RegenerateContractDialogProps> =
                 </Alert>
               )}
               <div className="space-y-4">
-                <h4 className="font-medium">Update Placeholder Values</h4>
-                {Object.entries(placeholderValues).map(([key, value]) => (
-                  <div key={key} className="space-y-2">
-                    <Label htmlFor={`placeholder-${key}`} className="text-sm font-medium">
-                      {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                    </Label>
-                    <Input
-                      id={`placeholder-${key}`}
-                      value={value || ''}
-                      onChange={(e) => handlePlaceholderChange(key, e.target.value)}
-                    />
-                  </div>
-                ))}
+                <h4 className="font-medium">Update Form Values</h4>
+                {Object.keys(formData).length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No editable fields available.</p>
+                ) : (
+                  Object.entries(formData).map(([key, value]) => (
+                    <div key={key} className="space-y-2">
+                      <Label htmlFor={`field-${key}`} className="text-sm font-medium">
+                        {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </Label>
+                      <Input
+                        id={`field-${key}`}
+                        value={value || ''}
+                        onChange={(e) => handleFieldChange(key, e.target.value)}
+                      />
+                    </div>
+                  ))
+                )}
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t">
@@ -183,7 +197,7 @@ export const RegenerateContractDialog: React.FC<RegenerateContractDialogProps> =
                 </Button>
                 <Button
                   type="submit"
-                  disabled={regenerateContract.isPending || isProcessing}
+                  disabled={regenerateContract.isPending || isProcessing || Object.keys(formData).length === 0}
                 >
                   {regenerateContract.isPending || isProcessing ? (
                     <>

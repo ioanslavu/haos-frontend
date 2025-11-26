@@ -194,7 +194,7 @@ export default function Templates() {
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Placeholders:</span>
-                      <span className="font-medium">{template.placeholders.length}</span>
+                      <span className="font-medium">{template.placeholders?.length ?? 0}</span>
                     </div>
                   </div>
 

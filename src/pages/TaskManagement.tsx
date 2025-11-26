@@ -167,7 +167,7 @@ function RelatedEntity({ task, onClick }: { task: Task; onClick: (e: React.Mouse
   if (task.entity && task.entity_detail) {
     return (
       <div
-        onClick={(e) => onClick(e, `/entity/${task.entity}`)}
+        onClick={(e) => onClick(e, `/entities/${task.entity}`)}
         className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors cursor-pointer group"
       >
         <User className="h-2.5 w-2.5 flex-shrink-0" />

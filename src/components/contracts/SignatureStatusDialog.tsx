@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import {
   Dialog,
   DialogContent,
@@ -9,12 +9,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, CheckCircle2, Clock, XCircle, Eye, RefreshCw } from 'lucide-react';
-import { Contract } from '@/api/services/contracts.service';
-import { useSignatureStatus } from '@/api/hooks/useContracts';
+import { ContractListItem } from '@/api/services/contracts.service';
+import { useSignatureStatus, useContract } from '@/api/hooks/useContracts';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface SignatureStatusDialogProps {
-  contract: Contract | null;
+  contract: ContractListItem | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -52,15 +52,24 @@ export const SignatureStatusDialog: React.FC<SignatureStatusDialogProps> = ({
   open,
   onOpenChange,
 }) => {
+  // Fetch full contract to get signatures
+  const { data: fullContract, isLoading: isLoadingContract, refetch: refetchContract } = useContract(contract?.id ?? 0);
+
   const shouldFetch = contract?.status === 'pending_signature';
-  const { data: signatureStatus, isLoading, refetch } = useSignatureStatus(
+  const { data: signatureStatus, isLoading: isLoadingStatus, refetch: refetchStatus } = useSignatureStatus(
     contract?.id || 0,
     open && shouldFetch
   );
 
   if (!contract) return null;
 
-  const hasSignatures = contract.signatures && contract.signatures.length > 0;
+  const isLoading = isLoadingContract || isLoadingStatus;
+  const hasSignatures = fullContract?.signatures && fullContract.signatures.length > 0;
+
+  const handleRefresh = () => {
+    refetchContract();
+    refetchStatus();
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -86,18 +95,26 @@ export const SignatureStatusDialog: React.FC<SignatureStatusDialogProps> = ({
             </Badge>
           </div>
 
+          {/* Loading State */}
+          {isLoadingContract && (
+            <div className="py-8 flex items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              <span>Loading signature details...</span>
+            </div>
+          )}
+
           {/* Dropbox Sign Request ID */}
-          {contract.dropbox_sign_request_id && (
+          {!isLoadingContract && fullContract?.dropbox_sign_request_id && (
             <div className="p-4 border rounded-lg">
               <p className="text-sm font-medium mb-1">Dropbox Sign Request ID</p>
               <p className="text-xs text-muted-foreground font-mono">
-                {contract.dropbox_sign_request_id}
+                {fullContract.dropbox_sign_request_id}
               </p>
             </div>
           )}
 
           {/* Signatures List */}
-          {hasSignatures ? (
+          {!isLoadingContract && hasSignatures ? (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h4 className="font-medium">Signers</h4>
@@ -105,7 +122,7 @@ export const SignatureStatusDialog: React.FC<SignatureStatusDialogProps> = ({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => refetch()}
+                    onClick={handleRefresh}
                     disabled={isLoading}
                   >
                     {isLoading ? (
@@ -117,7 +134,7 @@ export const SignatureStatusDialog: React.FC<SignatureStatusDialogProps> = ({
                 )}
               </div>
 
-              {contract.signatures.map((signature, index) => (
+              {fullContract.signatures.map((signature, index) => (
                 <div
                   key={signature.id}
                   className="flex items-start justify-between p-4 border rounded-lg"
@@ -174,13 +191,13 @@ export const SignatureStatusDialog: React.FC<SignatureStatusDialogProps> = ({
                 </div>
               ))}
             </div>
-          ) : (
+          ) : !isLoadingContract ? (
             <Alert>
               <AlertDescription>
                 No signatures have been requested for this contract yet.
               </AlertDescription>
             </Alert>
-          )}
+          ) : null}
 
           {/* Actions */}
           <div className="flex justify-end pt-4 border-t">

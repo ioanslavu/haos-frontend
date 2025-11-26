@@ -10,11 +10,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, FileText } from 'lucide-react';
-import { Contract } from '@/api/services/contracts.service';
-import { useUpdateContract } from '@/api/hooks/useContracts';
+import { ContractListItem } from '@/api/services/contracts.service';
+import { useUpdateContract, useContract } from '@/api/hooks/useContracts';
 
 interface EditContractDialogProps {
-  contract: Contract | null;
+  contract: ContractListItem | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -26,17 +26,21 @@ export const EditContractDialog: React.FC<EditContractDialogProps> = ({
 }) => {
   const updateContract = useUpdateContract();
   const [title, setTitle] = useState('');
-  const [placeholderValues, setPlaceholderValues] = useState<Record<string, any>>({});
+  const [formData, setFormData] = useState<Record<string, any>>({});
 
+  // Fetch full contract details to get the data field
+  const { data: fullContract, isLoading: isLoadingContract } = useContract(contract?.id ?? 0);
+
+  // Initialize form when full contract is loaded
   useEffect(() => {
-    if (contract) {
-      setTitle(contract.title);
-      setPlaceholderValues(contract.placeholder_values || {});
+    if (fullContract) {
+      setTitle(fullContract.title);
+      setFormData(fullContract.data || {});
     }
-  }, [contract]);
+  }, [fullContract]);
 
-  const handlePlaceholderChange = (key: string, value: any) => {
-    setPlaceholderValues(prev => ({ ...prev, [key]: value }));
+  const handleFieldChange = (key: string, value: any) => {
+    setFormData(prev => ({ ...prev, [key]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -49,7 +53,7 @@ export const EditContractDialog: React.FC<EditContractDialogProps> = ({
         id: contract.id,
         payload: {
           title,
-          placeholder_values: placeholderValues,
+          data: formData,
         },
       });
 
@@ -63,6 +67,7 @@ export const EditContractDialog: React.FC<EditContractDialogProps> = ({
 
   // Check if contract can be edited
   const canEdit = contract.status === 'draft';
+  const isLoading = isLoadingContract;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -91,6 +96,11 @@ export const EditContractDialog: React.FC<EditContractDialogProps> = ({
               Close
             </Button>
           </div>
+        ) : isLoading ? (
+          <div className="py-8 flex items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin mr-2" />
+            <span>Loading contract data...</span>
+          </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
@@ -107,19 +117,23 @@ export const EditContractDialog: React.FC<EditContractDialogProps> = ({
             </div>
 
             <div className="space-y-4">
-              <h4 className="font-medium">Placeholder Values</h4>
-              {Object.entries(placeholderValues).map(([key, value]) => (
-                <div key={key} className="space-y-2">
-                  <Label htmlFor={`placeholder-${key}`} className="text-sm font-medium">
-                    {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                  </Label>
-                  <Input
-                    id={`placeholder-${key}`}
-                    value={value || ''}
-                    onChange={(e) => handlePlaceholderChange(key, e.target.value)}
-                  />
-                </div>
-              ))}
+              <h4 className="font-medium">Form Data</h4>
+              {Object.keys(formData).length === 0 ? (
+                <p className="text-sm text-muted-foreground">No editable fields available.</p>
+              ) : (
+                Object.entries(formData).map(([key, value]) => (
+                  <div key={key} className="space-y-2">
+                    <Label htmlFor={`field-${key}`} className="text-sm font-medium">
+                      {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    </Label>
+                    <Input
+                      id={`field-${key}`}
+                      value={value || ''}
+                      onChange={(e) => handleFieldChange(key, e.target.value)}
+                    />
+                  </div>
+                ))
+              )}
             </div>
 
             <div className="flex justify-end gap-3 pt-4 border-t">
