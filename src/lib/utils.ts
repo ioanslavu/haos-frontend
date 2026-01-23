@@ -6,6 +6,29 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * Get initials from a name (first letter of first name + first letter of last name)
+ * Examples:
+ *   "Alexandru Voicu" -> "AV"
+ *   "John" -> "JO"
+ *   "John Doe Smith" -> "JS"
+ *   "" or null -> "?"
+ */
+export function getInitials(name: string | null | undefined): string {
+  if (!name || !name.trim()) return '?'
+
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) {
+    // Single name: take first two characters
+    return parts[0].substring(0, 2).toUpperCase()
+  }
+
+  // Multiple names: first letter of first name + first letter of last name
+  const firstInitial = parts[0].charAt(0)
+  const lastInitial = parts[parts.length - 1].charAt(0)
+  return (firstInitial + lastInitial).toUpperCase()
+}
+
+/**
  * Format a date string or Date object to a localized date string
  */
 export function formatDate(date: string | Date | null | undefined): string {

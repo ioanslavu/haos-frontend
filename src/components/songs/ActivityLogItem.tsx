@@ -5,6 +5,7 @@ import { SongStageTransition, SongNote, SongChecklistItem, SongAsset } from '@/t
 import { ArrowRight, MessageSquare, CheckCircle2, FileImage, AlertCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { StageBadge } from './StageBadge';
+import { getInitials } from '@/lib/utils';
 
 export type ActivityType = 'transition' | 'note' | 'checklist' | 'asset';
 
@@ -28,17 +29,6 @@ export const ActivityLogItem = ({ activity, type }: ActivityLogItemProps) => {
   };
 
   const timeAgo = getTimeAgo();
-
-  // Get user initials for avatar
-  const getUserInitials = (fullName: string) => {
-    if (!fullName) return '??';
-    return fullName
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
 
   const getIconConfig = () => {
     switch (type) {
@@ -84,7 +74,7 @@ export const ActivityLogItem = ({ activity, type }: ActivityLogItemProps) => {
               <div className="flex items-center gap-2">
                 <Avatar className="h-5 w-5">
                   <AvatarFallback className="text-[10px]">
-                    {getUserInitials(transition.created_by.full_name)}
+                    {getInitials(transition.created_by.full_name)}
                   </AvatarFallback>
                 </Avatar>
                 <p className="text-xs text-muted-foreground">
@@ -116,7 +106,7 @@ export const ActivityLogItem = ({ activity, type }: ActivityLogItemProps) => {
               <div className="flex items-center gap-2">
                 <Avatar className="h-5 w-5">
                   <AvatarFallback className="text-[10px]">
-                    {getUserInitials(item.completed_by.full_name)}
+                    {getInitials(item.completed_by.full_name)}
                   </AvatarFallback>
                 </Avatar>
                 <p className="text-xs text-muted-foreground">
@@ -153,7 +143,7 @@ export const ActivityLogItem = ({ activity, type }: ActivityLogItemProps) => {
               <div className="flex items-center gap-2">
                 <Avatar className="h-5 w-5">
                   <AvatarFallback className="text-[10px]">
-                    {getUserInitials(asset.created_by.full_name)}
+                    {getInitials(asset.created_by.full_name)}
                   </AvatarFallback>
                 </Avatar>
                 <p className="text-xs text-muted-foreground">
@@ -189,7 +179,7 @@ export const ActivityLogItem = ({ activity, type }: ActivityLogItemProps) => {
             <div className="flex items-center gap-2">
               <Avatar className="h-5 w-5">
                 <AvatarFallback className="text-[10px]">
-                  {getUserInitials(note.created_by.full_name)}
+                  {getInitials(note.created_by.full_name)}
                 </AvatarFallback>
               </Avatar>
               <p className="text-xs text-muted-foreground">

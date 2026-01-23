@@ -132,7 +132,7 @@ export function QuickCreateCampaignDialog({
                 value={clientId}
                 onValueChange={setClientId}
                 placeholder="Select client"
-                useBusinessEndpoint={true}
+                filter={{ classification: 'CLIENT' }}
                 allowAddEntity={true}
               />
               <p className="text-xs text-muted-foreground">
@@ -149,7 +149,7 @@ export function QuickCreateCampaignDialog({
                 value={brandId}
                 onValueChange={setBrandId}
                 placeholder="Select brand"
-                useBusinessEndpoint={true}
+                filter={{ classification: 'CLIENT', entity_type: 'brand' }}
                 allowAddEntity={true}
               />
               <p className="text-xs text-muted-foreground">
@@ -166,7 +166,7 @@ export function QuickCreateCampaignDialog({
                 value={artistId}
                 onValueChange={setArtistId}
                 placeholder="Select artist (optional)"
-                filter={{ has_role: 'artist' }}
+                filter={{ classification: 'CREATIVE', entity_type: 'artist' }}
                 allowAddEntity={true}
               />
               <p className="text-xs text-muted-foreground">

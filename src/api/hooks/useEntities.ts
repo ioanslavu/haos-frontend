@@ -16,13 +16,10 @@ export const entityKeys = {
   list: (params?: EntitySearchParams) => [...entityKeys.lists(), params] as const,
   details: () => [...entityKeys.all, 'detail'] as const,
   detail: (id: number) => [...entityKeys.details(), id] as const,
-  placeholders: (id: number) => [...entityKeys.all, 'placeholders', id] as const,
   latestShares: (id: number, contractType?: string) =>
     [...entityKeys.all, 'latestShares', id, contractType] as const,
-  artists: () => [...entityKeys.all, 'artists'] as const,
-  writers: () => [...entityKeys.all, 'writers'] as const,
-  producers: () => [...entityKeys.all, 'producers'] as const,
-  business: (params?: EntitySearchParams) => [...entityKeys.all, 'business', params] as const,
+  creatives: (params?: EntitySearchParams) => [...entityKeys.all, 'creatives', params] as const,
+  clients: (params?: EntitySearchParams) => [...entityKeys.all, 'clients', params] as const,
   stats: (params?: EntitySearchParams) => [...entityKeys.all, 'stats', params] as const,
   searchGlobal: (query: string) => [...entityKeys.all, 'searchGlobal', query] as const,
   sensitiveIdentity: (entityId: number) => ['sensitiveIdentity', entityId] as const,
@@ -31,11 +28,12 @@ export const entityKeys = {
 };
 
 // Hooks
-export const useEntities = (params?: EntitySearchParams) => {
+export const useEntities = (params?: EntitySearchParams, enabled = true) => {
   return useQuery({
     queryKey: entityKeys.list(params),
     queryFn: () => entitiesService.getEntities(params),
     refetchOnMount: 'always',
+    enabled,
   });
 };
 
@@ -74,14 +72,6 @@ export const useEntity = (id: number, enabled = true) => {
   });
 };
 
-export const useEntityPlaceholders = (id: number, enabled = true) => {
-  return useQuery({
-    queryKey: entityKeys.placeholders(id),
-    queryFn: () => entitiesService.getEntityPlaceholders(id),
-    enabled: enabled && id > 0,
-  });
-};
-
 export const useEntityLatestShares = (
   entityId: number | null,
   contractType?: string,
@@ -94,32 +84,23 @@ export const useEntityLatestShares = (
   });
 };
 
-export const useArtists = () => {
+// Get creative entities (classification=CREATIVE)
+export const useCreatives = (params?: Omit<EntitySearchParams, 'classification'>, enabled = true) => {
+  const fullParams = { ...params, classification: 'CREATIVE' as const };
   return useQuery({
-    queryKey: entityKeys.artists(),
-    queryFn: () => entitiesService.getArtists(),
+    queryKey: entityKeys.creatives(fullParams),
+    queryFn: () => entitiesService.getCreatives(params),
+    enabled,
   });
 };
 
-export const useWriters = () => {
+// Get client entities (classification=CLIENT)
+export const useClients = (params?: Omit<EntitySearchParams, 'classification'>, enabled = true) => {
+  const fullParams = { ...params, classification: 'CLIENT' as const };
   return useQuery({
-    queryKey: entityKeys.writers(),
-    queryFn: () => entitiesService.getWriters(),
-  });
-};
-
-export const useProducers = () => {
-  return useQuery({
-    queryKey: entityKeys.producers(),
-    queryFn: () => entitiesService.getProducers(),
-  });
-};
-
-export const useBusinessEntities = (params?: EntitySearchParams, enabled = true) => {
-  return useQuery({
-    queryKey: entityKeys.business(params),
-    queryFn: () => entitiesService.getBusinessEntities(params),
-    enabled: enabled && (params?.search ? params.search.length > 0 : true),
+    queryKey: entityKeys.clients(fullParams),
+    queryFn: () => entitiesService.getClients(params),
+    enabled,
   });
 };
 
@@ -187,51 +168,6 @@ export const useRevealCNP = () => {
     },
   });
 };
-
-// Backward compatibility aliases for client hooks
-export const useClients = () => {
-  const query = useEntities({ has_role: 'client' });
-  return {
-    ...query,
-    data: query.data?.results || [],
-  };
-};
-
-export const useClient = useEntity;
-export const useClientPlaceholders = useEntityPlaceholders;
-
-export const useCreateClient = () => {
-  const createEntity = useCreateEntity();
-  return {
-    ...createEntity,
-    mutate: (payload: any) => {
-      const entityPayload: CreateEntityPayload = {
-        ...payload,
-        kind: 'PF' as const,
-        display_name: payload.full_name,
-        roles: ['client'],
-        primary_role: 'client',
-      };
-      return createEntity.mutate(entityPayload);
-    },
-  };
-};
-
-export const useUpdateClient = () => {
-  const updateEntity = useUpdateEntity();
-  return {
-    ...updateEntity,
-    mutate: ({ id, payload }: { id: number; payload: any }) => {
-      const entityPayload: UpdateEntityPayload = {
-        ...payload,
-        display_name: payload.full_name || payload.display_name,
-      };
-      return updateEntity.mutate({ id, payload: entityPayload });
-    },
-  };
-};
-
-export const useDeleteClient = useDeleteEntity;
 
 // Alias for better clarity in detail pages
 export const useEntityDetail = useEntity;

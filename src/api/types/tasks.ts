@@ -109,7 +109,23 @@ export interface TaskCampaignDetail {
   id: number;
   name: string;
   status: string;
-  value: string;
+  status_display?: string;
+  client_name?: string;
+  subcampaign?: {
+    id: number;
+    platform: string;
+    platform_display: string;
+    name?: string;
+  };
+}
+
+// Agnostic domain info - populated by the domain registry
+export interface TaskDomainInfo {
+  domain_type: string; // 'campaign', 'song', 'opportunity', etc.
+  entity_id: number;
+  entity_name: string;
+  entity_url: string;
+  extra: Record<string, any>; // Domain-specific extra data
 }
 
 export interface TaskEntityDetail {
@@ -176,8 +192,12 @@ export interface Task {
   priority: TaskPriority;
   tag?: TaskTag;
 
-  // Relationships
+  // Domain info - agnostic domain linking from registry
+  domain_info?: TaskDomainInfo;
+
+  // Relationships (legacy - prefer domain_info for domain entities)
   campaign?: number;
+  subcampaign?: number;
   campaign_detail?: TaskCampaignDetail;
   entity?: number;
   entity_detail?: TaskEntityDetail;

@@ -6,8 +6,12 @@ import {
   DistributionStats,
   DistributionCatalogItem,
   DistributionCatalogItemFormData,
+  DistributionSong,
+  DistributionSongFormData,
   DistributionRevenueReport,
   DistributionRevenueReportFormData,
+  DistributionAssignment,
+  DistributionAssignmentRole,
 } from '@/types/distribution'
 import { PaginatedResponse } from '@/types'
 
@@ -166,5 +170,103 @@ export const distributionsService = {
    */
   deleteRevenueReport: async (distributionId: number, catalogItemId: number, reportId: number) => {
     await apiClient.delete(`${BASE_PATH}/${distributionId}/catalog-items/${catalogItemId}/revenue-reports/${reportId}/`)
+  },
+
+  // ============================================
+  // DISTRIBUTION SONG METHODS (External Songs)
+  // ============================================
+
+  /**
+   * Get songs for a distribution
+   */
+  getSongs: async (distributionId: number, params?: { page?: number; page_size?: number }) => {
+    const response = await apiClient.get<PaginatedResponse<DistributionSong>>(
+      `${BASE_PATH}/${distributionId}/songs/`,
+      { params }
+    )
+    return response.data
+  },
+
+  /**
+   * Get a single song
+   */
+  getSong: async (distributionId: number, songId: number) => {
+    const response = await apiClient.get<DistributionSong>(
+      `${BASE_PATH}/${distributionId}/songs/${songId}/`
+    )
+    return response.data
+  },
+
+  /**
+   * Add a song to a distribution
+   */
+  addSong: async (distributionId: number, data: DistributionSongFormData) => {
+    const response = await apiClient.post<DistributionSong>(
+      `${BASE_PATH}/${distributionId}/songs/`,
+      data
+    )
+    return response.data
+  },
+
+  /**
+   * Update a song
+   */
+  updateSong: async (
+    distributionId: number,
+    songId: number,
+    data: Partial<DistributionSongFormData>
+  ) => {
+    const response = await apiClient.patch<DistributionSong>(
+      `${BASE_PATH}/${distributionId}/songs/${songId}/`,
+      data
+    )
+    return response.data
+  },
+
+  /**
+   * Remove a song from a distribution
+   */
+  removeSong: async (distributionId: number, songId: number) => {
+    await apiClient.delete(`${BASE_PATH}/${distributionId}/songs/${songId}/`)
+  },
+
+  // ============================================
+  // ASSIGNMENT METHODS
+  // ============================================
+
+  /**
+   * Get assignments for a distribution
+   */
+  getAssignments: async (distributionId: number): Promise<DistributionAssignment[]> => {
+    const response = await apiClient.get<{ results: DistributionAssignment[] } | DistributionAssignment[]>(
+      `${BASE_PATH}/${distributionId}/assignments/`
+    )
+    // Handle both paginated and non-paginated responses
+    if (Array.isArray(response.data)) {
+      return response.data
+    }
+    return response.data.results || []
+  },
+
+  /**
+   * Create a distribution assignment
+   */
+  createAssignment: async (
+    distributionId: number,
+    userId: number,
+    role: DistributionAssignmentRole
+  ): Promise<DistributionAssignment> => {
+    const response = await apiClient.post<DistributionAssignment>(
+      `${BASE_PATH}/${distributionId}/assignments/`,
+      { user_id: userId, role }
+    )
+    return response.data
+  },
+
+  /**
+   * Delete a distribution assignment
+   */
+  deleteAssignment: async (distributionId: number, assignmentId: number): Promise<void> => {
+    await apiClient.delete(`${BASE_PATH}/${distributionId}/assignments/${assignmentId}/`)
   },
 }

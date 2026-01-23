@@ -62,19 +62,17 @@ export default function DistributionFormPage() {
     }
   }, [distribution, isEdit, setValue])
 
-  // Auto-populate deal_type based on entity roles
+  // Auto-populate deal_type based on entity classification and type
   useEffect(() => {
     if (selectedEntity && !isEdit) {
-      const roles = selectedEntity.roles || []
-
       // Priority: artist > label > aggregator > company
-      if (roles.some(role => role.toLowerCase() === 'artist')) {
+      if (selectedEntity.entity_type === 'artist') {
         setValue('deal_type', 'artist')
-      } else if (roles.some(role => role.toLowerCase() === 'label')) {
+      } else if (selectedEntity.entity_type === 'label') {
         setValue('deal_type', 'label')
-      } else if (roles.some(role => role.toLowerCase() === 'aggregator')) {
+      } else if (selectedEntity.entity_type === 'distributor') {
         setValue('deal_type', 'aggregator')
-      } else if (roles.some(role => role.toLowerCase() === 'company')) {
+      } else if (selectedEntity.classification === 'CLIENT') {
         setValue('deal_type', 'company')
       }
     }
@@ -143,7 +141,6 @@ export default function DistributionFormPage() {
                 onValueChange={(value) => setValue('entity', value || undefined)}
                 onEntitySelect={(entity) => setSelectedEntity(entity)}
                 placeholder="Search for entity..."
-                useBusinessEndpoint={true}
               />
               {errors.entity && <p className="text-sm text-destructive">{errors.entity.message}</p>}
             </div>

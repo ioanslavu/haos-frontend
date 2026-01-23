@@ -56,19 +56,35 @@ export interface ContactPhone {
   is_primary: boolean;
 }
 
+// Classification types
+export type EntityClassification = 'CREATIVE' | 'CLIENT';
+
+// Entity type options
+export type CreativeType = 'artist' | 'producer' | 'composer' | 'lyricist' | 'audio_editor' | 'writer' | 'creative_other';
+export type ClientType = 'brand' | 'agency' | 'label' | 'publisher' | 'distributor' | 'client_other';
+export type EntityType = CreativeType | ClientType;
+
 export interface Entity {
   id: number;
   kind: 'PF' | 'PJ'; // Physical Person or Legal Entity
+  kind_display?: string;
+  // New classification fields
+  classification: EntityClassification;
+  classification_display: string;
+  is_internal: boolean;
+  entity_type: EntityType | null;
+  type_display: string | null;
+  // Basic info
   display_name: string;
-  alias_name?: string; // Alternative name or alias
+  alias_name?: string;
   first_name?: string; // For PF
   last_name?: string; // For PF
   stage_name?: string; // For PF
   nationality?: string; // For PF
   gender?: 'M' | 'F' | 'O'; // For PF
-  image?: string; // Image file path
-  image_url?: string; // Full URL to image
-  profile_photo?: string; // Profile photo path
+  image?: string;
+  image_url?: string;
+  profile_photo?: string;
   email?: string;
   phone?: string;
   address?: string;
@@ -78,29 +94,19 @@ export interface Entity {
   country?: string;
   company_registration_number?: string; // For PJ
   vat_number?: string; // For PJ
-  iban?: string; // Banking
-  bank_name?: string; // Banking
-  bank_branch?: string; // Banking
+  iban?: string;
+  bank_name?: string;
+  bank_branch?: string;
   notes?: string;
-  entity_roles?: EntityRole[];
   identifiers?: Identifier[];
   sensitive_identity?: SensitiveIdentity; // For PF
   social_media_accounts?: SocialMediaAccount[];
-  contact_persons?: ContactPerson[]; // Contact persons for this entity
+  contact_persons?: ContactPerson[];
   has_sensitive_data?: boolean; // For PF
   placeholders?: Record<string, string>; // For contract generation
   created_by?: number;
   created_at: string;
   updated_at: string;
-}
-
-export interface EntityRole {
-  id: number;
-  role: 'artist' | 'writer' | 'producer' | 'label' | 'publisher' | 'performer' | 'engineer' | 'client' | 'vendor' | 'employee';
-  role_display?: string;
-  primary_role: boolean;
-  is_internal: boolean;
-  created_at: string;
 }
 
 export interface SocialMediaAccount {
@@ -136,32 +142,54 @@ export interface EntityListItem {
   id: number;
   kind: 'PF' | 'PJ';
   kind_display?: string;
+  // Classification fields
+  classification: EntityClassification;
+  classification_display: string;
+  is_internal: boolean;
+  entity_type: EntityType | null;
+  type_display: string | null;
+  // Basic info
   display_name: string;
   alias_name?: string;
   first_name?: string;
   last_name?: string;
   stage_name?: string;
+  nationality?: string;
+  gender?: 'M' | 'F' | 'O';
   image?: string;
   image_url?: string;
   profile_photo?: string;
   email?: string;
   phone?: string;
-  roles?: string[];
-  has_internal_role?: boolean;
   created_at: string;
-}
-
-export interface RoleData {
-  role: string;
-  is_internal?: boolean;
 }
 
 export interface CreateEntityPayload {
   kind: 'PF' | 'PJ';
   display_name: string;
+  // Classification fields
+  classification: EntityClassification;
+  is_internal?: boolean;
+  entity_type?: EntityType | null;
+  // Personal info (PF)
   first_name?: string;
   last_name?: string;
-  cnp?: string; // For PF - will be encrypted
+  stage_name?: string;
+  nationality?: string;
+  gender?: 'M' | 'F' | 'O';
+  // Sensitive (PF)
+  identification_type?: 'ID_CARD' | 'PASSPORT';
+  cnp?: string;
+  id_series?: string;
+  id_number?: string;
+  passport_number?: string;
+  passport_country?: string;
+  id_issued_by?: string;
+  id_issued_date?: string;
+  id_expiry_date?: string;
+  date_of_birth?: string;
+  place_of_birth?: string;
+  // Contact
   email?: string;
   phone?: string;
   address?: string;
@@ -169,22 +197,23 @@ export interface CreateEntityPayload {
   state?: string;
   zip_code?: string;
   country?: string;
+  // Business (PJ)
   company_registration_number?: string;
   vat_number?: string;
+  // Banking
   iban?: string;
   bank_name?: string;
   bank_branch?: string;
   notes?: string;
-  roles?: (string | RoleData)[]; // Can be simple strings or objects with is_internal
-  primary_role?: string;
 }
 
 export type UpdateEntityPayload = Partial<CreateEntityPayload>;
 
 export interface EntitySearchParams {
   kind?: 'PF' | 'PJ';
-  has_role?: string;
+  classification?: EntityClassification;
   is_internal?: boolean;
+  entity_type?: EntityType;
   search?: string;
   created_after?: string;
   created_before?: string;
@@ -225,11 +254,27 @@ export interface RevealCNPResponse {
 
 export interface EntityStats {
   total: number;
-  physical: number;
-  legal: number;
-  creative: number;
-  by_role: Record<string, number>;
+  by_classification: {
+    creative: number;
+    client: number;
+  };
+  by_internal: {
+    internal: number;
+    external: number;
+  };
+  by_kind: {
+    physical: number;
+    legal: number;
+  };
+  by_type: Record<string, number>;
   recent_entities: EntityListItem[];
+  // Legacy fields for backward compatibility
+  total_entities?: number;
+  physical_persons?: number;
+  legal_entities?: number;
+  creative?: number;
+  physical?: number;
+  legal?: number;
 }
 
 class EntitiesService {
@@ -318,45 +363,14 @@ class EntitiesService {
     return data;
   }
 
-  // Get entity placeholders for contract generation (backward compatible)
-  async getEntityPlaceholders(id: number): Promise<Record<string, string>> {
-    const { data } = await apiClient.get<Record<string, string>>(
-      `${this.BASE_PATH}/${id}/placeholders/`
-    );
-    return data;
+  // Get creatives (convenience method)
+  async getCreatives(params?: Omit<EntitySearchParams, 'classification'>): Promise<PaginatedResponse<EntityListItem>> {
+    return this.getEntities({ ...params, classification: 'CREATIVE' });
   }
 
-  // Get artists
-  async getArtists(): Promise<EntityListItem[]> {
-    const { data } = await apiClient.get<PaginatedResponse<EntityListItem>>(
-      `${this.BASE_PATH}/artists/`
-    );
-    return data.results;
-  }
-
-  // Get writers
-  async getWriters(): Promise<EntityListItem[]> {
-    const { data } = await apiClient.get<PaginatedResponse<EntityListItem>>(
-      `${this.BASE_PATH}/writers/`
-    );
-    return data.results;
-  }
-
-  // Get producers
-  async getProducers(): Promise<EntityListItem[]> {
-    const { data } = await apiClient.get<PaginatedResponse<EntityListItem>>(
-      `${this.BASE_PATH}/producers/`
-    );
-    return data.results;
-  }
-
-  // Get business entities (for both client and brand searches)
-  async getBusinessEntities(params?: EntitySearchParams): Promise<PaginatedResponse<EntityListItem>> {
-    const { data } = await apiClient.get<PaginatedResponse<EntityListItem>>(
-      `${this.BASE_PATH}/business/`,
-      { params }
-    );
-    return data;
+  // Get clients (convenience method)
+  async getClients(params?: Omit<EntitySearchParams, 'classification'>): Promise<PaginatedResponse<EntityListItem>> {
+    return this.getEntities({ ...params, classification: 'CLIENT' });
   }
 
   // Get entity stats
@@ -394,20 +408,6 @@ class EntitiesService {
       { params }
     );
     return data;
-  }
-
-  // Backward compatibility - redirect to entities
-  async getClients(): Promise<EntityListItem[]> {
-    const response = await this.getEntities({ has_role: 'client' });
-    return response.results;
-  }
-
-  async getClient(id: number): Promise<Entity> {
-    return this.getEntity(id);
-  }
-
-  async getClientPlaceholders(id: number): Promise<Record<string, string>> {
-    return this.getEntityPlaceholders(id);
   }
 
   // Social Media Account methods
@@ -496,3 +496,54 @@ class EntitiesService {
 
 const entitiesService = new EntitiesService();
 export default entitiesService;
+
+// Constants for entity classification and types
+export const CLASSIFICATION_OPTIONS = [
+  { value: 'CREATIVE', label: 'Creative' },
+  { value: 'CLIENT', label: 'Client' },
+] as const;
+
+export const CREATIVE_TYPE_OPTIONS = [
+  { value: 'artist', label: 'Artist' },
+  { value: 'producer', label: 'Producer' },
+  { value: 'composer', label: 'Composer' },
+  { value: 'lyricist', label: 'Lyricist' },
+  { value: 'audio_editor', label: 'Audio Editor' },
+  { value: 'writer', label: 'Writer' },
+  { value: 'creative_other', label: 'Other Creative' },
+] as const;
+
+export const CLIENT_TYPE_OPTIONS = [
+  { value: 'brand', label: 'Brand' },
+  { value: 'agency', label: 'Agency' },
+  { value: 'label', label: 'Label' },
+  { value: 'publisher', label: 'Publisher' },
+  { value: 'distributor', label: 'Distributor' },
+  { value: 'client_other', label: 'Other Client' },
+] as const;
+
+export const ALL_TYPE_OPTIONS = [...CREATIVE_TYPE_OPTIONS, ...CLIENT_TYPE_OPTIONS];
+
+// Type colors for badges
+export const TYPE_COLORS: Record<string, string> = {
+  // Creative types
+  artist: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+  producer: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+  composer: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+  lyricist: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',
+  audio_editor: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300',
+  writer: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+  creative_other: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300',
+  // Client types
+  brand: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+  agency: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+  label: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
+  publisher: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300',
+  distributor: 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/30 dark:text-fuchsia-300',
+  client_other: 'bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:text-slate-300',
+};
+
+export const CLASSIFICATION_COLORS: Record<string, string> = {
+  CREATIVE: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+  CLIENT: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+};

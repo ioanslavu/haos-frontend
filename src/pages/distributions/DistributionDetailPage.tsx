@@ -2,23 +2,24 @@
  * DistributionDetailPage - Enhanced distribution detail view with tabs
  *
  * Tabs:
- * - Overview: Basic deal info, status, revenue share, dates
+ * - Overview: Basic deal info, status, revenue share, dates (with inline editing)
  * - Catalog: Catalog items with add/remove
  * - Revenue: Revenue reports by platform
+ * - Tasks: Distribution-related tasks
  */
 
 import { useState, useMemo } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import {
   ArrowLeft,
   Building2,
-  Calendar,
+  Calendar as CalendarIcon,
+  Check,
   ChevronDown,
   ChevronRight,
   ClipboardList,
   DollarSign,
-  Edit,
   ExternalLink,
   FileText,
   History,
@@ -32,12 +33,32 @@ import {
   TrendingUp,
   BarChart3,
   Settings,
+  User,
+  X,
+  LayoutGrid,
+  List,
 } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
+import { Calendar } from '@/components/ui/calendar'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -62,38 +83,65 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { cn, formatMoney } from '@/lib/utils'
+import { cn, formatMoney, formatDate, getInitials } from '@/lib/utils'
 import {
   useDistribution,
   useDeleteDistribution,
   useRemoveCatalogItem,
+  useRemoveSong,
   useUpdateDistributionStatus,
+  useUpdateDistribution,
 } from '@/api/hooks/useDistributions'
+import { useEntity, useCreateContactPerson } from '@/api/hooks/useEntities'
 import {
   DEAL_STATUS_CONFIG,
   DEAL_TYPE_CONFIG,
   DISTRIBUTION_STATUS_CONFIG,
   DISTRIBUTION_PLATFORM_LABELS,
 } from '@/types/distribution'
-import type { DealStatus, DistributionCatalogItem, Platform } from '@/types/distribution'
+import type { DealStatus, DealType, DistributionCatalogItem, DistributionSong, Platform } from '@/types/distribution'
 import { PLATFORM_ICONS, PLATFORM_TEXT_COLORS } from '@/lib/platform-icons'
-import { AddCatalogItemDialog } from './components/AddCatalogItemDialog'
+import { InlineSongAdd } from './components/InlineSongAdd'
+import { SongCard } from './components/SongCard'
 import { AddRevenueReportDialog } from './components/AddRevenueReportDialog'
+import { AssignmentSection } from './components/AssignmentSection'
+import { DistributionTasksTab } from './components/DistributionTasksTab'
+import { DistributionInvoicesTab } from './components/DistributionInvoicesTab'
+import { DistributionContractsTab } from './components/DistributionContractsTab'
+import { DistributionNotesSection } from './components/DistributionNotesSection'
+import { NotesSection } from '@/components/notes/NotesSection'
 
 export default function DistributionDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('overview')
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [showAddCatalogDialog, setShowAddCatalogDialog] = useState(false)
+  const [showAddSongInline, setShowAddSongInline] = useState(false)
   const [showAddRevenueDialog, setShowAddRevenueDialog] = useState(false)
   const [selectedCatalogItemId, setSelectedCatalogItemId] = useState<number | null>(null)
   const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set())
+  const [expandedSongIds, setExpandedSongIds] = useState<Set<number>>(new Set())
+  const [songsViewMode, setSongsViewMode] = useState<'cards' | 'table'>('cards')
+
+  // Inline editing states
+  const [signingDateOpen, setSigningDateOpen] = useState(false)
+  const [isSavingField, setIsSavingField] = useState<string | null>(null)
+  const [showCreateContact, setShowCreateContact] = useState(false)
+  const [newContactName, setNewContactName] = useState('')
+  const [newContactEmail, setNewContactEmail] = useState('')
+  const [newContactPhone, setNewContactPhone] = useState('')
 
   const { data: distribution, isLoading, error } = useDistribution(Number(id))
   const deleteDistribution = useDeleteDistribution()
   const removeCatalogItem = useRemoveCatalogItem()
+  const removeSong = useRemoveSong()
   const updateStatus = useUpdateDistributionStatus()
+  const updateDistribution = useUpdateDistribution()
+
+  // Fetch entity for contact persons
+  const { data: clientEntity } = useEntity(distribution?.entity?.id || 0, !!distribution?.entity?.id)
+  const createContactPerson = useCreateContactPerson()
+  const contactPersons = clientEntity?.contact_persons || []
 
   const handleDelete = async () => {
     if (!id) return
@@ -109,9 +157,141 @@ export default function DistributionDetailPage() {
     })
   }
 
+  const handleRemoveSong = async (songId: number) => {
+    if (!id) return
+    await removeSong.mutateAsync({
+      distributionId: Number(id),
+      songId,
+    })
+  }
+
   const handleStatusChange = async (newStatus: DealStatus) => {
     if (!id) return
     await updateStatus.mutateAsync({ id: Number(id), status: newStatus })
+  }
+
+  // Inline field update handlers
+  const handleSaveSigningDate = async (date: Date | undefined) => {
+    if (!id || !date) return
+    setIsSavingField('signing_date')
+    try {
+      await updateDistribution.mutateAsync({
+        id: Number(id),
+        data: { signing_date: format(date, 'yyyy-MM-dd') },
+      })
+      setSigningDateOpen(false)
+    } finally {
+      setIsSavingField(null)
+    }
+  }
+
+  const handleSaveDealType = async (dealType: DealType) => {
+    if (!id) return
+    setIsSavingField('deal_type')
+    try {
+      await updateDistribution.mutateAsync({
+        id: Number(id),
+        data: { deal_type: dealType },
+      })
+    } finally {
+      setIsSavingField(null)
+    }
+  }
+
+  const handleSaveIncludesDsps = async (checked: boolean) => {
+    if (!id) return
+    setIsSavingField('includes_dsps')
+    try {
+      await updateDistribution.mutateAsync({
+        id: Number(id),
+        data: { includes_dsps: checked },
+      })
+    } finally {
+      setIsSavingField(null)
+    }
+  }
+
+  const handleSaveIncludesYoutube = async (checked: boolean) => {
+    if (!id) return
+    setIsSavingField('includes_youtube')
+    try {
+      await updateDistribution.mutateAsync({
+        id: Number(id),
+        data: { includes_youtube: checked },
+      })
+    } finally {
+      setIsSavingField(null)
+    }
+  }
+
+  const handleSaveRevenueShare = async (value: string) => {
+    if (!id) return
+    const numValue = parseFloat(value)
+    if (isNaN(numValue) || numValue < 0 || numValue > 100) return
+    setIsSavingField('revenue_share')
+    try {
+      await updateDistribution.mutateAsync({
+        id: Number(id),
+        data: { global_revenue_share_percentage: value },
+      })
+    } finally {
+      setIsSavingField(null)
+    }
+  }
+
+  const handleChangeContactPerson = async (contactPersonId: string) => {
+    if (!id) return
+    setIsSavingField('contact_person')
+    try {
+      await updateDistribution.mutateAsync({
+        id: Number(id),
+        data: { contact_person: contactPersonId === 'none' ? null : parseInt(contactPersonId) },
+      })
+    } finally {
+      setIsSavingField(null)
+    }
+  }
+
+  const handleCreateContactPerson = async () => {
+    if (!distribution?.entity?.id || !newContactName.trim()) return
+    setIsSavingField('contact_person')
+    try {
+      const newContact = await createContactPerson.mutateAsync({
+        entityId: distribution.entity.id,
+        data: {
+          name: newContactName.trim(),
+          email: newContactEmail.trim() || undefined,
+          phone: newContactPhone.trim() || undefined,
+        },
+      })
+      // Auto-select the new contact
+      await updateDistribution.mutateAsync({
+        id: Number(id),
+        data: { contact_person: newContact.id },
+      })
+      setShowCreateContact(false)
+      setNewContactName('')
+      setNewContactEmail('')
+      setNewContactPhone('')
+    } finally {
+      setIsSavingField(null)
+    }
+  }
+
+  const handleSaveNotes = async (notes: string) => {
+    if (!id) return
+    await updateDistribution.mutateAsync({
+      id: Number(id),
+      data: { notes },
+    })
+  }
+
+  const handleSaveSpecialTerms = async (specialTerms: string) => {
+    if (!id) return
+    await updateDistribution.mutateAsync({
+      id: Number(id),
+      data: { special_terms: specialTerms },
+    })
   }
 
   const toggleItemExpanded = (itemId: number) => {
@@ -126,6 +306,18 @@ export default function DistributionDetailPage() {
     })
   }
 
+  const toggleSongExpanded = (songId: number) => {
+    setExpandedSongIds(prev => {
+      const next = new Set(prev)
+      if (next.has(songId)) {
+        next.delete(songId)
+      } else {
+        next.add(songId)
+      }
+      return next
+    })
+  }
+
   const openRevenueDialog = (catalogItemId: number) => {
     setSelectedCatalogItemId(catalogItemId)
     setShowAddRevenueDialog(true)
@@ -133,18 +325,20 @@ export default function DistributionDetailPage() {
 
   // Calculate totals
   const totals = useMemo(() => {
-    if (!distribution?.catalog_items) return { revenue: 0, tracks: 0, reports: 0 }
+    if (!distribution) return { revenue: 0, tracks: 0, reports: 0 }
 
     let revenue = 0
     let reports = 0
-    distribution.catalog_items.forEach(item => {
+
+    // Count from catalog_items (legacy)
+    distribution.catalog_items?.forEach(item => {
       revenue += parseFloat(item.total_revenue || '0')
       reports += item.revenue_reports?.length || 0
     })
 
     return {
       revenue,
-      tracks: distribution.track_count || 0,
+      tracks: distribution.songs?.length || distribution.track_count || 0,
       reports,
     }
   }, [distribution])
@@ -201,179 +395,357 @@ export default function DistributionDetailPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-start gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="mt-1"
-            onClick={() => navigate('/distributions')}
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
+        {/* Back Link */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate('/distributions')}
+          className="text-muted-foreground hover:text-foreground -ml-2"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Distributions
+        </Button>
 
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-3">
-              {distribution.entity.image_url ? (
-                <img
-                  src={distribution.entity.image_url}
-                  alt={distribution.entity.display_name}
-                  className="h-12 w-12 rounded-full object-cover"
-                />
-              ) : (
-                <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
-                  <span className="text-xl font-semibold">
-                    {distribution.entity.display_name?.charAt(0)}
-                  </span>
-                </div>
-              )}
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight truncate">
-                  {distribution.entity.display_name}
-                </h1>
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge variant="outline" className={cn('gap-1', typeConfig.bgColor, typeConfig.color)}>
-                    {typeConfig.emoji} {typeConfig.label}
-                  </Badge>
-                  <Badge variant="outline" className={cn('gap-1', statusConfig.bgColor, statusConfig.color)}>
-                    <span className={cn('h-1.5 w-1.5 rounded-full', statusConfig.dotColor)} />
-                    {statusConfig.label}
-                  </Badge>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate(`/distributions/${id}/edit`)}
-            >
-              <Edit className="h-4 w-4 mr-1" />
-              Edit
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => navigate(`/entities/${distribution.entity.id}`)}>
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  View Entity
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="text-destructive"
-                  onClick={() => setShowDeleteDialog(true)}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete Distribution
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-
-        {/* Status Workflow */}
-        <Card className="rounded-xl border-white/10 bg-background/50 backdrop-blur-sm">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              {(['in_negotiation', 'active', 'expired'] as DealStatus[]).map((status, idx) => {
-                const config = DEAL_STATUS_CONFIG[status]
-                const isActive = distribution.deal_status === status
-                const isPast = (['in_negotiation', 'active', 'expired'] as DealStatus[]).indexOf(distribution.deal_status) > idx
-
-                return (
-                  <div key={status} className="flex items-center flex-1">
-                    <button
-                      onClick={() => handleStatusChange(status)}
-                      className={cn(
-                        'flex items-center gap-2 px-4 py-2 rounded-lg transition-all',
-                        isActive && cn(config.bgColor, config.color, 'ring-2 ring-offset-2 ring-offset-background'),
-                        isPast && 'opacity-50',
-                        !isActive && !isPast && 'hover:bg-muted/50'
-                      )}
-                      disabled={updateStatus.isPending}
+        {/* Compact Header Card */}
+        <Card className="rounded-2xl border-white/10 bg-background/50 backdrop-blur-xl shadow-lg">
+          <div className="p-5 space-y-4">
+            {/* Row 1: Title, Entity, Metadata, Actions */}
+            <div className="flex items-center justify-between gap-6">
+              {/* Left: Title and Entity */}
+              <div className="flex items-center gap-4 min-w-0 flex-1">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h1 className="text-2xl font-bold truncate">
+                      <Link
+                        to={`/entities/${distribution.entity.id}`}
+                        className="hover:underline"
+                      >
+                        {distribution.entity.display_name}
+                      </Link>
+                    </h1>
+                    <Badge variant="outline" className="text-xs shrink-0">
+                      {typeConfig.emoji} {typeConfig.label}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    {/* Entity Link with Avatar */}
+                    <Link
+                      to={`/entities/${distribution.entity.id}`}
+                      className="flex items-center gap-1.5 hover:text-primary transition-colors"
                     >
-                      <span className={cn('h-3 w-3 rounded-full', isActive ? config.dotColor : 'bg-muted')} />
-                      <span className={cn('text-sm font-medium', !isActive && 'text-muted-foreground')}>
-                        {config.label}
-                      </span>
-                    </button>
-                    {idx < 2 && (
-                      <div className={cn('flex-1 h-0.5 mx-2', isPast ? 'bg-primary' : 'bg-muted')} />
+                      {distribution.entity.image_url ? (
+                        <img
+                          src={distribution.entity.image_url}
+                          alt={distribution.entity.display_name}
+                          className="h-5 w-5 rounded-full object-cover"
+                        />
+                      ) : (
+                        <Building2 className="h-4 w-4" />
+                      )}
+                      <span className="font-medium">{distribution.entity.kind === 'PJ' ? 'Legal Entity' : 'Individual'}</span>
+                    </Link>
+                    <span className="text-muted-foreground/50">•</span>
+                    {/* Signing Date - Editable */}
+                    <div className="flex items-center gap-1">
+                      <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                      <Popover open={signingDateOpen} onOpenChange={setSigningDateOpen}>
+                        <PopoverTrigger asChild>
+                          <button
+                            className={cn(
+                              "px-1.5 py-0.5 rounded transition-colors hover:bg-muted/50",
+                              !distribution.signing_date && "text-amber-500"
+                            )}
+                            disabled={isSavingField === 'signing_date'}
+                          >
+                            {isSavingField === 'signing_date' ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : distribution.signing_date ? (
+                              formatDate(distribution.signing_date)
+                            ) : (
+                              'Set Date'
+                            )}
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={distribution.signing_date ? new Date(distribution.signing_date) : undefined}
+                            onSelect={handleSaveSigningDate}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <span className="text-muted-foreground/50">•</span>
+                    {/* Contact Person - Editable */}
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          className={cn(
+                            "flex items-center gap-1.5 px-1.5 py-0.5 rounded transition-colors hover:bg-muted/50",
+                            !distribution.contact_person && "text-amber-500"
+                          )}
+                          disabled={isSavingField === 'contact_person'}
+                        >
+                          <User className="h-3.5 w-3.5" />
+                          {isSavingField === 'contact_person' ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : distribution.contact_person ? (
+                            <span>{distribution.contact_person.name}</span>
+                          ) : (
+                            <span>Contact</span>
+                          )}
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-64 p-3" align="start">
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-sm font-medium">Contact Person</h4>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setShowCreateContact(true)}
+                              className="h-6 text-xs px-2"
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              New
+                            </Button>
+                          </div>
+                          {showCreateContact ? (
+                            <div className="space-y-2">
+                              <Input
+                                placeholder="Name *"
+                                value={newContactName}
+                                onChange={(e) => setNewContactName(e.target.value)}
+                                className="h-8 text-sm"
+                                autoFocus
+                              />
+                              <Input
+                                placeholder="Email"
+                                type="email"
+                                value={newContactEmail}
+                                onChange={(e) => setNewContactEmail(e.target.value)}
+                                className="h-8 text-sm"
+                              />
+                              <Input
+                                placeholder="Phone"
+                                value={newContactPhone}
+                                onChange={(e) => setNewContactPhone(e.target.value)}
+                                className="h-8 text-sm"
+                              />
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    setShowCreateContact(false)
+                                    setNewContactName('')
+                                    setNewContactEmail('')
+                                    setNewContactPhone('')
+                                  }}
+                                  className="h-7 text-xs flex-1"
+                                >
+                                  Cancel
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={handleCreateContactPerson}
+                                  disabled={!newContactName.trim() || createContactPerson.isPending}
+                                  className="h-7 text-xs flex-1"
+                                >
+                                  {createContactPerson.isPending ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    'Create'
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              {distribution.contact_person ? (
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-medium text-sm">{distribution.contact_person.name}</span>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                                      onClick={() => handleChangeContactPerson('none')}
+                                      disabled={isSavingField === 'contact_person'}
+                                      title="Remove contact person"
+                                    >
+                                      {isSavingField === 'contact_person' ? (
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                      ) : (
+                                        <X className="h-3 w-3" />
+                                      )}
+                                    </Button>
+                                  </div>
+                                  {distribution.contact_person.email && (
+                                    <p className="text-xs text-muted-foreground">{distribution.contact_person.email}</p>
+                                  )}
+                                </div>
+                              ) : null}
+                              {contactPersons.length > 0 && (
+                                <div className="space-y-1">
+                                  <p className="text-xs text-muted-foreground">
+                                    {distribution.contact_person ? 'Change to:' : 'Select:'}
+                                  </p>
+                                  <div className="max-h-32 overflow-y-auto space-y-1">
+                                    {contactPersons
+                                      .filter(cp => cp.id !== distribution.contact_person?.id)
+                                      .map(cp => (
+                                        <button
+                                          key={cp.id}
+                                          onClick={() => handleChangeContactPerson(String(cp.id))}
+                                          className="w-full text-left p-2 rounded-lg text-sm hover:bg-muted/50 transition-colors"
+                                          disabled={isSavingField === 'contact_person'}
+                                        >
+                                          <p className="font-medium">{cp.name}</p>
+                                          {cp.email && (
+                                            <p className="text-xs text-muted-foreground">{cp.email}</p>
+                                          )}
+                                        </button>
+                                      ))}
+                                  </div>
+                                </div>
+                              )}
+                              {!distribution.contact_person && contactPersons.length === 0 && (
+                                <p className="text-xs text-muted-foreground text-center py-2">
+                                  No contacts yet. Create one above.
+                                </p>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                    <span className="text-muted-foreground/50">•</span>
+                    {/* Contract Status Badge */}
+                    {distribution.contract ? (
+                      <Badge
+                        variant="outline"
+                        className="text-xs gap-1 border-emerald-500/50 text-emerald-500 bg-emerald-500/10"
+                      >
+                        <FileText className="h-3 w-3" />
+                        {distribution.contract.contract_number}
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="text-xs gap-1 border-muted-foreground/30 text-muted-foreground/60"
+                      >
+                        <FileText className="h-3 w-3" />
+                        No Contract
+                      </Badge>
                     )}
                   </div>
-                )
-              })}
+                </div>
+              </div>
+
+              {/* Right: Status Flow & Actions */}
+              <div className="flex items-center gap-3">
+                {/* Status Workflow Pills */}
+                <div className="flex items-center gap-1 p-1 bg-muted/30 rounded-xl">
+                  {(['in_negotiation', 'active', 'expired'] as DealStatus[]).map((status, idx) => {
+                    const config = DEAL_STATUS_CONFIG[status]
+                    const isActive = distribution.deal_status === status
+                    const isPast = (['in_negotiation', 'active', 'expired'] as DealStatus[]).indexOf(distribution.deal_status) > idx
+
+                    return (
+                      <button
+                        key={status}
+                        onClick={() => handleStatusChange(status)}
+                        className={cn(
+                          'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
+                          isActive && cn(config.bgColor, config.color),
+                          isPast && 'opacity-40',
+                          !isActive && !isPast && 'text-muted-foreground hover:bg-muted/50'
+                        )}
+                        disabled={updateStatus.isPending}
+                      >
+                        <span className={cn('h-2 w-2 rounded-full', isActive ? config.dotColor : 'bg-muted-foreground/30')} />
+                        {config.label}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Actions Dropdown */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="icon">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => navigate(`/entities/${distribution.entity.id}`)}>
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      View Entity
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-destructive"
+                      onClick={() => setShowDeleteDialog(true)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Distribution
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
-          </CardContent>
+
+            {/* Row 2: Stats Inline */}
+            <div className="flex items-center gap-4 pt-4 border-t border-white/10">
+              <div className="flex items-center gap-6 flex-1">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-md bg-emerald-500/20">
+                    <DollarSign className="h-3.5 w-3.5 text-emerald-500" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Revenue</p>
+                    <p className="text-sm font-semibold">
+                      {formatMoney(totals.revenue, 'EUR')}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-md bg-blue-500/20">
+                    <Percent className="h-3.5 w-3.5 text-blue-500" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Share</p>
+                    <p className="text-sm font-semibold">
+                      {parseFloat(distribution.global_revenue_share_percentage).toFixed(0)}%
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-md bg-purple-500/20">
+                    <Music className="h-3.5 w-3.5 text-purple-500" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Catalog</p>
+                    <p className="text-sm font-semibold">{totals.tracks}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-md bg-orange-500/20">
+                    <BarChart3 className="h-3.5 w-3.5 text-orange-500" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Reports</p>
+                    <p className="text-sm font-semibold">{totals.reports}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </Card>
-
-        {/* Quick Stats */}
-        <div className="grid grid-cols-4 gap-4">
-          <Card className="rounded-xl border-white/10 bg-background/50 backdrop-blur-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                  <DollarSign className="h-5 w-5 text-green-500" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Total Revenue</p>
-                  <p className="text-lg font-semibold text-green-600 dark:text-green-400">
-                    {formatMoney(totals.revenue, 'EUR')}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-xl border-white/10 bg-background/50 backdrop-blur-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                  <Percent className="h-5 w-5 text-blue-500" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Revenue Share</p>
-                  <p className="text-lg font-semibold">
-                    {parseFloat(distribution.global_revenue_share_percentage).toFixed(0)}%
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-xl border-white/10 bg-background/50 backdrop-blur-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                  <Music className="h-5 w-5 text-purple-500" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Catalog Items</p>
-                  <p className="text-lg font-semibold">{totals.tracks}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-xl border-white/10 bg-background/50 backdrop-blur-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
-                  <BarChart3 className="h-5 w-5 text-orange-500" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Revenue Reports</p>
-                  <p className="text-lg font-semibold">{totals.reports}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
@@ -390,9 +762,9 @@ export default function DistributionDetailPage() {
               className="rounded-xl gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all text-xs"
             >
               <Music className="h-4 w-4" />
-              Catalog
+              Songs
               <Badge variant="secondary" className="ml-1 h-5 text-[10px]">
-                {distribution.catalog_items?.length || 0}
+                {distribution.songs?.length || 0}
               </Badge>
             </TabsTrigger>
             <TabsTrigger
@@ -435,33 +807,76 @@ export default function DistributionDetailPage() {
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              {/* Deal Info */}
+              {/* Deal Info - Editable */}
               <Card className="rounded-xl border-white/10 bg-background/50 backdrop-blur-sm">
                 <CardHeader>
                   <CardTitle className="text-sm font-medium">Deal Information</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {/* Deal Type - Editable */}
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Signing Date</span>
-                    <span className="font-medium flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      {distribution.signing_date
-                        ? format(new Date(distribution.signing_date), 'MMMM d, yyyy')
-                        : '—'}
-                    </span>
+                    <span className="text-sm text-muted-foreground">Deal Type</span>
+                    <Select
+                      value={distribution.deal_type}
+                      onValueChange={(value) => handleSaveDealType(value as DealType)}
+                      disabled={isSavingField === 'deal_type'}
+                    >
+                      <SelectTrigger className="h-8 w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(DEAL_TYPE_CONFIG).map(([key, config]) => (
+                          <SelectItem key={key} value={key}>
+                            {config.emoji} {config.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
+                  {/* Revenue Share - Editable */}
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Includes DSPs/YouTube</span>
-                    <Badge variant={distribution.includes_dsps_youtube ? 'default' : 'secondary'}>
-                      {distribution.includes_dsps_youtube ? 'Yes' : 'No'}
-                    </Badge>
-                  </div>
-                  {distribution.department && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Department</span>
-                      <span className="font-medium">{distribution.department_display}</span>
+                    <span className="text-sm text-muted-foreground">Revenue Share</span>
+                    <div className="flex items-center gap-2">
+                      <Percent className="h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        value={distribution.global_revenue_share_percentage || ''}
+                        onChange={(e) => {
+                          // Debounce or save on blur
+                        }}
+                        onBlur={(e) => handleSaveRevenueShare(e.target.value)}
+                        className="h-8 w-20 text-right"
+                        disabled={isSavingField === 'revenue_share'}
+                      />
                     </div>
-                  )}
+                  </div>
+                  {/* Includes DSPs - Toggle */}
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="includes-dsps" className="text-sm text-muted-foreground">
+                      Includes DSPs
+                    </Label>
+                    <Switch
+                      id="includes-dsps"
+                      checked={distribution.includes_dsps}
+                      onCheckedChange={handleSaveIncludesDsps}
+                      disabled={isSavingField === 'includes_dsps'}
+                    />
+                  </div>
+                  {/* Includes YouTube - Toggle */}
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="includes-youtube" className="text-sm text-muted-foreground">
+                      Includes YouTube
+                    </Label>
+                    <Switch
+                      id="includes-youtube"
+                      checked={distribution.includes_youtube}
+                      onCheckedChange={handleSaveIncludesYoutube}
+                      disabled={isSavingField === 'includes_youtube'}
+                    />
+                  </div>
                   {distribution.contract && (
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Contract</span>
@@ -474,199 +889,237 @@ export default function DistributionDetailPage() {
                 </CardContent>
               </Card>
 
-              {/* Contact Info */}
-              <Card className="rounded-xl border-white/10 bg-background/50 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="text-sm font-medium">Contact & Notes</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {distribution.contact_person && (
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-                        <Building2 className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">{distribution.contact_person.name}</p>
-                        <p className="text-xs text-muted-foreground">{distribution.contact_person.email}</p>
-                      </div>
-                    </div>
-                  )}
-                  {distribution.special_terms && (
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Special Terms</p>
-                      <p className="text-sm">{distribution.special_terms}</p>
-                    </div>
-                  )}
-                  {distribution.notes && (
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Notes</p>
-                      <p className="text-sm">{distribution.notes}</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              {/* Special Terms - Editable with Autosave */}
+              <NotesSection
+                notes={distribution.special_terms}
+                onSave={handleSaveSpecialTerms}
+                isLoading={isLoading}
+                title="Special Terms"
+                placeholder="Add special terms for this deal..."
+              />
             </div>
+
+            {/* Team Assignments */}
+            <AssignmentSection
+              distributionId={Number(id)}
+              assignments={distribution.assignments || []}
+              createdBy={distribution.created_by}
+            />
+
+            {/* Notes Section - with Autosave */}
+            <DistributionNotesSection
+              notes={distribution.notes}
+              onSave={handleSaveNotes}
+              isLoading={isLoading}
+            />
           </TabsContent>
 
-          {/* Catalog Tab */}
+          {/* Songs Tab */}
           <TabsContent value="catalog" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold">Catalog Items</h3>
-              <Button onClick={() => setShowAddCatalogDialog(true)} size="sm">
-                <Plus className="h-4 w-4 mr-1" />
-                Add Item
-              </Button>
-            </div>
+            {/* Inline Add Form - shown at top when triggered */}
+            {showAddSongInline && (
+              <InlineSongAdd
+                distributionId={Number(id)}
+                onClose={() => setShowAddSongInline(false)}
+              />
+            )}
 
-            <Card className="rounded-xl border-white/10 bg-background/50 backdrop-blur-sm overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent border-white/10">
-                    <TableHead className="w-8"></TableHead>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Platforms</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Rev. Share</TableHead>
-                    <TableHead className="text-right">Revenue</TableHead>
-                    <TableHead className="w-12"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {distribution.catalog_items?.map((item) => {
-                    const isExpanded = expandedItems.has(item.id)
-                    const statusConfig = DISTRIBUTION_STATUS_CONFIG[item.distribution_status]
-
-                    return (
-                      <>
-                        <TableRow
-                          key={item.id}
-                          className="cursor-pointer hover:bg-muted/50 border-white/10"
-                          onClick={() => toggleItemExpanded(item.id)}
-                        >
-                          <TableCell>
-                            <Button variant="ghost" size="icon" className="h-6 w-6">
-                              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                            </Button>
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium">{item.catalog_item_title}</p>
-                              <p className="text-xs text-muted-foreground capitalize">{item.catalog_item_type}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              {item.platforms.slice(0, 4).map((platform) => {
-                                const Icon = PLATFORM_ICONS[platform as keyof typeof PLATFORM_ICONS]
-                                const colorClass = PLATFORM_TEXT_COLORS[platform as keyof typeof PLATFORM_TEXT_COLORS]
-                                return Icon ? (
-                                  <Icon
-                                    key={platform}
-                                    className={cn('h-4 w-4', colorClass)}
-                                    title={DISTRIBUTION_PLATFORM_LABELS[platform]}
-                                  />
-                                ) : null
-                              })}
-                              {item.platforms.length > 4 && (
-                                <span className="text-xs text-muted-foreground">
-                                  +{item.platforms.length - 4}
-                                </span>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className={cn(statusConfig.bgColor, statusConfig.color)}>
-                              {statusConfig.label}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right font-medium">
-                            {parseFloat(item.effective_revenue_share).toFixed(0)}%
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {parseFloat(item.total_revenue) > 0 ? (
-                              <span className="font-medium text-green-600 dark:text-green-400">
-                                {formatMoney(parseFloat(item.total_revenue), 'EUR')}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground/50">—</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => openRevenueDialog(item.id)}>
-                                  <TrendingUp className="h-4 w-4 mr-2" />
-                                  Add Revenue Report
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  className="text-destructive"
-                                  onClick={() => handleRemoveCatalogItem(item.id)}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Remove
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                        {isExpanded && item.revenue_reports && item.revenue_reports.length > 0 && (
-                          <TableRow className="bg-muted/20">
-                            <TableCell colSpan={7} className="py-2">
-                              <div className="ml-8 space-y-1">
-                                <p className="text-xs font-medium text-muted-foreground mb-2">Revenue Reports</p>
-                                {item.revenue_reports.map((report) => {
-                                  const Icon = PLATFORM_ICONS[report.platform as keyof typeof PLATFORM_ICONS]
-                                  const colorClass = PLATFORM_TEXT_COLORS[report.platform as keyof typeof PLATFORM_TEXT_COLORS]
-                                  return (
-                                    <div
-                                      key={report.id}
-                                      className="flex items-center gap-4 py-1 px-2 rounded-lg hover:bg-muted/50"
-                                    >
-                                      {Icon && <Icon className={cn('h-4 w-4', colorClass)} />}
-                                      <span className="text-sm">{report.platform_display}</span>
-                                      <span className="text-xs text-muted-foreground">
-                                        {format(new Date(report.reporting_period + '-01'), 'MMM yyyy')}
-                                      </span>
-                                      <span className="ml-auto text-sm font-medium text-green-600 dark:text-green-400">
-                                        {formatMoney(parseFloat(report.revenue_amount), report.currency)}
-                                      </span>
-                                      {report.streams && (
-                                        <span className="text-xs text-muted-foreground">
-                                          {report.streams.toLocaleString()} streams
-                                        </span>
-                                      )}
-                                    </div>
-                                  )
-                                })}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-
-              {(!distribution.catalog_items || distribution.catalog_items.length === 0) && (
-                <div className="p-8 text-center text-muted-foreground">
-                  <Music className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>No catalog items yet</p>
-                  <Button
-                    variant="link"
-                    onClick={() => setShowAddCatalogDialog(true)}
-                    className="mt-2"
-                  >
-                    Add your first catalog item
-                  </Button>
+            {(!distribution.songs || distribution.songs.length === 0) ? (
+              <Card className="p-12 rounded-2xl border-white/10 bg-background/50 backdrop-blur-sm text-center">
+                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                  <Music className="h-8 w-8 text-primary" />
                 </div>
-              )}
-            </Card>
+                <h4 className="font-semibold mb-2">No songs yet</h4>
+                <p className="text-muted-foreground text-sm max-w-sm mx-auto mb-4">
+                  Add songs to this distribution to track their platforms and status.
+                </p>
+                {!showAddSongInline && (
+                  <Button onClick={() => setShowAddSongInline(true)} size="sm">
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Song
+                  </Button>
+                )}
+              </Card>
+            ) : (
+              <>
+                {/* Header with count, view toggle, and add button */}
+                <div className="flex justify-between items-center">
+                  <h3 className="font-semibold text-sm text-muted-foreground">
+                    {distribution.songs.length} Song{distribution.songs.length !== 1 ? 's' : ''}
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    {/* View Toggle */}
+                    <div className="flex items-center border rounded-lg p-0.5 bg-muted/30">
+                      <button
+                        onClick={() => setSongsViewMode('cards')}
+                        className={cn(
+                          'p-1.5 rounded-md transition-colors',
+                          songsViewMode === 'cards'
+                            ? 'bg-background shadow-sm text-foreground'
+                            : 'text-muted-foreground hover:text-foreground'
+                        )}
+                        title="Card view"
+                      >
+                        <LayoutGrid className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => setSongsViewMode('table')}
+                        className={cn(
+                          'p-1.5 rounded-md transition-colors',
+                          songsViewMode === 'table'
+                            ? 'bg-background shadow-sm text-foreground'
+                            : 'text-muted-foreground hover:text-foreground'
+                        )}
+                        title="Table view"
+                      >
+                        <List className="h-4 w-4" />
+                      </button>
+                    </div>
+                    {!showAddSongInline && (
+                      <Button onClick={() => setShowAddSongInline(true)} size="sm">
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add Song
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Card View */}
+                {songsViewMode === 'cards' && (
+                  <div className="space-y-3">
+                    {distribution.songs.map((song) => (
+                      <SongCard
+                        key={song.id}
+                        song={song}
+                        distributionId={Number(id)}
+                        isExpanded={expandedSongIds.has(song.id)}
+                        onToggleExpand={() => toggleSongExpanded(song.id)}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* Table View */}
+                {songsViewMode === 'table' && (
+                  <Card className="rounded-xl border-white/10 bg-background/50 backdrop-blur-sm overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="hover:bg-transparent border-white/10">
+                          <TableHead>Song</TableHead>
+                          <TableHead>Artist</TableHead>
+                          <TableHead>ISRC</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Platforms</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="w-12"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {distribution.songs.map((song) => {
+                          const statusConfig = DISTRIBUTION_STATUS_CONFIG[song.distribution_status]
+
+                          return (
+                            <TableRow
+                              key={song.id}
+                              className="hover:bg-muted/50 border-white/10 cursor-pointer"
+                              onClick={() => {
+                                setSongsViewMode('cards')
+                                setExpandedSongIds(new Set([song.id]))
+                              }}
+                            >
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <Music className="h-4 w-4 text-muted-foreground" />
+                                  <span className="font-medium">{song.song_name}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <span className="text-sm">{song.artist_name}</span>
+                              </TableCell>
+                              <TableCell>
+                                {song.isrc ? (
+                                  <span className="text-xs font-mono text-muted-foreground">{song.isrc}</span>
+                                ) : (
+                                  <span className="text-muted-foreground/50">—</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {song.client_type ? (
+                                  <Badge variant="outline" className="text-xs">
+                                    {song.client_type}
+                                  </Badge>
+                                ) : (
+                                  <span className="text-muted-foreground/50">—</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1">
+                                  {song.platforms.slice(0, 4).map((platform) => {
+                                    const Icon = PLATFORM_ICONS[platform as keyof typeof PLATFORM_ICONS]
+                                    const colorClass = PLATFORM_TEXT_COLORS[platform as keyof typeof PLATFORM_TEXT_COLORS]
+                                    return Icon ? (
+                                      <Icon
+                                        key={platform}
+                                        className={cn('h-4 w-4', colorClass)}
+                                        title={DISTRIBUTION_PLATFORM_LABELS[platform]}
+                                      />
+                                    ) : null
+                                  })}
+                                  {song.platforms.length > 4 && (
+                                    <span className="text-xs text-muted-foreground">
+                                      +{song.platforms.length - 4}
+                                    </span>
+                                  )}
+                                  {song.platforms.length === 0 && (
+                                    <span className="text-muted-foreground/50">—</span>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className={cn(statusConfig.bgColor, statusConfig.color)}>
+                                  {statusConfig.label}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        setSongsViewMode('cards')
+                                        setExpandedSongIds(new Set([song.id]))
+                                      }}
+                                    >
+                                      <Settings className="h-4 w-4 mr-2" />
+                                      Edit
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="text-destructive"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleRemoveSong(song.id)
+                                      }}
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      Remove
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TableCell>
+                            </TableRow>
+                          )
+                        })}
+                      </TableBody>
+                    </Table>
+                  </Card>
+                )}
+              </>
+            )}
           </TabsContent>
 
           {/* Revenue Tab */}
@@ -716,58 +1169,19 @@ export default function DistributionDetailPage() {
             )}
           </TabsContent>
 
-          {/* Invoices Tab (Coming Soon) */}
+          {/* Invoices Tab */}
           <TabsContent value="invoices" className="space-y-4">
-            <Card className="rounded-xl border-white/10 bg-background/50 backdrop-blur-sm">
-              <CardContent className="p-12 text-center">
-                <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center mx-auto mb-4">
-                  <Receipt className="h-8 w-8 text-emerald-500" />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">Invoices Coming Soon</h3>
-                <p className="text-muted-foreground max-w-md mx-auto">
-                  Track and manage invoices related to this distribution deal. Generate, send, and reconcile payments all in one place.
-                </p>
-                <Badge variant="outline" className="mt-4 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
-                  In Development
-                </Badge>
-              </CardContent>
-            </Card>
+            <DistributionInvoicesTab distributionId={Number(id)} />
           </TabsContent>
 
-          {/* Contracts Tab (Coming Soon) */}
+          {/* Contracts Tab */}
           <TabsContent value="contracts" className="space-y-4">
-            <Card className="rounded-xl border-white/10 bg-background/50 backdrop-blur-sm">
-              <CardContent className="p-12 text-center">
-                <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center mx-auto mb-4">
-                  <FileText className="h-8 w-8 text-emerald-500" />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">Contracts Coming Soon</h3>
-                <p className="text-muted-foreground max-w-md mx-auto">
-                  Manage distribution agreements, amendments, and legal documents. Link contracts directly to this deal for easy access.
-                </p>
-                <Badge variant="outline" className="mt-4 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
-                  In Development
-                </Badge>
-              </CardContent>
-            </Card>
+            <DistributionContractsTab distribution={distribution} />
           </TabsContent>
 
-          {/* Tasks Tab (Coming Soon) */}
+          {/* Tasks Tab */}
           <TabsContent value="tasks" className="space-y-4">
-            <Card className="rounded-xl border-white/10 bg-background/50 backdrop-blur-sm">
-              <CardContent className="p-12 text-center">
-                <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center mx-auto mb-4">
-                  <ClipboardList className="h-8 w-8 text-emerald-500" />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">Tasks Coming Soon</h3>
-                <p className="text-muted-foreground max-w-md mx-auto">
-                  Track distribution-related tasks and deadlines. Create checklists for releases, coordinate with teams, and monitor progress.
-                </p>
-                <Badge variant="outline" className="mt-4 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
-                  In Development
-                </Badge>
-              </CardContent>
-            </Card>
+            <DistributionTasksTab distributionId={Number(id)} />
           </TabsContent>
 
           {/* Audit Tab (Coming Soon) */}
@@ -810,13 +1224,6 @@ export default function DistributionDetailPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Add Catalog Item Dialog */}
-      <AddCatalogItemDialog
-        open={showAddCatalogDialog}
-        onOpenChange={setShowAddCatalogDialog}
-        distributionId={Number(id)}
-      />
 
       {/* Add Revenue Report Dialog */}
       {selectedCatalogItemId && (

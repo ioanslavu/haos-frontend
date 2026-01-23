@@ -33,7 +33,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Task, TASK_STATUS_LABELS, TASK_PRIORITY_LABELS, TASK_TAG_LABELS, TASK_TYPE_LABELS, TASK_STATUS_COLORS, TASK_TAG_COLORS } from '@/api/types/tasks';
-import { useDeleteTask, useUpdateTask, useCreateTask } from '@/api/hooks/useTasks';
+import { useDeleteTask, useUpdateTask, useCreateTask, useLinkTaskToDomain, useUnlinkTaskFromDomain } from '@/api/hooks/useTasks';
 import {
   Calendar,
   Clock,
@@ -75,9 +75,13 @@ import { SongSearchCombobox } from '@/components/songs/SongSearchCombobox';
 import { QuickCreateSongDialog } from '@/components/songs/QuickCreateSongDialog';
 import { CampaignSearchCombobox } from '@/components/campaigns/CampaignSearchCombobox';
 import { QuickCreateCampaignDialog } from '@/components/campaigns/QuickCreateCampaignDialog';
+import { DistributionSearchCombobox } from '@/components/distributions/DistributionSearchCombobox';
 import { useEntity } from '@/api/hooks/useEntities';
-import { useCampaign } from '@/api/hooks/useCampaigns';
+import { useCampaign, useSubCampaigns } from '@/api/hooks/useCampaigns';
+import { useDistribution } from '@/api/hooks/useDistributions';
 import { useSong } from '@/api/hooks/useSongs';
+import { PLATFORM_ICONS, PLATFORM_TEXT_COLORS } from '@/lib/platform-icons';
+import { PLATFORM_CONFIG } from '@/types/campaign';
 
 interface TaskDetailPanelProps {
   task: Task | null;
@@ -85,9 +89,14 @@ interface TaskDetailPanelProps {
   onOpenChange: (open: boolean) => void;
   createMode?: boolean; // New prop to indicate create mode
   projectId?: number; // Project ID for creating tasks in a specific project
+  defaultCampaignId?: number; // Pre-link task to this campaign when creating
+  defaultSubcampaignId?: number; // Pre-link task to this subcampaign (platform) when creating
+  defaultSongId?: number; // Pre-link task to this song when creating
+  defaultEntityId?: number; // Pre-link task to this entity when creating
+  defaultDistributionId?: number; // Pre-link task to this distribution when creating
 }
 
-export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, projectId }: TaskDetailPanelProps) {
+export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, projectId, defaultCampaignId, defaultSubcampaignId, defaultSongId, defaultEntityId, defaultDistributionId }: TaskDetailPanelProps) {
   const navigate = useNavigate();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [localTitle, setLocalTitle] = useState('');
@@ -113,8 +122,11 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, 
   const [showSongSearch, setShowSongSearch] = useState(false);
   const [showCreateSongDialog, setShowCreateSongDialog] = useState(false);
   const [localCampaign, setLocalCampaign] = useState<number | null>(null);
+  const [localSubcampaign, setLocalSubcampaign] = useState<number | null>(null);
+  const [localDistribution, setLocalDistribution] = useState<number | null>(null);
   const [showCampaignSearch, setShowCampaignSearch] = useState(false);
   const [showCreateCampaignDialog, setShowCreateCampaignDialog] = useState(false);
+  const [showDistributionSearch, setShowDistributionSearch] = useState(false);
   const [localProject, setLocalProject] = useState<number | null>(projectId || null);
   const [showAddRelatedItemMenu, setShowAddRelatedItemMenu] = useState(false);
   const [visibleRelatedFields, setVisibleRelatedFields] = useState<Set<string>>(new Set());
@@ -129,6 +141,8 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, 
   const deleteTask = useDeleteTask();
   const updateTask = useUpdateTask();
   const createTask = useCreateTask();
+  const linkToDomain = useLinkTaskToDomain();
+  const unlinkFromDomain = useUnlinkTaskFromDomain();
 
   // Get current user for admin check
   const { user, isAdmin: isAdminFn } = useAuthStore();
@@ -147,13 +161,45 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, 
     localClient || 0,
     !!localClient && !task?.entity_detail
   );
+  // Compute effective campaign ID from task or local state
+  const effectiveCampaignId = localCampaign
+    || (task?.domain_info?.domain_type === 'campaign' ? task.domain_info.entity_id : null)
+    || task?.campaign
+    || null;
+
+  // Always fetch campaign data when we have a campaign ID
   const { data: selectedCampaignData } = useCampaign(
-    localCampaign || 0,
-    !!localCampaign && !task?.campaign_detail
+    effectiveCampaignId || 0,
+    !!effectiveCampaignId
   );
+
+  // Fetch subcampaigns (platforms) for the selected campaign
+  const { data: subcampaignsData } = useSubCampaigns(
+    effectiveCampaignId || 0,
+    undefined,
+    !!effectiveCampaignId
+  );
+  const subcampaigns = subcampaignsData?.results || [];
+
+  // Get effective subcampaign ID from task's domain_info or local state
+  const effectiveSubcampaignId = localSubcampaign
+    || (task?.domain_info?.domain_type === 'campaign' ? task.domain_info.extra?.subcampaign?.id : null)
+    || null;
+
   const { data: selectedSongData } = useSong(
     localSong || 0,
     !!localSong && !task?.song_detail
+  );
+
+  // Compute effective distribution ID from task or local state
+  const effectiveDistributionId = localDistribution
+    || (task?.domain_info?.domain_type === 'distribution' ? task.domain_info.entity_id : null)
+    || null;
+
+  // Fetch distribution data when we have a distribution ID
+  const { data: selectedDistributionData } = useDistribution(
+    effectiveDistributionId || 0,
+    !!effectiveDistributionId
   );
 
   // Fetch departments from accounts API (for admin users)
@@ -196,12 +242,10 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, 
         setLocalEstimatedHours(task.estimated_hours || null);
         setLocalNeedsReview(task.needs_review || false);
         setLocalEntity(task.entity || null);
-        // Determine if entity is artist or client based on roles
+        // Determine if entity is artist or client based on classification
         if (task.entity && task.entity_detail) {
-          const isArtist = task.entity_detail.roles?.includes('artist');
-          const isClient = task.entity_detail.kind === 'PJ' || task.entity_detail.roles?.some(r =>
-            ['client', 'brand', 'label'].includes(r.toLowerCase())
-          );
+          const isArtist = task.entity_detail.classification === 'CREATIVE';
+          const isClient = task.entity_detail.classification === 'CLIENT';
           if (isArtist) {
             setLocalArtist(task.entity);
             setLocalClient(null);
@@ -218,20 +262,29 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, 
         setShowClientSearch(false);
         setLocalSong(task.song || null);
         setShowSongSearch(false);
-        setLocalCampaign(task.campaign || null);
+        // Get campaign from domain_info if it's a campaign-linked task
+        const campaignId = task.domain_info?.domain_type === 'campaign'
+          ? task.domain_info.entity_id
+          : (task.campaign || null);
+        setLocalCampaign(campaignId);
         setShowCampaignSearch(false);
+        // Get distribution from domain_info if it's a distribution-linked task
+        const distributionId = task.domain_info?.domain_type === 'distribution'
+          ? task.domain_info.entity_id
+          : null;
+        setLocalDistribution(distributionId);
+        setShowDistributionSearch(false);
         // Show fields that have values
         const fieldsToShow = new Set<string>();
         if (task.entity) {
-          const isArtist = task.entity_detail?.roles?.includes('artist');
-          const isClient = task.entity_detail?.kind === 'PJ' || task.entity_detail?.roles?.some(r =>
-            ['client', 'brand', 'label'].includes(r.toLowerCase())
-          );
+          const isArtist = task.entity_detail?.classification === 'CREATIVE';
+          const isClient = task.entity_detail?.classification === 'CLIENT';
           if (isArtist) fieldsToShow.add('artist');
           if (isClient) fieldsToShow.add('client');
         }
         if (task.song) fieldsToShow.add('song');
-        if (task.campaign) fieldsToShow.add('campaign');
+        if (task.domain_info?.domain_type === 'campaign' || task.campaign) fieldsToShow.add('campaign');
+        if (task.domain_info?.domain_type === 'distribution') fieldsToShow.add('distribution');
         setVisibleRelatedFields(fieldsToShow);
         setSaveState('idle');
         setCreatedTaskId(null);
@@ -247,22 +300,31 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, 
         setLocalDepartment(null); // Admin users need to select department manually
         setLocalEstimatedHours(null);
         setLocalNeedsReview(false);
-        setLocalEntity(null);
+        setLocalEntity(defaultEntityId || null);
         setLocalArtist(null);
         setLocalClient(null);
         setShowEntitySearch(false);
         setShowArtistSearch(false);
         setShowClientSearch(false);
-        setLocalSong(null);
+        setLocalSong(defaultSongId || null);
         setShowSongSearch(false);
-        setLocalCampaign(null);
+        setLocalCampaign(defaultCampaignId || null);
+        setLocalSubcampaign(defaultSubcampaignId || null);
+        setLocalDistribution(defaultDistributionId || null);
         setShowCampaignSearch(false);
-        setVisibleRelatedFields(new Set());
+        setShowDistributionSearch(false);
+        // Pre-show related fields that have default values
+        const defaultFields = new Set<string>();
+        if (defaultCampaignId) defaultFields.add('campaign');
+        if (defaultSongId) defaultFields.add('song');
+        if (defaultEntityId) defaultFields.add('entity');
+        if (defaultDistributionId) defaultFields.add('distribution');
+        setVisibleRelatedFields(defaultFields);
         setSaveState('idle');
         setCreatedTaskId(null);
       }
     }
-  }, [task, open, createMode, user]);
+  }, [task, open, createMode, user, defaultCampaignId, defaultSubcampaignId, defaultSongId, defaultEntityId]);
 
   // Auto-save with debounce (handles both create and update)
   useEffect(() => {
@@ -308,6 +370,36 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, 
               needs_review: localNeedsReview,
             });
             setCreatedTaskId(newTask.id);
+
+            // Link to campaign (and optionally subcampaign) if set
+            if (localCampaign) {
+              try {
+                await linkToDomain.mutateAsync({
+                  taskId: newTask.id,
+                  domainType: 'campaign',
+                  entityId: localCampaign,
+                  extra: localSubcampaign ? { subcampaign_id: localSubcampaign } : undefined,
+                });
+              } catch {
+                // Don't fail the create if linking fails
+                console.error('Failed to link task to campaign');
+              }
+            }
+
+            // Link to distribution if set
+            if (localDistribution) {
+              try {
+                await linkToDomain.mutateAsync({
+                  taskId: newTask.id,
+                  domainType: 'distribution',
+                  entityId: localDistribution,
+                });
+              } catch {
+                // Don't fail the create if linking fails
+                console.error('Failed to link task to distribution');
+              }
+            }
+
             setSaveState('idle');
             setShowSavedIndicator(true);
             setTimeout(() => setShowSavedIndicator(false), 2000);
@@ -344,7 +436,7 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, 
         clearTimeout(debounceTimerRef.current);
       }
     };
-  }, [localTitle, localDescription, localNotes, localPriority, localDueDate, localDepartment, localAssignees, task, createdTaskId, open, isCreateMode, projectId, localProject]);
+  }, [localTitle, localDescription, localNotes, localPriority, localDueDate, localDepartment, localAssignees, task, createdTaskId, open, isCreateMode, projectId, localProject, localCampaign, localDistribution]);
 
   // Handle modal close with autosave
   const handleClose = async (newOpen?: boolean) => {
@@ -384,14 +476,25 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, 
           estimated_hours: localEstimatedHours || undefined,
           entity: localEntity || undefined,
           song: localSong || undefined,
-          campaign: localCampaign || undefined,
           project: localProject || projectId || undefined,
           needs_review: localNeedsReview,
         };
 
         createTask.mutate(payload, {
-          onSuccess: (response) => {
+          onSuccess: async (response) => {
             setCreatedTaskId(response.id);
+            // Link to campaign if localCampaign is set
+            if (localCampaign) {
+              try {
+                await linkToDomain.mutateAsync({
+                  taskId: response.id,
+                  domainType: 'campaign',
+                  entityId: localCampaign,
+                });
+              } catch {
+                console.error('Failed to link task to campaign');
+              }
+            }
           },
           onSettled: () => {
             // Close on both success and error
@@ -448,7 +551,7 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, 
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open, onOpenChange, showDeleteDialog, task, createdTaskId, isCreateMode, localTitle, localDescription, localNotes, localPriority, localDueDate, localAssignees, localDepartment, localEstimatedHours, localEntity, localSong, localCampaign]);
+  }, [open, onOpenChange, showDeleteDialog, task, createdTaskId, isCreateMode, localTitle, localDescription, localNotes, localPriority, localDueDate, localAssignees, localDepartment, localEstimatedHours, localEntity, localSong, localCampaign, localDistribution]);
 
   // Don't render if not open or (not in create mode and no task)
   if (!open || (!createMode && !task)) return null;
@@ -876,7 +979,7 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, 
                       </DropdownMenuItem>
                     )}
                     {/* Hide Campaign for marketing department users */}
-                    {!visibleRelatedFields.has('campaign') && !localCampaign &&
+                    {!visibleRelatedFields.has('campaign') && !effectiveCampaignId &&
                      !(user?.department?.name?.toLowerCase() === 'marketing' ||
                        (user?.department as any)?.toLowerCase?.() === 'marketing') && (
                       <DropdownMenuItem
@@ -888,6 +991,18 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, 
                       >
                         <Briefcase className="h-4 w-4 mr-2 text-muted-foreground" />
                         Campaign
+                      </DropdownMenuItem>
+                    )}
+                    {!visibleRelatedFields.has('distribution') && !effectiveDistributionId && (
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setVisibleRelatedFields(new Set([...visibleRelatedFields, 'distribution']));
+                          setShowDistributionSearch(true);
+                          setShowAddRelatedItemMenu(false);
+                        }}
+                      >
+                        <Briefcase className="h-4 w-4 mr-2 text-muted-foreground" />
+                        Distribution
                       </DropdownMenuItem>
                     )}
                   </DropdownMenuContent>
@@ -916,7 +1031,7 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, 
                           }
                         }
                       }}
-                      filter={{ has_role: 'artist' }}
+                      filter={{ classification: 'CREATIVE', entity_type: 'artist' }}
                       allowAddEntity={true}
                       onCreateNew={() => {
                         setShowAddArtistModal(true);
@@ -1009,7 +1124,7 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, 
                           }
                         }
                       }}
-                      useBusinessEndpoint={true}
+                      filter={{ classification: 'CLIENT' }}
                       allowAddEntity={true}
                       onCreateNew={() => {
                         setShowAddClientModal(true);
@@ -1181,13 +1296,13 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, 
               )}
 
               {/* Campaign */}
-              {(visibleRelatedFields.has('campaign') || localCampaign) && (
+              {(visibleRelatedFields.has('campaign') || effectiveCampaignId) && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground uppercase tracking-wide">Campaign</span>
                 </div>
 
-                {showCampaignSearch && !localCampaign && (
+                {showCampaignSearch && !effectiveCampaignId && (
                   <div className="space-y-2">
                     <CampaignSearchCombobox
                       value={localCampaign}
@@ -1195,8 +1310,14 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, 
                         if (campaignId) {
                           setLocalCampaign(campaignId);
                           setShowCampaignSearch(false);
-                          if (!isCreateMode && (task || createdTaskId)) {
-                            await handleUpdateField('campaign', campaignId);
+                          const taskId = task?.id || createdTaskId;
+                          if (!isCreateMode && taskId) {
+                            // Use the agnostic link-domain endpoint
+                            await linkToDomain.mutateAsync({
+                              taskId,
+                              domainType: 'campaign',
+                              entityId: campaignId,
+                            });
                           }
                         }
                       }}
@@ -1220,56 +1341,210 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, 
                   </div>
                 )}
 
-                {task?.campaign_detail && (
-                  <button
-                    onClick={() => {
-                      navigate(`/digital/campaigns/${task.campaign}`);
-                      onOpenChange(false);
-                    }}
-                    className="flex items-center gap-2 p-2 rounded-lg bg-accent/50 hover:bg-accent transition-colors cursor-pointer w-full text-left group relative"
-                  >
-                    <Briefcase className="h-4 w-4 text-muted-foreground" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{task.campaign_detail.name}</p>
-                      <Badge variant="outline" className="text-xs mt-1">
-                        {task.campaign_detail.status}
-                      </Badge>
-                    </div>
+                {/* Display campaign - use selectedCampaignData with domain_info extras if available */}
+                {effectiveCampaignId && selectedCampaignData && (
+                  <div className="space-y-2">
                     <button
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        setLocalCampaign(null);
-                        if (!isCreateMode && (task || createdTaskId)) {
-                          await handleUpdateField('campaign', null);
+                      onClick={() => {
+                        navigate(`/campaigns/${effectiveCampaignId}`);
+                        onOpenChange(false);
+                      }}
+                      className="flex items-center gap-2 p-2 rounded-lg bg-accent/50 hover:bg-accent transition-colors cursor-pointer w-full text-left group relative"
+                    >
+                      <Briefcase className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{selectedCampaignData.name}</p>
+                        <div className="flex items-center gap-1 mt-1">
+                          <Badge variant="outline" className="text-xs">
+                            {selectedCampaignData.status_display || selectedCampaignData.status}
+                          </Badge>
+                          {/* Show subcampaign/platform badge */}
+                          {effectiveSubcampaignId && (() => {
+                            const sc = subcampaigns.find(s => s.id === effectiveSubcampaignId);
+                            if (!sc) return null;
+                            const PlatformIcon = PLATFORM_ICONS[sc.platform];
+                            const colorClass = PLATFORM_TEXT_COLORS[sc.platform];
+                            return (
+                              <Badge variant="secondary" className="text-xs gap-1">
+                                {PlatformIcon && <PlatformIcon className={cn("h-3 w-3", colorClass)} />}
+                                {PLATFORM_CONFIG[sc.platform]?.label || sc.platform}
+                              </Badge>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          setLocalCampaign(null);
+                          setLocalSubcampaign(null);
+                          const taskId = task?.id || createdTaskId;
+                          if (!isCreateMode && taskId) {
+                            await unlinkFromDomain.mutateAsync({
+                              taskId,
+                              domainType: 'campaign',
+                            });
+                          }
+                        }}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-destructive/10 rounded"
+                      >
+                        <X className="h-3 w-3 text-destructive" />
+                      </button>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </button>
+
+                    {/* Platform selector - show when campaign has platforms */}
+                    {subcampaigns.length > 0 && (
+                      <div className="pl-6">
+                        <p className="text-xs text-muted-foreground mb-1.5">Platform (optional)</p>
+                        <div className="flex flex-wrap gap-1">
+                          {/* None option */}
+                          <button
+                            onClick={async () => {
+                              const prevSubcampaign = localSubcampaign || effectiveSubcampaignId;
+                              setLocalSubcampaign(null);
+                              const taskId = task?.id || createdTaskId;
+                              if (!isCreateMode && taskId && prevSubcampaign) {
+                                // Re-link without subcampaign
+                                await linkToDomain.mutateAsync({
+                                  taskId,
+                                  domainType: 'campaign',
+                                  entityId: effectiveCampaignId,
+                                });
+                              }
+                            }}
+                            className={cn(
+                              "px-2 py-1 rounded-md text-xs transition-colors",
+                              !effectiveSubcampaignId
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                            )}
+                          >
+                            None
+                          </button>
+                          {subcampaigns.map((sc) => {
+                            const PlatformIcon = PLATFORM_ICONS[sc.platform];
+                            const colorClass = PLATFORM_TEXT_COLORS[sc.platform];
+                            const isSelected = effectiveSubcampaignId === sc.id;
+                            return (
+                              <button
+                                key={sc.id}
+                                onClick={async () => {
+                                  setLocalSubcampaign(sc.id);
+                                  const taskId = task?.id || createdTaskId;
+                                  if (!isCreateMode && taskId) {
+                                    await linkToDomain.mutateAsync({
+                                      taskId,
+                                      domainType: 'campaign',
+                                      entityId: effectiveCampaignId,
+                                      extra: { subcampaign_id: sc.id },
+                                    });
+                                  }
+                                }}
+                                className={cn(
+                                  "flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors",
+                                  isSelected
+                                    ? "bg-primary text-primary-foreground"
+                                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                                )}
+                              >
+                                {PlatformIcon && <PlatformIcon className={cn("h-3 w-3", isSelected ? "" : colorClass)} />}
+                                {PLATFORM_CONFIG[sc.platform]?.label || sc.platform}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              )}
+
+              {/* Distribution */}
+              {(visibleRelatedFields.has('distribution') || effectiveDistributionId) && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wide">Distribution</span>
+                </div>
+
+                {showDistributionSearch && !effectiveDistributionId && (
+                  <div className="space-y-2">
+                    <DistributionSearchCombobox
+                      value={localDistribution}
+                      onValueChange={async (distributionId) => {
+                        if (distributionId) {
+                          setLocalDistribution(distributionId);
+                          setShowDistributionSearch(false);
+                          const taskId = task?.id || createdTaskId;
+                          if (!isCreateMode && taskId) {
+                            // Use the agnostic link-domain endpoint
+                            await linkToDomain.mutateAsync({
+                              taskId,
+                              domainType: 'distribution',
+                              entityId: distributionId,
+                            });
+                          }
                         }
                       }}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-destructive/10 rounded"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setShowDistributionSearch(false);
+                        const newFields = new Set(visibleRelatedFields);
+                        newFields.delete('distribution');
+                        setVisibleRelatedFields(newFields);
+                      }}
+                      className="h-7 px-2 text-xs"
                     >
-                      <X className="h-3 w-3 text-destructive" />
-                    </button>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  </button>
+                      Cancel
+                    </Button>
+                  </div>
                 )}
 
-                {!task?.campaign_detail && localCampaign && selectedCampaignData && (
-                  <div className="flex items-center gap-2 p-2 rounded-lg bg-accent/50">
-                    <Briefcase className="h-4 w-4 text-muted-foreground" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{selectedCampaignData.campaign_name}</p>
-                      <Badge variant="outline" className="text-xs mt-1">
-                        {selectedCampaignData.status}
-                      </Badge>
-                    </div>
+                {/* Display distribution */}
+                {effectiveDistributionId && selectedDistributionData && (
+                  <div className="space-y-2">
                     <button
-                      onClick={async () => {
-                        setLocalCampaign(null);
-                        if (!isCreateMode && (task || createdTaskId)) {
-                          await handleUpdateField('campaign', null);
-                        }
+                      onClick={() => {
+                        navigate(`/distributions/${effectiveDistributionId}`);
+                        onOpenChange(false);
                       }}
-                      className="p-1 hover:bg-destructive/10 rounded"
+                      className="flex items-center gap-2 p-2 rounded-lg bg-accent/50 hover:bg-accent transition-colors cursor-pointer w-full text-left group relative"
                     >
-                      <X className="h-3 w-3 text-destructive" />
+                      <Briefcase className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">
+                          {selectedDistributionData.entity?.display_name || `Distribution #${selectedDistributionData.id}`}
+                        </p>
+                        <div className="flex items-center gap-1 mt-1">
+                          <Badge variant="outline" className="text-xs">
+                            {selectedDistributionData.deal_status_display || selectedDistributionData.deal_status}
+                          </Badge>
+                          <Badge variant="secondary" className="text-xs">
+                            {selectedDistributionData.deal_type_display || selectedDistributionData.deal_type}
+                          </Badge>
+                        </div>
+                      </div>
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          setLocalDistribution(null);
+                          const taskId = task?.id || createdTaskId;
+                          if (!isCreateMode && taskId) {
+                            await unlinkFromDomain.mutateAsync({
+                              taskId,
+                              domainType: 'distribution',
+                            });
+                          }
+                        }}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-destructive/10 rounded"
+                      >
+                        <X className="h-3 w-3 text-destructive" />
+                      </button>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     </button>
                   </div>
                 )}
@@ -1476,8 +1751,13 @@ export function TaskDetailPanel({ task, open, onOpenChange, createMode = false, 
           setLocalCampaign(campaign.id);
           setShowCampaignSearch(false);
           setShowCreateCampaignDialog(false);
-          if (!isCreateMode && (task || createdTaskId)) {
-            await handleUpdateField('campaign', campaign.id);
+          const taskId = task?.id || createdTaskId;
+          if (!isCreateMode && taskId) {
+            await linkToDomain.mutateAsync({
+              taskId,
+              domainType: 'campaign',
+              entityId: campaign.id,
+            });
           }
         }}
       />

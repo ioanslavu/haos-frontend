@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Check, ChevronsUpDown, X } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, getInitials } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
   Command,
@@ -98,7 +98,7 @@ export function ArtistMultiSelect({
                         <Avatar className="h-6 w-6">
                           <AvatarImage src={artist.profile_picture || undefined} />
                           <AvatarFallback className="text-xs">
-                            {artist.display_name.slice(0, 2).toUpperCase()}
+                            {getInitials(artist.display_name)}
                           </AvatarFallback>
                         </Avatar>
                         <span>{artist.display_name}</span>
@@ -124,7 +124,7 @@ export function ArtistMultiSelect({
               <Avatar className="h-4 w-4 mr-1.5">
                 <AvatarImage src={artist.profile_picture || undefined} />
                 <AvatarFallback className="text-[10px]">
-                  {artist.display_name.slice(0, 2).toUpperCase()}
+                  {getInitials(artist.display_name)}
                 </AvatarFallback>
               </Avatar>
               <span className="text-xs">{artist.display_name}</span>

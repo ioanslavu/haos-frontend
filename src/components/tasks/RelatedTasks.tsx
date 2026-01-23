@@ -1,4 +1,4 @@
-import { useSongTasks, useWorkTasks, useRecordingTasks, useOpportunityTasks, useDeliverableTasks } from '@/api/hooks/useTasks';
+import { useSongTasks, useWorkTasks, useRecordingTasks, useOpportunityTasks, useDeliverableTasks, useCampaignTasks } from '@/api/hooks/useTasks';
 import { Task } from '@/api/types/tasks';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,7 +7,7 @@ import { Clock, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { formatDistance } from 'date-fns';
 
 interface RelatedTasksProps {
-  entityType: 'song' | 'work' | 'recording' | 'opportunity' | 'deliverable';
+  entityType: 'song' | 'work' | 'recording' | 'opportunity' | 'deliverable' | 'campaign';
   entityId: number;
   title?: string;
   description?: string;
@@ -26,6 +26,8 @@ const useEntityTasks = (entityType: string, entityId: number) => {
       return useOpportunityTasks(entityId);
     case 'deliverable':
       return useDeliverableTasks(entityId);
+    case 'campaign':
+      return useCampaignTasks(entityId);
     default:
       throw new Error(`Unknown entity type: ${entityType}`);
   }

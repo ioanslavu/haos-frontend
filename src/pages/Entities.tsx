@@ -34,41 +34,20 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import { EntityListItem } from '@/api/services/entities.service';
+import {
+  EntityListItem,
+  CLASSIFICATION_OPTIONS,
+  ALL_TYPE_OPTIONS,
+  TYPE_COLORS,
+  CLASSIFICATION_COLORS,
+} from '@/api/services/entities.service';
 import { getMediaUrl } from '@/lib/media';
 import { GenericTable, type ColumnDef, type SortState, type FilterState } from '@/components/tables';
 
 type ViewMode = 'grid' | 'table';
 
-const roleOptions = [
-  { value: 'artist', label: 'Artists' },
-  { value: 'producer', label: 'Producers' },
-  { value: 'composer', label: 'Composers' },
-  { value: 'lyricist', label: 'Lyricists' },
-  { value: 'audio_editor', label: 'Audio Editors' },
-  { value: 'label', label: 'Label' },
-  { value: 'booking', label: 'Booking' },
-  { value: 'endorsements', label: 'Endorsements' },
-  { value: 'publishing', label: 'Publishing' },
-  { value: 'productie', label: 'Productie' },
-  { value: 'new_business', label: 'New Business' },
-  { value: 'digital', label: 'Digital' },
-];
-
-const roleColors: Record<string, string> = {
-  artist: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
-  producer: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-  composer: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
-  lyricist: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300',
-  audio_editor: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300',
-  label: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
-  booking: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300',
-  endorsements: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
-  publishing: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',
-  productie: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
-  new_business: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300',
-  digital: 'bg-lime-100 text-lime-700 dark:bg-lime-900/30 dark:text-lime-300',
-};
+const classificationOptions = CLASSIFICATION_OPTIONS.map(o => ({ value: o.value, label: o.label }));
+const entityTypeOptions = ALL_TYPE_OPTIONS.map(o => ({ value: o.value, label: o.label }));
 
 const kindOptions = [
   { value: 'PF', label: 'Person' },
@@ -96,14 +75,17 @@ export default function Entities() {
     }
 
     // Map filter state to API params
-    if (filterState.role) {
-      params.has_role = filterState.role;
+    if (filterState.classification) {
+      params.classification = filterState.classification;
+    }
+    if (filterState.entity_type) {
+      params.entity_type = filterState.entity_type;
     }
     if (filterState.kind) {
       params.kind = filterState.kind;
     }
     if (filterState.is_internal !== undefined) {
-      params.is_internal = filterState.is_internal === 'internal';
+      params.is_internal = filterState.is_internal === 'true';
     }
 
     // Sorting
@@ -134,9 +116,12 @@ export default function Entities() {
 
   const stats = useMemo(() => ({
     total: statsData?.total || 0,
-    physical: statsData?.physical || 0,
-    legal: statsData?.legal || 0,
-    creative: statsData?.creative || 0,
+    physical: statsData?.by_kind?.physical || statsData?.physical || 0,
+    legal: statsData?.by_kind?.legal || statsData?.legal || 0,
+    creative: statsData?.by_classification?.creative || statsData?.creative || 0,
+    client: statsData?.by_classification?.client || 0,
+    internal: statsData?.by_internal?.internal || 0,
+    external: statsData?.by_internal?.external || 0,
   }), [statsData]);
 
   // Helper function
@@ -222,35 +207,44 @@ export default function Entities() {
       ),
     },
     {
-      id: 'role',
-      accessorFn: (row) => row.roles?.[0] || '',
-      header: 'Roles',
-      sortable: false,
+      id: 'classification',
+      accessorKey: 'classification',
+      header: 'Classification',
+      sortable: true,
       filterable: true,
       filterType: 'select',
-      filterOptions: roleOptions,
-      minWidth: 180,
+      filterOptions: classificationOptions,
+      width: 130,
       cell: ({ row }) => (
         <div className="flex flex-wrap gap-1">
-          {row.has_internal_role && (
+          {row.is_internal && (
             <Badge variant="default" className="text-xs bg-green-600 hover:bg-green-700">
               Internal
             </Badge>
           )}
-          {row.roles?.slice(0, 3).map((role) => (
-            <Badge
-              key={role}
-              className={cn('text-xs', roleColors[role] || 'bg-gray-100 text-gray-700')}
-            >
-              {role}
-            </Badge>
-          ))}
-          {row.roles && row.roles.length > 3 && (
-            <Badge variant="secondary" className="text-xs">
-              +{row.roles.length - 3}
-            </Badge>
-          )}
+          <Badge className={cn('text-xs', CLASSIFICATION_COLORS[row.classification] || 'bg-gray-100 text-gray-700')}>
+            {row.classification_display || row.classification}
+          </Badge>
         </div>
+      ),
+    },
+    {
+      id: 'entity_type',
+      accessorKey: 'entity_type',
+      header: 'Type',
+      sortable: true,
+      filterable: true,
+      filterType: 'select',
+      filterOptions: entityTypeOptions,
+      width: 140,
+      cell: ({ row }) => (
+        row.entity_type ? (
+          <Badge className={cn('text-xs', TYPE_COLORS[row.entity_type] || 'bg-gray-100 text-gray-700')}>
+            {row.type_display || row.entity_type}
+          </Badge>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        )
       ),
     },
     {
@@ -397,7 +391,7 @@ export default function Entities() {
             <CardContent className="p-6 relative">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-semibold text-muted-foreground">Creative Roles</p>
+                  <p className="text-sm font-semibold text-muted-foreground">Creatives</p>
                   <p className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mt-1">{stats.creative}</p>
                 </div>
                 <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
@@ -586,7 +580,8 @@ export default function Entities() {
         <EntityFormDialog
           open={formDialogOpen}
           onOpenChange={setFormDialogOpen}
-          role={filterState.role as string || 'artist'}
+          defaultClassification={(filterState.classification as 'CREATIVE' | 'CLIENT') || 'CREATIVE'}
+          defaultEntityType={(filterState.entity_type as any) || 'artist'}
         />
       </div>
     </AppLayout>
@@ -631,29 +626,17 @@ function GridView({
                       </p>
                     )}
                     <div className="flex flex-wrap gap-1">
-                      {entity.has_internal_role && (
+                      {entity.is_internal && (
                         <Badge variant="default" className="text-xs h-5 bg-green-600 hover:bg-green-700">
                           Internal
                         </Badge>
                       )}
-                      {entity.kind === 'PJ' ? (
-                        <Badge variant="outline" className="text-xs h-5">
-                          <Building2 className="h-3 w-3 mr-1" />
-                          Company
-                        </Badge>
-                      ) : (
-                        entity.roles?.slice(0, 2).map((role) => (
-                          <Badge
-                            key={role}
-                            className={cn('text-xs h-5', roleColors[role] || 'bg-gray-100 text-gray-700')}
-                          >
-                            {role}
-                          </Badge>
-                        ))
-                      )}
-                      {entity.roles && entity.roles.length > 2 && (
-                        <Badge variant="secondary" className="text-xs h-5">
-                          +{entity.roles.length - 2}
+                      <Badge className={cn('text-xs h-5', CLASSIFICATION_COLORS[entity.classification] || 'bg-gray-100 text-gray-700')}>
+                        {entity.classification_display || entity.classification}
+                      </Badge>
+                      {entity.entity_type && (
+                        <Badge className={cn('text-xs h-5', TYPE_COLORS[entity.entity_type] || 'bg-gray-100 text-gray-700')}>
+                          {entity.type_display || entity.entity_type}
                         </Badge>
                       )}
                     </div>

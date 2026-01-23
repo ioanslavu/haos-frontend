@@ -13,6 +13,8 @@ import type {
   OpportunityComment,
   OpportunityArtist,
   OpportunityDeliverable,
+  OpportunityAssignment,
+  OpportunityAssignmentRole,
   DeliverableType,
   PaginatedResponse,
   BulkUpdateInput,
@@ -335,5 +337,189 @@ export const approvalsApi = {
 
   requestChanges: (id: number, data: { notes: string }) => {
     return apiClient.post<Approval>(`${BASE_URL}/approvals/${id}/request_changes/`, data);
+  },
+};
+
+// === OPPORTUNITY STATS ===
+
+export interface OpportunityStats {
+  total: number;
+  by_stage: Record<string, number>;
+  by_priority: Record<string, number>;
+  total_value: string;
+  won_value: string;
+  pipeline_value: string;
+}
+
+export const opportunityStatsApi = {
+  get: (params?: OpportunityListParams) => {
+    return apiClient.get<OpportunityStats>(`${BASE_URL}/opportunities/stats/`, { params });
+  },
+};
+
+// === OPPORTUNITY INVOICE LINKS ===
+
+export type InvoiceType = 'advance' | 'milestone' | 'final' | 'full';
+
+export interface OpportunityInvoiceLink {
+  id: number;
+  opportunity: number;
+  invoice: number;
+  invoice_type: InvoiceType;
+  is_primary: boolean;
+  created_at: string;
+  // Nested invoice info
+  invoice_details?: {
+    id: number;
+    invoice_number: string;
+    status: string;
+    total_amount: string;
+    currency: string;
+    due_date: string;
+    client_name: string;
+  };
+}
+
+export interface LinkInvoiceInput {
+  opportunity: number;
+  invoice: number;
+  invoice_type: InvoiceType;
+  is_primary?: boolean;
+}
+
+export const opportunityInvoicesApi = {
+  /**
+   * List invoice links for an opportunity
+   */
+  list: (opportunityId: number) => {
+    return apiClient.get<OpportunityInvoiceLink[]>(
+      `${BASE_URL}/opportunity-invoices/`,
+      { params: { opportunity: opportunityId } }
+    );
+  },
+
+  /**
+   * Link an existing invoice to an opportunity
+   */
+  link: (data: LinkInvoiceInput) => {
+    return apiClient.post<OpportunityInvoiceLink>(`${BASE_URL}/opportunity-invoices/link/`, data);
+  },
+
+  /**
+   * Unlink an invoice from an opportunity
+   */
+  unlink: (linkId: number) => {
+    return apiClient.delete(`${BASE_URL}/opportunity-invoices/${linkId}/`);
+  },
+
+  /**
+   * Update invoice link (change type, primary status)
+   */
+  update: (linkId: number, data: { invoice_type?: InvoiceType; is_primary?: boolean }) => {
+    return apiClient.patch<OpportunityInvoiceLink>(`${BASE_URL}/opportunity-invoices/${linkId}/`, data);
+  },
+};
+
+// === OPPORTUNITY CONTRACT LINKS ===
+
+export interface OpportunityContractLink {
+  id: number;
+  opportunity: number;
+  contract: number;
+  is_primary: boolean;
+  created_at: string;
+  // Nested contract info
+  contract_details?: {
+    id: number;
+    contract_type: string;
+    contract_type_display: string;
+    status: string;
+    status_display: string;
+    entity_name: string;
+    created_at: string;
+  };
+}
+
+export interface LinkContractInput {
+  opportunity: number;
+  contract: number;
+  is_primary?: boolean;
+}
+
+export interface CreateAndLinkContractInput {
+  opportunity: number;
+  contract_type: string;
+  entity: number;
+  effective_date?: string;
+  expiry_date?: string;
+  notes?: string;
+  is_primary?: boolean;
+}
+
+export const opportunityContractsApi = {
+  /**
+   * List contract links for an opportunity
+   */
+  list: (opportunityId: number) => {
+    return apiClient.get<OpportunityContractLink[]>(
+      `${BASE_URL}/opportunity-contracts/`,
+      { params: { opportunity: opportunityId } }
+    );
+  },
+
+  /**
+   * Link an existing contract to an opportunity
+   */
+  link: (data: LinkContractInput) => {
+    return apiClient.post<OpportunityContractLink>(`${BASE_URL}/opportunity-contracts/link/`, data);
+  },
+
+  /**
+   * Create a new contract and link it to an opportunity
+   */
+  createAndLink: (data: CreateAndLinkContractInput) => {
+    return apiClient.post<OpportunityContractLink>(`${BASE_URL}/opportunity-contracts/create_and_link/`, data);
+  },
+
+  /**
+   * Unlink a contract from an opportunity
+   */
+  unlink: (linkId: number) => {
+    return apiClient.delete(`${BASE_URL}/opportunity-contracts/${linkId}/`);
+  },
+
+  /**
+   * Update contract link (change primary status)
+   */
+  update: (linkId: number, data: { is_primary?: boolean }) => {
+    return apiClient.patch<OpportunityContractLink>(`${BASE_URL}/opportunity-contracts/${linkId}/`, data);
+  },
+};
+
+// === OPPORTUNITY ASSIGNMENTS ===
+
+export const opportunityAssignmentsApi = {
+  /**
+   * List assignments for an opportunity
+   */
+  list: (opportunityId: number) => {
+    return apiClient.get<OpportunityAssignment[]>(`${BASE_URL}/opportunities/${opportunityId}/assignments/`);
+  },
+
+  /**
+   * Add user to opportunity
+   */
+  create: (opportunityId: number, userId: number, role: OpportunityAssignmentRole) => {
+    return apiClient.post<OpportunityAssignment>(`${BASE_URL}/opportunities/${opportunityId}/assignments/`, {
+      user_id: userId,
+      role,
+    });
+  },
+
+  /**
+   * Remove user from opportunity
+   */
+  delete: (opportunityId: number, assignmentId: number) => {
+    return apiClient.delete(`${BASE_URL}/opportunities/${opportunityId}/assignments/${assignmentId}/`);
   },
 };

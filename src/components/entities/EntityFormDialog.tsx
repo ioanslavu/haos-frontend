@@ -70,7 +70,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useCreateEntity, useUpdateEntity, entityKeys } from '@/api/hooks/useEntities';
-import { Entity } from '@/api/services/entities.service';
+import {
+  Entity,
+  EntityClassification,
+  EntityType,
+  CLASSIFICATION_OPTIONS,
+  CREATIVE_TYPE_OPTIONS,
+  CLIENT_TYPE_OPTIONS,
+} from '@/api/services/entities.service';
 import entitiesService from '@/api/services/entities.service';
 import { Loader2, Upload, X, Camera } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -112,11 +119,10 @@ const entityFormSchema = z.object({
   bank_name: z.string().optional(),
   bank_branch: z.string().optional(),
   notes: z.string().optional(),
-  roles: z.array(z.object({
-    role: z.string(),
-    is_internal: z.boolean().optional()
-  })).optional(),
-  primary_role: z.string().optional(),
+  // Classification fields
+  classification: z.enum(['CREATIVE', 'CLIENT']),
+  is_internal: z.boolean().optional(),
+  entity_type: z.string().optional().nullable(),
 }).refine((data) => {
   // For PF entities, require first_name and last_name
   if (data.kind === 'PF') {
@@ -135,7 +141,8 @@ interface EntityFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   entity?: Entity | null;
-  role?: string; // Default role for new entities
+  defaultClassification?: EntityClassification; // Default classification for new entities
+  defaultEntityType?: EntityType; // Default entity type for new entities
   onSuccess?: (entity: Entity) => void; // Callback when entity is created/updated
 }
 
@@ -143,7 +150,8 @@ export function EntityFormDialog({
   open,
   onOpenChange,
   entity,
-  role = 'artist',
+  defaultClassification = 'CREATIVE',
+  defaultEntityType = 'artist',
   onSuccess,
 }: EntityFormDialogProps) {
   const queryClient = useQueryClient();
@@ -190,8 +198,10 @@ export function EntityFormDialog({
       bank_name: '',
       bank_branch: '',
       notes: '',
-      roles: [{ role, is_internal: false }],
-      primary_role: role,
+      // Classification fields
+      classification: defaultClassification,
+      is_internal: false,
+      entity_type: defaultEntityType,
     },
   });
 
@@ -260,11 +270,13 @@ export function EntityFormDialog({
         bank_name: entity.bank_name || '',
         bank_branch: entity.bank_branch || '',
         notes: entity.notes || '',
-        roles: entity.entity_roles?.map(r => ({ role: r.role, is_internal: r.is_internal })) || [{ role, is_internal: false }],
-        primary_role: entity.entity_roles?.find(r => r.primary_role)?.role || entity.entity_roles?.[0]?.role || role,
+        // Classification fields
+        classification: entity.classification || defaultClassification,
+        is_internal: entity.is_internal || false,
+        entity_type: entity.entity_type || null,
       });
     }
-  }, [entity, form, role]);
+  }, [entity, form, defaultClassification]);
 
   // Load existing image when editing
   useEffect(() => {
@@ -297,8 +309,8 @@ export function EntityFormDialog({
     try {
       const payload = {
         ...values,
-        roles: values.roles && values.roles.length > 0 ? values.roles : [values.primary_role || role],
-        primary_role: values.primary_role || role,
+        // Ensure entity_type is null if empty string
+        entity_type: values.entity_type || null,
       };
 
       let savedEntity: Entity | undefined;
@@ -537,6 +549,97 @@ export function EntityFormDialog({
                   </>
                 )}
 
+                {/* Classification section - shown for both PF and PJ */}
+                <div className="pt-4 border-t space-y-4">
+                  <h3 className="text-sm font-medium">Classification</h3>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="classification"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Classification *</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select classification" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {CLASSIFICATION_OPTIONS.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="entity_type"
+                      render={({ field }) => {
+                        const classification = form.watch('classification');
+                        const typeOptions = classification === 'CREATIVE'
+                          ? CREATIVE_TYPE_OPTIONS
+                          : CLIENT_TYPE_OPTIONS;
+
+                        return (
+                          <FormItem>
+                            <FormLabel>Type</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={field.value || ''}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Optional" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="">None</SelectItem>
+                                {typeOptions.map((option) => (
+                                  <SelectItem key={option.value} value={option.value}>
+                                    {option.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        );
+                      }}
+                    />
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="is_internal"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                        <FormControl>
+                          <input
+                            type="checkbox"
+                            checked={field.value}
+                            onChange={field.onChange}
+                            className="h-4 w-4"
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>Internal / Signed</FormLabel>
+                          <FormDescription>
+                            Signed artist or internal team member
+                          </FormDescription>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
                 <FormField
                   control={form.control}
                   name="notes"
@@ -759,174 +862,6 @@ export function EntityFormDialog({
 
               {kind === 'PF' && (
                 <TabsContent value="additional" className="space-y-4">
-                  {/* Multiple Roles Selection */}
-                  <FormField
-                    control={form.control}
-                    name="roles"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Roles (Select all that apply)</FormLabel>
-                        <div className="space-y-3">
-                          <p className="text-xs text-muted-foreground mb-2">Creative Roles</p>
-                          {[
-                            { value: 'artist', label: 'Artist' },
-                            { value: 'producer', label: 'Producer' },
-                            { value: 'composer', label: 'Composer' },
-                            { value: 'lyricist', label: 'Lyricist' },
-                            { value: 'audio_editor', label: 'Audio Editor' },
-                          ].map((roleOption) => {
-                            const existingRole = field.value?.find(r => r.role === roleOption.value);
-                            const isChecked = !!existingRole;
-
-                            return (
-                              <div key={roleOption.value} className="flex items-center justify-between space-x-4 py-1">
-                                <div className="flex items-center space-x-2">
-                                  <input
-                                    type="checkbox"
-                                    id={`role-${roleOption.value}`}
-                                    checked={isChecked}
-                                    onChange={(e) => {
-                                      if (e.target.checked) {
-                                        const newRoles = [...(field.value || []), { role: roleOption.value, is_internal: false }];
-                                        field.onChange(newRoles);
-                                      } else {
-                                        const newRoles = (field.value || []).filter(r => r.role !== roleOption.value);
-                                        field.onChange(newRoles);
-                                      }
-                                    }}
-                                    className="h-4 w-4"
-                                  />
-                                  <label htmlFor={`role-${roleOption.value}`} className="text-sm">
-                                    {roleOption.label}
-                                  </label>
-                                </div>
-                                {isChecked && (
-                                  <div className="flex items-center space-x-2">
-                                    <input
-                                      type="checkbox"
-                                      id={`internal-${roleOption.value}`}
-                                      checked={existingRole?.is_internal || false}
-                                      onChange={(e) => {
-                                        const newRoles = (field.value || []).map(r =>
-                                          r.role === roleOption.value
-                                            ? { ...r, is_internal: e.target.checked }
-                                            : r
-                                        );
-                                        field.onChange(newRoles);
-                                      }}
-                                      className="h-4 w-4"
-                                    />
-                                    <label htmlFor={`internal-${roleOption.value}`} className="text-xs text-muted-foreground">
-                                      Signed Artist
-                                    </label>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                          <p className="text-xs text-muted-foreground mb-2 mt-4">Business Roles</p>
-                          {[
-                            { value: 'label', label: 'Label' },
-                            { value: 'booking', label: 'Booking' },
-                            { value: 'endorsements', label: 'Endorsements' },
-                            { value: 'publishing', label: 'Publishing' },
-                            { value: 'productie', label: 'Productie' },
-                            { value: 'new_business', label: 'New Business' },
-                            { value: 'digital', label: 'Digital' },
-                          ].map((roleOption) => {
-                            const existingRole = field.value?.find(r => r.role === roleOption.value);
-                            const isChecked = !!existingRole;
-
-                            return (
-                              <div key={roleOption.value} className="flex items-center justify-between space-x-4 py-1">
-                                <div className="flex items-center space-x-2">
-                                  <input
-                                    type="checkbox"
-                                    id={`role-${roleOption.value}`}
-                                    checked={isChecked}
-                                    onChange={(e) => {
-                                      if (e.target.checked) {
-                                        const newRoles = [...(field.value || []), { role: roleOption.value, is_internal: false }];
-                                        field.onChange(newRoles);
-                                      } else {
-                                        const newRoles = (field.value || []).filter(r => r.role !== roleOption.value);
-                                        field.onChange(newRoles);
-                                      }
-                                    }}
-                                    className="h-4 w-4"
-                                  />
-                                  <label htmlFor={`role-${roleOption.value}`} className="text-sm">
-                                    {roleOption.label}
-                                  </label>
-                                </div>
-                                {isChecked && (
-                                  <div className="flex items-center space-x-2">
-                                    <input
-                                      type="checkbox"
-                                      id={`internal-${roleOption.value}`}
-                                      checked={existingRole?.is_internal || false}
-                                      onChange={(e) => {
-                                        const newRoles = (field.value || []).map(r =>
-                                          r.role === roleOption.value
-                                            ? { ...r, is_internal: e.target.checked }
-                                            : r
-                                        );
-                                        field.onChange(newRoles);
-                                      }}
-                                      className="h-4 w-4"
-                                    />
-                                    <label htmlFor={`internal-${roleOption.value}`} className="text-xs text-muted-foreground">
-                                      Signed Artist
-                                    </label>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Primary Role Selection */}
-                  <FormField
-                    control={form.control}
-                    name="primary_role"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Primary Role</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select primary role" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Creative Roles</div>
-                            <SelectItem value="artist">Artist</SelectItem>
-                            <SelectItem value="producer">Producer</SelectItem>
-                            <SelectItem value="composer">Composer</SelectItem>
-                            <SelectItem value="lyricist">Lyricist</SelectItem>
-                            <SelectItem value="audio_editor">Audio Editor</SelectItem>
-                            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t mt-1">Business Roles</div>
-                            <SelectItem value="label">Label</SelectItem>
-                            <SelectItem value="booking">Booking</SelectItem>
-                            <SelectItem value="endorsements">Endorsements</SelectItem>
-                            <SelectItem value="publishing">Publishing</SelectItem>
-                            <SelectItem value="productie">Productie</SelectItem>
-                            <SelectItem value="new_business">New Business</SelectItem>
-                            <SelectItem value="digital">Digital</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>
-                          Choose the main role for this person
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}

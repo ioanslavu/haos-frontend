@@ -64,6 +64,33 @@ export const STAGE_CONFIG: Record<OpportunityStage, { label: string; emoji: stri
   closed_lost: { label: 'Lost', emoji: '❌', color: 'bg-red-600' },
 };
 
+// Simplified kanban stages (main workflow columns)
+export const KANBAN_STAGES: OpportunityStage[] = [
+  'brief',
+  'proposal_sent',
+  'negotiation',
+  'contract_sent',
+  'won',
+  'executing',
+];
+
+// Stages that count as "active" (pipeline stages)
+export const ACTIVE_STAGES: OpportunityStage[] = [
+  'brief',
+  'qualified',
+  'shortlist',
+  'proposal_draft',
+  'proposal_sent',
+  'negotiation',
+  'contract_prep',
+  'contract_sent',
+  'won',
+  'executing',
+];
+
+// Terminal stages
+export const TERMINAL_STAGES: OpportunityStage[] = ['completed', 'closed_lost'];
+
 export const PRIORITY_CONFIG: Record<OpportunityPriority, { label: string; color: string }> = {
   low: { label: 'Low', color: 'bg-gray-500' },
   medium: { label: 'Medium', color: 'bg-blue-500' },
@@ -191,6 +218,7 @@ export interface Opportunity {
   artists?: OpportunityArtist[];
   tasks?: OpportunityTask[];
   deliverables?: OpportunityDeliverable[];
+  assignments?: OpportunityAssignment[];
 
   // Annotated fields (for list view)
   artists_count?: number;
@@ -334,3 +362,69 @@ export interface MarkLostInput {
   lost_reason: string;
   competitor?: string;
 }
+
+// === FILTER TYPES ===
+
+export interface OpportunityFilters {
+  stage?: OpportunityStage[];
+  priority?: OpportunityPriority[];
+  owner?: number;
+  team?: number;
+  account?: number;
+  expected_close_date_after?: string;
+  expected_close_date_before?: string;
+  estimated_value_min?: number;
+  estimated_value_max?: number;
+  search?: string;
+}
+
+// Period presets for filtering
+export type PeriodPreset =
+  | 'all'
+  | 'this_month'
+  | 'last_month'
+  | 'this_quarter'
+  | 'last_quarter'
+  | 'this_year'
+  | 'last_year'
+  | 'custom';
+
+export const PERIOD_PRESETS: { id: PeriodPreset; label: string }[] = [
+  { id: 'all', label: 'All Time' },
+  { id: 'this_month', label: 'This Month' },
+  { id: 'last_month', label: 'Last Month' },
+  { id: 'this_quarter', label: 'This Quarter' },
+  { id: 'last_quarter', label: 'Last Quarter' },
+  { id: 'this_year', label: 'This Year' },
+  { id: 'last_year', label: 'Last Year' },
+  { id: 'custom', label: 'Custom Range' },
+];
+
+// === ASSIGNMENT TYPES ===
+
+export type OpportunityAssignmentRole = 'lead' | 'support' | 'observer';
+
+export interface OpportunityAssignment {
+  id: number;
+  user: number;
+  user_email: string;
+  user_name: string;
+  user_first_name?: string;
+  user_last_name?: string;
+  role: OpportunityAssignmentRole;
+  role_display: string;
+  assigned_at: string;
+  assigned_by?: number;
+  assigned_by_email?: string;
+}
+
+export const OPPORTUNITY_ASSIGNMENT_ROLE_LABELS: Record<OpportunityAssignmentRole, string> = {
+  lead: 'Lead',
+  support: 'Support',
+  observer: 'Observer',
+};
+
+// === VIEW MODE TYPES ===
+
+export type OpportunityViewType = 'table' | 'kanban';
+export type OpportunityTabMode = 'all' | 'by-account' | 'by-owner';

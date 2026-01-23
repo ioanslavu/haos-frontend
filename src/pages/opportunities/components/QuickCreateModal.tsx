@@ -1,11 +1,22 @@
 /**
- * Quick Create Modal - Fast opportunity creation with essential fields only
+ * QuickCreateModal - Simplified opportunity creation
+ *
+ * Just select a client and create - that's it!
+ * Opportunity is created with BRIEF stage, auto-generated name.
+ * All other details can be added on the opportunity detail page.
  */
 
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { Loader2, Plus } from 'lucide-react';
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import {
+  ArrowRight,
+  Building2,
+  Loader2,
+  Plus,
+  Search,
+  Sparkles,
+  TrendingUp,
+} from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -13,241 +24,236 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { EntitySearchCombobox } from '@/components/entities/EntitySearchCombobox';
-import { useCreateOpportunity } from '@/api/hooks/useOpportunities';
-import { useAuthStore } from '@/stores/authStore';
-import { useDepartmentUsers } from '@/api/hooks/useUsers';
-import type { OpportunityStage } from '@/types/opportunities';
-import { STAGE_CONFIG } from '@/types/opportunities';
-import { toast } from 'sonner';
-import { useState } from 'react';
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Card } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
+import { useEntities } from '@/api/hooks/useEntities'
+import { useCreateOpportunity, useOpportunities } from '@/api/hooks/useOpportunities'
+import { useAuthStore } from '@/stores/authStore'
+import type { Entity } from '@/api/services/entities.service'
 
-const quickCreateSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
-  account: z.number({ required_error: 'Account is required' }),
-  owner: z.number({ required_error: 'Owner is required' }),
-  stage: z.string().optional(),
-  estimated_value: z.string().optional().nullable(),
-  expected_close_date: z.string().optional().nullable(),
-});
+export function QuickCreateModal() {
+  const navigate = useNavigate()
+  const { user } = useAuthStore()
+  const [open, setOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [isCreating, setIsCreating] = useState(false)
 
-type QuickCreateFormData = z.infer<typeof quickCreateSchema>;
+  // Fetch clients (entities)
+  const { data: entitiesData, isLoading: isLoadingEntities } = useEntities({
+    search: searchQuery,
+    page_size: 20,
+  })
 
-const QUICK_STAGES: { value: OpportunityStage; label: string; emoji: string }[] = [
-  { value: 'brief', label: STAGE_CONFIG.brief.label, emoji: STAGE_CONFIG.brief.emoji },
-  { value: 'qualified', label: STAGE_CONFIG.qualified.label, emoji: STAGE_CONFIG.qualified.emoji },
-  { value: 'shortlist', label: STAGE_CONFIG.shortlist.label, emoji: STAGE_CONFIG.shortlist.emoji },
-  { value: 'proposal_draft', label: STAGE_CONFIG.proposal_draft.label, emoji: STAGE_CONFIG.proposal_draft.emoji },
-];
+  const entities = entitiesData?.results || []
 
-interface QuickCreateModalProps {
-  defaultStage?: OpportunityStage;
-}
+  // Get recent opportunities to show clients with activity
+  const { data: recentOpportunitiesData } = useOpportunities({
+    ordering: '-created_at',
+    page_size: 10,
+  })
 
-export function QuickCreateModal({ defaultStage = 'brief' }: QuickCreateModalProps) {
-  const [open, setOpen] = useState(false);
-  const { user } = useAuthStore();
-  const { data: departmentUsers } = useDepartmentUsers(user?.department?.id);
-  const createMutation = useCreateOpportunity();
+  const recentOpportunities = recentOpportunitiesData?.results || []
 
-  const form = useForm<QuickCreateFormData>({
-    resolver: zodResolver(quickCreateSchema),
-    defaultValues: {
-      title: '',
-      account: undefined,
-      owner: user?.id || undefined,
-      stage: defaultStage,
-      estimated_value: '',
-      expected_close_date: '',
-    },
-  });
+  // Get unique recent clients from opportunities
+  const recentClients = Array.from(
+    new Map(
+      recentOpportunities
+        .filter(o => o.account?.id && o.account?.display_name)
+        .map(o => [o.account.id, o.account])
+    ).values()
+  ).slice(0, 5)
 
-  const onSubmit = async (data: QuickCreateFormData) => {
+  const createOpportunity = useCreateOpportunity()
+
+  const handleClientSelect = async (client: Entity) => {
+    if (!client?.display_name) return
+
+    setIsCreating(true)
     try {
-      await createMutation.mutateAsync({
-        ...data,
+      // Auto-generate opportunity name
+      const date = new Date()
+      const monthYear = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+      const opportunityTitle = `${client.display_name} - ${monthYear}`
+
+      // Create opportunity immediately with BRIEF stage
+      const opportunity = await createOpportunity.mutateAsync({
+        title: opportunityTitle,
+        account: client.id, // Backend field is still 'account'
+        owner: user?.id,
+        stage: 'brief',
         priority: 'medium',
         currency: 'EUR',
-      });
-      setOpen(false);
-      form.reset();
-      toast.success('Opportunity created successfully');
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Failed to create opportunity');
+      })
+
+      setOpen(false)
+      // Navigate to the new opportunity
+      navigate(`/opportunities/${opportunity.id}`)
+    } catch (error) {
+      // Error handled by mutation
+      setIsCreating(false)
     }
-  };
+  }
+
+  const handleClose = (isOpen: boolean) => {
+    if (!isCreating) {
+      setOpen(isOpen)
+      // Reset state after animation
+      if (!isOpen) {
+        setTimeout(() => {
+          setSearchQuery('')
+        }, 200)
+      }
+    }
+  }
+
+  // Show recent clients when not searching
+  const showRecentClients = !searchQuery && recentClients.length > 0
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogTrigger asChild>
-        <Button size="sm">
-          <Plus className="mr-2 h-4 w-4" />
-          Quick Create
+        <Button
+          size="sm"
+          className="h-9 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg"
+        >
+          <Plus className="h-4 w-4 mr-1" />
+          New
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Quick Create Opportunity</DialogTitle>
-          <DialogDescription>
-            Create a new opportunity with essential information. You can add more details later.
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <Sparkles className="h-5 w-5 text-primary" />
+            New Opportunity
+          </DialogTitle>
+          <DialogDescription className="text-base">
+            Who is this opportunity for?
           </DialogDescription>
         </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Opportunity Title *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., Nike Summer Campaign 2025" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+        {/* Creating Overlay */}
+        {isCreating && (
+          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-lg">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
+            <p className="text-sm text-muted-foreground">Creating opportunity...</p>
+          </div>
+        )}
+
+        <div className="space-y-4">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search clients..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 h-11 rounded-xl"
+              autoFocus
             />
+          </div>
 
-            <FormField
-              control={form.control}
-              name="account"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Account *</FormLabel>
-                  <FormControl>
-                    <EntitySearchCombobox
-                      value={field.value}
-                      onChange={field.onChange}
-                      placeholder="Search accounts..."
-                      entityType="brand"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+          {/* Recent Clients Section */}
+          {showRecentClients && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wider font-medium">
+                <TrendingUp className="h-3 w-3" />
+                Recent Clients
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {recentClients.map((client) => (
+                  <Button
+                    key={client.id}
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full h-8 gap-2 hover:bg-primary/10 hover:border-primary/50"
+                    onClick={() => handleClientSelect(client as Entity)}
+                    disabled={isCreating}
+                  >
+                    <div className="h-4 w-4 rounded-full bg-gradient-to-br from-primary/30 to-primary/50 flex items-center justify-center">
+                      <span className="text-[8px] font-semibold">
+                        {client.display_name?.charAt(0) || '?'}
+                      </span>
+                    </div>
+                    {client.display_name}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Client List */}
+          <div className="space-y-2">
+            {searchQuery && (
+              <div className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+                Search Results
+              </div>
+            )}
+            {!searchQuery && !showRecentClients && (
+              <div className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+                All Clients
+              </div>
+            )}
+            <div className="max-h-[320px] overflow-y-auto space-y-2 pr-1">
+              {isLoadingEntities ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : entities.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>No clients found</p>
+                  <p className="text-sm">Try a different search term</p>
+                </div>
+              ) : (
+                entities.map((entity) => (
+                  <Card
+                    key={entity.id}
+                    className={cn(
+                      "p-3 cursor-pointer transition-all hover:shadow-md hover:border-primary/50 group",
+                      "border-transparent bg-muted/30 hover:bg-muted/50"
+                    )}
+                    onClick={() => handleClientSelect(entity)}
+                  >
+                    <div className="flex items-center gap-3">
+                      {entity.image_url ? (
+                        <img
+                          src={entity.image_url}
+                          alt={entity.display_name || 'Client'}
+                          className="h-10 w-10 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
+                          <span className="text-lg font-semibold">
+                            {entity.display_name?.charAt(0) || '?'}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium truncate">{entity.display_name || 'Unknown'}</h4>
+                        <p className="text-xs text-muted-foreground">
+                          {entity.kind === 'PJ' ? 'Company' : 'Person'}
+                          {entity.email && ` · ${entity.email}`}
+                        </p>
+                      </div>
+                      <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                  </Card>
+                ))
               )}
-            />
-
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="stage"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Stage</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select stage" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {QUICK_STAGES.map((stage) => (
-                          <SelectItem key={stage.value} value={stage.value}>
-                            <span className="flex items-center gap-2">
-                              <span>{stage.emoji}</span>
-                              <span>{stage.label}</span>
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="owner"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Owner *</FormLabel>
-                    <Select onValueChange={(val) => field.onChange(Number(val))} value={field.value?.toString()}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select owner" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {departmentUsers?.results?.map((user) => (
-                          <SelectItem key={user.id} value={user.id.toString()}>
-                            {user.full_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </div>
+          </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="estimated_value"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Estimated Value (EUR)</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.01" placeholder="0.00" {...field} value={field.value || ''} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="expected_close_date"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Expected Close Date</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} value={field.value || ''} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setOpen(false)}
-                disabled={createMutation.isPending}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={createMutation.isPending}>
-                {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create Opportunity
-              </Button>
-            </div>
-          </form>
-        </Form>
+          {/* Help Text */}
+          <div className="pt-2 border-t">
+            <p className="text-xs text-muted-foreground text-center">
+              Select a client to create a new opportunity. You can add details after.
+            </p>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

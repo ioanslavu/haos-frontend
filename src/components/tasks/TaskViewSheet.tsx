@@ -36,7 +36,7 @@ import {
   ClipboardCheck,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn, getInitials } from '@/lib/utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -165,7 +165,7 @@ export function TaskViewSheet({ task, open, onOpenChange, onEdit }: TaskViewShee
                     >
                       <Avatar className="h-6 w-6">
                         <AvatarFallback className="text-xs">
-                          {user.full_name.substring(0, 2).toUpperCase()}
+                          {getInitials(user.full_name)}
                         </AvatarFallback>
                       </Avatar>
                       <span className="text-sm">{user.full_name}</span>

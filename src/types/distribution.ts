@@ -24,12 +24,30 @@ export type DealStatus = 'active' | 'in_negotiation' | 'expired'
 export type DistributionStatus = 'pending' | 'live' | 'taken_down'
 export type Platform = 'meta' | 'google' | 'tiktok' | 'spotify' | 'youtube' | 'apple_music' | 'deezer' | 'amazon_music' | 'soundcloud' | 'twitter' | 'linkedin' | 'snapchat' | 'pinterest' | 'multi'
 
+export type DistributionAssignmentRole = 'lead' | 'support' | 'observer'
+
+export interface DistributionAssignment {
+  id: number
+  distribution: number
+  user: number
+  user_email: string
+  user_name: string
+  user_first_name: string
+  user_last_name: string
+  role: DistributionAssignmentRole
+  role_display: string
+  assigned_at: string
+  assigned_by?: number
+  assigned_by_name?: string
+}
+
 export interface Distribution {
   id: number
   entity: Entity
   deal_type: DealType
   deal_type_display: string
-  includes_dsps_youtube: boolean
+  includes_dsps: boolean
+  includes_youtube: boolean
   deal_status: DealStatus
   deal_status_display: string
   contract?: {
@@ -54,6 +72,9 @@ export interface Distribution {
   } | null
   department_display: string
   catalog_items?: DistributionCatalogItem[]
+  songs?: DistributionSong[]
+  songs_count?: number
+  assignments?: DistributionAssignment[]
   created_at: string
   updated_at: string
   created_by?: number
@@ -100,7 +121,8 @@ export interface DistributionRevenueReport {
 export interface DistributionFormData {
   entity: number
   deal_type?: DealType
-  includes_dsps_youtube?: boolean
+  includes_dsps?: boolean
+  includes_youtube?: boolean
   deal_status: DealStatus
   contract?: number | null
   department?: number | null
@@ -111,6 +133,12 @@ export interface DistributionFormData {
   special_terms?: string
 }
 
+export const DISTRIBUTION_ASSIGNMENT_ROLE_LABELS: Record<DistributionAssignmentRole, string> = {
+  lead: 'Lead',
+  support: 'Support',
+  observer: 'Observer',
+}
+
 export interface DistributionCatalogItemFormData {
   distribution?: number
   recording?: number | null
@@ -119,6 +147,46 @@ export interface DistributionCatalogItemFormData {
   individual_revenue_share?: string | null
   distribution_status: DistributionStatus
   release_date?: string | null
+  notes?: string
+}
+
+// ============================================
+// DISTRIBUTION SONG (External Songs)
+// ============================================
+
+export interface DistributionSong {
+  id: number
+  distribution: number
+  song_name: string
+  artist_name: string
+  isrc?: string
+  release_date?: string | null
+  client_type?: string
+  mentions?: string
+  platforms: Platform[]
+  platforms_display: string[]
+  individual_revenue_share?: string | null
+  effective_revenue_share: string
+  distribution_status: DistributionStatus
+  distribution_status_display: string
+  contract?: number | null
+  contract_number?: string
+  notes?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface DistributionSongFormData {
+  song_name: string
+  artist_name: string
+  isrc?: string
+  release_date?: string | null
+  client_type?: string
+  mentions?: string
+  platforms?: Platform[]
+  individual_revenue_share?: string | null
+  distribution_status?: DistributionStatus
+  contract?: number | null
   notes?: string
 }
 

@@ -75,7 +75,9 @@ import {
   Music,
 } from 'lucide-react'
 import { format, formatDistanceToNow, isToday, isTomorrow, isPast } from 'date-fns'
-import { cn } from '@/lib/utils'
+import { cn, getInitials } from '@/lib/utils'
+import { PLATFORM_ICONS, PLATFORM_TEXT_COLORS } from '@/lib/platform-icons'
+import type { Platform } from '@/types/campaign'
 import { toast } from 'sonner'
 import { handleApiError } from '@/lib/error-handler'
 import {
@@ -133,11 +135,52 @@ function DraggableTaskCard({ task, children, onClick }: { task: Task; children: 
   );
 }
 
-// Related Entity Component
+// Related Entity Component - displays linked domain entity (campaign, song, opportunity, etc.)
 function RelatedEntity({ task, onClick }: { task: Task; onClick: (e: React.MouseEvent, path: string) => void }) {
-  // Determine which related entity to display (check in priority order)
+  // Use domain_info from the registry (new agnostic approach)
+  if (task.domain_info) {
+    const { domain_type, entity_id, entity_name, extra } = task.domain_info;
 
-  // Opportunity
+    // For campaigns with subcampaign, show platform icon
+    if (domain_type === 'campaign' && extra?.subcampaign?.platform) {
+      const platform = extra.subcampaign.platform as Platform;
+      const PlatformIcon = PLATFORM_ICONS[platform];
+      const colorClass = PLATFORM_TEXT_COLORS[platform] || 'text-muted-foreground';
+
+      return (
+        <div
+          onClick={(e) => onClick(e, `/campaigns/${entity_id}`)}
+          className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors cursor-pointer group"
+        >
+          {PlatformIcon && <PlatformIcon className={cn("h-2.5 w-2.5 flex-shrink-0", colorClass)} />}
+          <span className="truncate group-hover:underline">{entity_name}</span>
+        </div>
+      );
+    }
+
+    // Map domain types to icons and paths
+    const domainConfig: Record<string, { icon: React.ReactNode; path: string }> = {
+      campaign: { icon: <Link2 className="h-2.5 w-2.5 flex-shrink-0" />, path: `/campaigns/${entity_id}` },
+      opportunity: { icon: <Briefcase className="h-2.5 w-2.5 flex-shrink-0" />, path: `/sales/opportunities/${entity_id}` },
+      song: { icon: <Music className="h-2.5 w-2.5 flex-shrink-0" />, path: `/songs/${entity_id}` },
+      entity: { icon: <User className="h-2.5 w-2.5 flex-shrink-0" />, path: `/entities/${entity_id}` },
+    };
+
+    const config = domainConfig[domain_type];
+    if (config) {
+      return (
+        <div
+          onClick={(e) => onClick(e, config.path)}
+          className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors cursor-pointer group"
+        >
+          {config.icon}
+          <span className="truncate group-hover:underline">{entity_name}</span>
+        </div>
+      );
+    }
+  }
+
+  // Fallback to legacy fields for backwards compatibility
   if (task.opportunity && task.opportunity_detail) {
     return (
       <div
@@ -150,7 +193,6 @@ function RelatedEntity({ task, onClick }: { task: Task; onClick: (e: React.Mouse
     );
   }
 
-  // Song
   if (task.song && task.song_detail) {
     return (
       <div
@@ -163,7 +205,6 @@ function RelatedEntity({ task, onClick }: { task: Task; onClick: (e: React.Mouse
     );
   }
 
-  // Entity (Contact/Company)
   if (task.entity && task.entity_detail) {
     return (
       <div
@@ -176,11 +217,10 @@ function RelatedEntity({ task, onClick }: { task: Task; onClick: (e: React.Mouse
     );
   }
 
-  // Campaign
   if (task.campaign && task.campaign_detail) {
     return (
       <div
-        onClick={(e) => onClick(e, `/digital/campaigns/${task.campaign}`)}
+        onClick={(e) => onClick(e, `/campaigns/${task.campaign}`)}
         className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors cursor-pointer group"
       >
         <Link2 className="h-2.5 w-2.5 flex-shrink-0" />
@@ -189,7 +229,6 @@ function RelatedEntity({ task, onClick }: { task: Task; onClick: (e: React.Mouse
     );
   }
 
-  // Contract
   if (task.contract && task.contract_detail) {
     return (
       <div
@@ -683,7 +722,7 @@ export default function TaskManagement() {
                                         {task.assigned_to_users_detail.slice(0, 2).map((user) => (
                                           <Avatar key={user.id} className="h-5 w-5 border border-background">
                                             <AvatarFallback className="text-[10px] font-medium">
-                                              {user.full_name.substring(0, 2).toUpperCase()}
+                                              {getInitials(user.full_name)}
                                             </AvatarFallback>
                                           </Avatar>
                                         ))}
@@ -821,7 +860,7 @@ export default function TaskManagement() {
                                 {task.assigned_to_users_detail.slice(0, 3).map((user) => (
                                   <Avatar key={user.id} className="h-6 w-6 border-2 border-background ring-1 ring-border/20">
                                     <AvatarFallback className="text-xs font-medium">
-                                      {user.full_name.substring(0, 2).toUpperCase()}
+                                      {getInitials(user.full_name)}
                                     </AvatarFallback>
                                   </Avatar>
                                 ))}

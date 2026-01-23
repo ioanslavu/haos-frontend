@@ -15,15 +15,17 @@ export const useTasks = (params?: {
   assigned_to__in?: string;  // Filter by multiple user IDs (comma-separated)
   department?: number;
   campaign?: number;
+  distribution?: number;
   entity?: number;
   // Universal task system entity filters
-  entity_type?: 'song' | 'work' | 'recording' | 'opportunity' | 'deliverable' | 'checklist_item';
+  entity_type?: 'song' | 'work' | 'recording' | 'opportunity' | 'deliverable' | 'checklist_item' | 'campaign';
   song?: number;
   work?: number;
   recording?: number;
   opportunity?: number;
   deliverable?: number;
   checklist_item?: number;
+  subcampaign?: number;
   is_overdue?: boolean;
   is_blocked?: boolean;
   my_tasks?: boolean;
@@ -68,13 +70,14 @@ export const useInfiniteTasks = (params?: {
   department?: number;
   campaign?: number;
   entity?: number;
-  entity_type?: 'song' | 'work' | 'recording' | 'opportunity' | 'deliverable' | 'checklist_item';
+  entity_type?: 'song' | 'work' | 'recording' | 'opportunity' | 'deliverable' | 'checklist_item' | 'campaign';
   song?: number;
   work?: number;
   recording?: number;
   opportunity?: number;
   deliverable?: number;
   checklist_item?: number;
+  subcampaign?: number;
   is_overdue?: boolean;
   is_blocked?: boolean;
   my_tasks?: boolean;
@@ -370,6 +373,14 @@ export const useDeliverableTasks = (deliverableId: number, additionalParams?: an
   return useTasks({ deliverable: deliverableId, ...additionalParams });
 };
 
+export const useCampaignTasks = (campaignId: number, additionalParams?: any) => {
+  return useTasks({ campaign: campaignId, ...additionalParams });
+};
+
+export const useSubCampaignTasks = (subcampaignId: number, additionalParams?: any) => {
+  return useTasks({ subcampaign: subcampaignId, ...additionalParams });
+};
+
 // Get input field templates for a task
 export const useTaskInputFields = (taskId: number | undefined) => {
   return useQuery({
@@ -497,5 +508,103 @@ export const useTaskInbox = () => {
       };
     },
     refetchInterval: 60000, // Refresh every minute
+  });
+};
+
+// Link task to a domain entity (campaign, song, etc.)
+export const useLinkTaskToDomain = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      taskId,
+      domainType,
+      entityId,
+      extra
+    }: {
+      taskId: number;
+      domainType: string;
+      entityId: number;
+      extra?: Record<string, any>;
+    }) => {
+      const response = await apiClient.post<Task>(
+        `${TASKS_BASE_URL}/${taskId}/link-domain/`,
+        {
+          domain_type: domainType,
+          entity_id: entityId,
+          ...extra
+        }
+      );
+      return response.data;
+    },
+    onSuccess: (data) => {
+      // Update cache with server response
+      queryClient.setQueryData<Task>(['tasks', data.id], data);
+
+      // Update in list queries
+      queryClient.setQueriesData<Task[]>(
+        { queryKey: ['tasks'], exact: false },
+        (oldData) => {
+          if (!oldData || !Array.isArray(oldData)) return oldData;
+          return oldData.map(task => task.id === data.id ? data : task);
+        }
+      );
+
+      toast.success('Task linked successfully');
+    },
+    onError: (error: any) => {
+      handleApiError(error, {
+        context: 'linking task to domain',
+        showToast: true,
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    },
+  });
+};
+
+// Unlink task from a domain entity
+export const useUnlinkTaskFromDomain = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      taskId,
+      domainType
+    }: {
+      taskId: number;
+      domainType: string;
+    }) => {
+      const response = await apiClient.post<Task>(
+        `${TASKS_BASE_URL}/${taskId}/unlink-domain/`,
+        { domain_type: domainType }
+      );
+      return response.data;
+    },
+    onSuccess: (data) => {
+      // Update cache with server response
+      queryClient.setQueryData<Task>(['tasks', data.id], data);
+
+      // Update in list queries
+      queryClient.setQueriesData<Task[]>(
+        { queryKey: ['tasks'], exact: false },
+        (oldData) => {
+          if (!oldData || !Array.isArray(oldData)) return oldData;
+          return oldData.map(task => task.id === data.id ? data : task);
+        }
+      );
+
+      toast.success('Task unlinked successfully');
+    },
+    onError: (error: any) => {
+      handleApiError(error, {
+        context: 'unlinking task from domain',
+        showToast: true,
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    },
   });
 };

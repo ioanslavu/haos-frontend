@@ -3,8 +3,8 @@ import { Check, ChevronsUpDown, Loader2, X, Building2, User, Search } from 'luci
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useSearchEntities, useBusinessEntities, useEntity } from '@/api/hooks/useEntities';
-import { EntityListItem } from '@/api/services/entities.service';
+import { useSearchEntities, useEntities, useEntity } from '@/api/hooks/useEntities';
+import { EntityListItem, EntityClassification, EntityType } from '@/api/services/entities.service';
 import { AddEntityModal } from './AddEntityModal';
 
 interface EntitySearchComboboxProps {
@@ -15,14 +15,10 @@ interface EntitySearchComboboxProps {
   className?: string;
   filter?: {
     kind?: 'PF' | 'PJ';
-    has_role?: string;
+    classification?: EntityClassification;
+    entity_type?: EntityType;
+    is_internal?: boolean;
   };
-  /**
-   * Use business endpoint - returns all entities with business roles
-   * (client, brand, label, booking, etc.)
-   * Set to true for client/brand searches to ensure same list
-   */
-  useBusinessEndpoint?: boolean;
   /**
    * Allow adding entities from global search when not found
    */
@@ -40,7 +36,6 @@ export function EntitySearchCombobox({
   placeholder = 'Select entity...',
   className,
   filter,
-  useBusinessEndpoint = false,
   allowAddEntity = false,
   onCreateNew,
 }: EntitySearchComboboxProps) {
@@ -68,35 +63,31 @@ export function EntitySearchCombobox({
     }
   }, [value, selectedEntity]);
 
-  // Use business endpoint or general search based on prop
+  // Search entities with optional filters
   const { data: searchEntitiesData = [], isLoading: searchLoading } = useSearchEntities(
     searchQuery,
-    !useBusinessEndpoint && searchQuery.length > 0
+    searchQuery.length > 0
   );
 
-  const { data: businessEntitiesData, isLoading: businessLoading } = useBusinessEntities(
+  // Fetch filtered entities when we have filter criteria
+  const hasFilters = filter && (filter.classification || filter.entity_type || filter.is_internal !== undefined || filter.kind);
+  const { data: filteredEntitiesData, isLoading: filteredLoading } = useEntities(
     {
       search: searchQuery,
       page_size: 50,
       ...filter,
     },
-    useBusinessEndpoint
+    hasFilters && searchQuery.length > 0
   );
 
-  const entities = useBusinessEndpoint ? (businessEntitiesData?.results || []) : searchEntitiesData;
-  const isLoading = useBusinessEndpoint ? businessLoading : searchLoading;
+  const entities = hasFilters ? (filteredEntitiesData?.results || []) : searchEntitiesData;
+  const isLoading = hasFilters ? filteredLoading : searchLoading;
 
-  // Filter entities based on provided filters (only for non-business endpoint)
-  const filteredEntities = useBusinessEndpoint
-    ? entities // Business endpoint already filters
+  // Filter entities client-side when using general search (without server filters)
+  const filteredEntities = hasFilters
+    ? entities // Server already filters when using useEntities with filters
     : entities.filter((entity) => {
         if (filter?.kind && entity.kind !== filter.kind) return false;
-        if (filter?.has_role) {
-          const hasRole = entity.roles?.some(role =>
-            role.toLowerCase() === filter.has_role?.toLowerCase()
-          );
-          if (!hasRole) return false;
-        }
         return true;
       });
 
@@ -254,11 +245,12 @@ export function EntitySearchCombobox({
                                 <span className="truncate">{entity.phone}</span>
                               </>
                             )}
-                            {entity.roles && entity.roles.length > 0 && (
+                            {entity.classification_display && (
                               <>
-                                <span>•</span>
-                                <span className="truncate capitalize">
-                                  {entity.roles.join(', ')}
+                                {(entity.email || entity.phone) && <span>•</span>}
+                                <span className="truncate">
+                                  {entity.classification_display}
+                                  {entity.type_display && ` (${entity.type_display})`}
                                 </span>
                               </>
                             )}

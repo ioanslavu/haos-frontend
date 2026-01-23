@@ -4,21 +4,12 @@ import { StageBadge } from './StageBadge';
 import { SongStageTransition } from '@/types/song';
 import { ArrowRight, Clock, Calendar } from 'lucide-react';
 import { formatDistanceToNow, differenceInDays, format } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn, getInitials } from '@/lib/utils';
 
 interface TransitionTimelineProps {
   transitions: SongStageTransition[];
   className?: string;
 }
-
-const getUserInitials = (fullName: string) => {
-  return fullName
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
-};
 
 export const TransitionTimeline = ({ transitions, className }: TransitionTimelineProps) => {
   // Sort transitions by date (most recent first)
@@ -141,7 +132,7 @@ export const TransitionTimeline = ({ transitions, className }: TransitionTimelin
                         <div className="flex items-center gap-2">
                           <Avatar className="h-6 w-6">
                             <AvatarFallback className="text-[10px] bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-                              {getUserInitials(transition.created_by.full_name)}
+                              {getInitials(transition.created_by.full_name)}
                             </AvatarFallback>
                           </Avatar>
                           <span>{transition.created_by.full_name}</span>

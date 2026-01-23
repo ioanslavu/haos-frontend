@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { getInitials } from '@/lib/utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -114,7 +115,7 @@ export function StudioCard({ studio, onEdit, onDelete }: StudioCardProps) {
                   <Avatar className="h-4 w-4 mr-1.5">
                     <AvatarImage src={artist.profile_picture || undefined} />
                     <AvatarFallback className="text-[10px]">
-                      {artist.display_name.slice(0, 2).toUpperCase()}
+                      {getInitials(artist.display_name)}
                     </AvatarFallback>
                   </Avatar>
                   <span className="text-xs">{artist.display_name}</span>

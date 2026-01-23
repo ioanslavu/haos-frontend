@@ -104,7 +104,7 @@ export function QuickCreateSongDialog({
                 value={artistId}
                 onValueChange={setArtistId}
                 placeholder="Select artist (optional)"
-                filter={{ has_role: 'artist' }}
+                filter={{ classification: 'CREATIVE', entity_type: 'artist' }}
                 allowAddEntity={true}
               />
               <p className="text-xs text-muted-foreground">

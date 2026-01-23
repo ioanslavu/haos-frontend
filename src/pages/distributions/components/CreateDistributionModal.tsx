@@ -69,12 +69,12 @@ export function CreateDistributionModal({ open, onOpenChange }: CreateDistributi
 
   const createDistribution = useCreateDistribution()
 
-  // Infer deal type from entity roles
+  // Infer deal type from entity classification and type
   const inferDealType = (entity: Entity): DealType => {
-    const roles = entity.roles || []
-    if (roles.includes('artist') || roles.includes('performer')) return 'artist'
-    if (roles.includes('label')) return 'label'
-    if (entity.kind === 'PJ') return 'company'
+    if (entity.entity_type === 'artist') return 'artist'
+    if (entity.entity_type === 'label') return 'label'
+    if (entity.entity_type === 'distributor') return 'aggregator'
+    if (entity.classification === 'CLIENT') return 'company'
     return 'artist' // default
   }
 

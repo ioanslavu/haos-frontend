@@ -1543,3 +1543,35 @@ export const useInvoiceExtractionStatus = (
     refetchInterval: options?.refetchInterval || false,
   })
 }
+
+/**
+ * Hook to create a campaign task
+ * Creates a task linked to a campaign using the campaign task endpoint
+ */
+export const useCreateCampaignTask = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (data: {
+      title: string
+      description?: string
+      task_type: string
+      priority: number
+      campaign: number
+      subcampaign?: number
+      assigned_to?: number | null
+      due_date?: string | null
+    }) => {
+      const response = await apiClient.post('/api/v1/campaigns/campaign-tasks/', data)
+      return response.data
+    },
+    onSuccess: (_, variables) => {
+      // Invalidate tasks queries to refresh the task list
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      queryClient.invalidateQueries({ queryKey: campaignKeys.detail(variables.campaign) })
+    },
+    onError: (error: any) => {
+      console.error('Failed to create campaign task:', error)
+    },
+  })
+}

@@ -1,134 +1,165 @@
 /**
  * Opportunity Detail View
- * Comprehensive view with tabbed interface
+ * Redesigned to match Campaign detail page with:
+ * - Compact header with inline editing
+ * - Stage flow visualization
+ * - Notes and Team Assignment sections
+ * - No modals for field editing (inline only)
  */
 
-import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, Trash2, CheckCircle, XCircle, Loader2 } from 'lucide-react';
-import { AppLayout } from '@/components/layout/AppLayout';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useOpportunity, useMarkWon, useMarkLost, useOpportunityActivities, useUsageTerm, useDeliverablePack, useApprovals, opportunityKeys, useUsageTerms, useUpdateOpportunity, useUpdateOpportunityDeliverable } from '@/api/hooks/useOpportunities';
-import { opportunityDeliverablesApi } from '@/api/services/opportunities.service';
-import { useQueryClient } from '@tanstack/react-query';
-import { formatMoney, formatDate } from '@/lib/utils';
-import { STAGE_CONFIG, PRIORITY_CONFIG, DELIVERABLE_TYPE_CONFIG, DeliverableType } from '@/types/opportunities';
-import { OpportunityTaskModal } from './components/OpportunityTaskModal';
-import { OpportunityDeliverableModal } from './components/OpportunityDeliverableModal';
-import { OpportunityArtistModal } from './components/OpportunityArtistModal';
-import { ProposalWizard } from './components/ProposalWizard';
-import { OpportunityApprovalsTab } from './components/OpportunityApprovalsTab';
-import { RelatedTasks } from '@/components/tasks/RelatedTasks';
-import { DeliverableTriggerButton } from '@/components/tasks/ManualTriggerButton';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { toast } from 'sonner';
+import { useState } from 'react'
+import { useParams, useNavigate, Link } from 'react-router-dom'
+import { format } from 'date-fns'
+import {
+  ArrowLeft,
+  Building2,
+  Calendar as CalendarIcon,
+  Check,
+  ChevronRight,
+  DollarSign,
+  Edit2,
+  Loader2,
+  MoreHorizontal,
+  Plus,
+  Trash2,
+  Target,
+  TrendingUp,
+  Users,
+  CheckCircle,
+  XCircle,
+  RotateCcw,
+  FileVideo,
+} from 'lucide-react'
+import { AppLayout } from '@/components/layout/AppLayout'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Calendar } from '@/components/ui/calendar'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
+  useOpportunity,
+  useUpdateOpportunity,
+  useMarkWon,
+  useMarkLost,
+  useOpportunityActivities,
+  useDeleteOpportunity,
+} from '@/api/hooks/useOpportunities'
+import { formatMoney, formatDate, cn } from '@/lib/utils'
+import {
+  STAGE_CONFIG,
+  PRIORITY_CONFIG,
+  TERMINAL_STAGES,
+  type OpportunityStage,
+} from '@/types/opportunities'
+import { OpportunityNotesSection } from './components/OpportunityNotesSection'
+import { OpportunityAssignmentSection } from './components/OpportunityAssignmentSection'
+import { OpportunityInvoicesSection } from './components/OpportunityInvoicesSection'
+import { OpportunityContractsSection } from './components/OpportunityContractsSection'
+import { DeliverableCard } from './components/DeliverableCard'
+import { ArtistCard } from './components/ArtistCard'
+import { InlineDeliverableAdd } from './components/InlineDeliverableAdd'
+import { InlineArtistAdd } from './components/InlineArtistAdd'
+import { RelatedTasks } from '@/components/tasks/RelatedTasks'
+
+// Stage flow for opportunity pipeline
+const STAGE_FLOW: OpportunityStage[] = [
+  'brief',
+  'qualified',
+  'shortlist',
+  'proposal_draft',
+  'proposal_sent',
+  'negotiation',
+  'contract_prep',
+  'contract_sent',
+  'won',
+  'executing',
+]
 
 export default function OpportunityDetail() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('overview');
-  const [showTaskModal, setShowTaskModal] = useState(false);
-  const [showDeliverableModal, setShowDeliverableModal] = useState(false);
-  const [showArtistModal, setShowArtistModal] = useState(false);
-  const [showProposalWizard, setShowProposalWizard] = useState(false);
-  const [showUsageTermsModal, setShowUsageTermsModal] = useState(false);
-  const [selectedUsageTermId, setSelectedUsageTermId] = useState<number | null>(null);
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const opportunityId = parseInt(id || '0')
 
-  const queryClient = useQueryClient();
-  const { data: opportunity, isLoading } = useOpportunity(Number(id));
-  const { data: activities = [] } = useOpportunityActivities(Number(id));
-  const { data: approvals } = useApprovals({ opportunity: Number(id) });
-  const { data: usageTerms } = useUsageTerm(opportunity?.usage_terms || 0);
-  const { data: deliverablePack } = useDeliverablePack(opportunity?.deliverable_pack || 0);
-  const { data: usageTermsList } = useUsageTerms({ is_template: true });
-  const markWonMutation = useMarkWon();
-  const markLostMutation = useMarkLost();
-  const updateMutation = useUpdateOpportunity();
-  const updateDeliverableMutation = useUpdateOpportunityDeliverable();
-  const [assetUrlEdits, setAssetUrlEdits] = useState<Record<number, string>>({});
+  const [activeTab, setActiveTab] = useState('overview')
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showStageConfirm, setShowStageConfirm] = useState<OpportunityStage | null>(null)
 
-  // Handle asset URL update
-  const handleAssetUrlChange = (deliverableId: number, value: string) => {
-    setAssetUrlEdits(prev => ({ ...prev, [deliverableId]: value }));
-  };
+  // Inline editing state
+  const [editingField, setEditingField] = useState<string | null>(null)
+  const [editValue, setEditValue] = useState('')
 
-  const handleAssetUrlSave = async (deliverableId: number, currentValue: string) => {
-    const newValue = assetUrlEdits[deliverableId];
-    if (newValue !== undefined && newValue !== currentValue) {
-      try {
-        await updateDeliverableMutation.mutateAsync({
-          id: deliverableId,
-          data: { asset_url: newValue }
-        });
-        // Clear the edit state after successful save
-        setAssetUrlEdits(prev => {
-          const { [deliverableId]: _, ...rest } = prev;
-          return rest;
-        });
-      } catch (error) {
-        // Error is handled by the mutation's onError
+  // Date picker state
+  const [expectedCloseDateOpen, setExpectedCloseDateOpen] = useState(false)
+  const [campaignStartDateOpen, setCampaignStartDateOpen] = useState(false)
+  const [campaignEndDateOpen, setCampaignEndDateOpen] = useState(false)
+  const [isSavingDates, setIsSavingDates] = useState(false)
+
+  // Inline add form state
+  const [showAddArtist, setShowAddArtist] = useState(false)
+  const [showAddDeliverable, setShowAddDeliverable] = useState(false)
+
+  // Expanded card state (like campaigns/distributions)
+  const [expandedArtistIds, setExpandedArtistIds] = useState<Set<number>>(new Set())
+  const [expandedDeliverableIds, setExpandedDeliverableIds] = useState<Set<number>>(new Set())
+
+  // Fetch data
+  const { data: opportunity, isLoading } = useOpportunity(opportunityId)
+  const { data: activities = [] } = useOpportunityActivities(opportunityId)
+
+  // Mutations
+  const updateOpportunity = useUpdateOpportunity()
+  const markWonMutation = useMarkWon()
+  const markLostMutation = useMarkLost()
+  const deleteOpportunity = useDeleteOpportunity()
+
+  // Toggle expand handlers
+  const toggleArtistExpanded = (id: number) => {
+    setExpandedArtistIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
       }
-    }
-  };
+      return next
+    })
+  }
 
-  // Import deliverables from pack
-  const handleImportFromPack = async () => {
-    if (!deliverablePack || !deliverablePack.items) {
-      toast.error('No deliverable pack selected');
-      return;
-    }
-
-    try {
-      toast.loading('Importing deliverables...');
-
-      // Create a deliverable for each item in the pack
-      for (const item of deliverablePack.items) {
-        await opportunityDeliverablesApi.create({
-          opportunity: opportunity.id,
-          deliverable_type: item.deliverable_type,
-          quantity: item.quantity,
-          description: item.description || '',
-          status: 'planned',
-        });
+  const toggleDeliverableExpanded = (id: number) => {
+    setExpandedDeliverableIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
       }
-
-      // Refresh the opportunity data
-      queryClient.invalidateQueries({ queryKey: opportunityKeys.detail(opportunity.id) });
-
-      toast.dismiss();
-      toast.success(`Imported ${deliverablePack.items.length} deliverables from ${deliverablePack.name}`);
-    } catch (error: any) {
-      toast.dismiss();
-      toast.error(error?.response?.data?.message || 'Failed to import deliverables');
-    }
-  };
-
-  // Handle usage terms configuration
-  const handleConfigureUsageTerms = async () => {
-    if (!selectedUsageTermId) {
-      toast.error('Please select a usage term template');
-      return;
-    }
-
-    try {
-      await updateMutation.mutateAsync({
-        id: opportunity.id,
-        data: {
-          usage_terms: selectedUsageTermId,
-        },
-      });
-      setShowUsageTermsModal(false);
-      toast.success('Usage terms configured successfully');
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Failed to configure usage terms');
-    }
-  };
-
+      return next
+    })
+  }
 
   if (isLoading || !opportunity) {
     return (
@@ -137,707 +168,869 @@ export default function OpportunityDetail() {
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       </AppLayout>
-    );
+    )
   }
 
-  const stageConfig = STAGE_CONFIG[opportunity.stage];
-  const priorityConfig = PRIORITY_CONFIG[opportunity.priority];
+  const stageConfig = STAGE_CONFIG[opportunity.stage]
+  const priorityConfig = PRIORITY_CONFIG[opportunity.priority]
+  const isTerminalStage = TERMINAL_STAGES.includes(opportunity.stage)
+  const currentStageIndex = STAGE_FLOW.indexOf(opportunity.stage)
+
+  // Check if can transition to a stage
+  const canTransitionTo = (stage: OpportunityStage) => {
+    if (isTerminalStage) return false
+    const targetIndex = STAGE_FLOW.indexOf(stage)
+    return targetIndex <= currentStageIndex + 1 && targetIndex >= 0
+  }
+
+  // Handle stage change
+  const handleStageChange = async (newStage: OpportunityStage) => {
+    try {
+      await updateOpportunity.mutateAsync({
+        id: opportunityId,
+        data: { stage: newStage },
+      })
+      setShowStageConfirm(null)
+    } catch {
+      // Error handled by mutation
+    }
+  }
+
+  // Handle inline field save
+  const handleFieldSave = async (field: string, value: string | number) => {
+    try {
+      await updateOpportunity.mutateAsync({
+        id: opportunityId,
+        data: { [field]: value },
+      })
+      setEditingField(null)
+    } catch {
+      // Error handled by mutation
+    }
+  }
+
+  // Handle date saves
+  const handleSaveExpectedCloseDate = async (date: Date | undefined) => {
+    if (!date) return
+    setIsSavingDates(true)
+    try {
+      await updateOpportunity.mutateAsync({
+        id: opportunityId,
+        data: { expected_close_date: format(date, 'yyyy-MM-dd') },
+      })
+      setExpectedCloseDateOpen(false)
+    } finally {
+      setIsSavingDates(false)
+    }
+  }
+
+  const handleSaveCampaignStartDate = async (date: Date | undefined) => {
+    if (!date) return
+    setIsSavingDates(true)
+    try {
+      await updateOpportunity.mutateAsync({
+        id: opportunityId,
+        data: { campaign_start_date: format(date, 'yyyy-MM-dd') },
+      })
+      setCampaignStartDateOpen(false)
+    } finally {
+      setIsSavingDates(false)
+    }
+  }
+
+  const handleSaveCampaignEndDate = async (date: Date | undefined) => {
+    if (!date) return
+    setIsSavingDates(true)
+    try {
+      await updateOpportunity.mutateAsync({
+        id: opportunityId,
+        data: { campaign_end_date: format(date, 'yyyy-MM-dd') },
+      })
+      setCampaignEndDateOpen(false)
+    } finally {
+      setIsSavingDates(false)
+    }
+  }
 
   const handleMarkWon = async () => {
     if (confirm('Mark this opportunity as Won?')) {
-      await markWonMutation.mutateAsync(opportunity.id);
+      await markWonMutation.mutateAsync(opportunityId)
     }
-  };
+  }
 
   const handleMarkLost = async () => {
-    const reason = prompt('Why was this opportunity lost?');
+    const reason = prompt('Why was this opportunity lost?')
     if (reason) {
       await markLostMutation.mutateAsync({
-        id: opportunity.id,
+        id: opportunityId,
         data: { lost_reason: reason },
-      });
+      })
     }
-  };
+  }
+
+  const handleDelete = async () => {
+    try {
+      await deleteOpportunity.mutateAsync(opportunityId)
+      setShowDeleteConfirm(false)
+      navigate('/opportunities')
+    } catch {
+      setShowDeleteConfirm(false)
+    }
+  }
+
+  // Inline edit component
+  const InlineEdit = ({
+    field,
+    value,
+    displayValue,
+    type = 'text',
+    className = '',
+  }: {
+    field: string
+    value: string | number
+    displayValue: string
+    type?: 'text' | 'number' | 'textarea'
+    className?: string
+  }) => {
+    const isEditing = editingField === field
+
+    if (isEditing) {
+      const inputProps = {
+        value: editValue,
+        onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+          setEditValue(e.target.value),
+        onBlur: () => handleFieldSave(field, type === 'number' ? parseFloat(editValue) : editValue),
+        onKeyDown: (e: React.KeyboardEvent) => {
+          if (e.key === 'Enter' && type !== 'textarea') {
+            handleFieldSave(field, type === 'number' ? parseFloat(editValue) : editValue)
+          }
+          if (e.key === 'Escape') {
+            setEditingField(null)
+          }
+        },
+        autoFocus: true,
+        className: cn('h-8 text-sm', className),
+      }
+
+      if (type === 'textarea') {
+        return (
+          <Textarea
+            {...inputProps}
+            className={cn('text-sm min-h-[80px]', className)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setEditingField(null)
+            }}
+          />
+        )
+      }
+
+      return <Input type={type} {...inputProps} />
+    }
+
+    return (
+      <button
+        onClick={() => {
+          setEditingField(field)
+          setEditValue(String(value || ''))
+        }}
+        className={cn(
+          'text-left hover:bg-muted/50 px-2 py-1 -mx-2 rounded transition-colors',
+          className
+        )}
+      >
+        {displayValue || <span className="text-muted-foreground italic">Click to edit</span>}
+      </button>
+    )
+  }
 
   return (
     <AppLayout>
-      <div className="container max-w-7xl py-6 space-y-6">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/opportunities')} className="hover:bg-white/10">
+      <div className="space-y-6">
+        {/* Back Link */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate('/opportunities')}
+          className="text-muted-foreground hover:text-foreground -ml-2"
+        >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Pipeline
         </Button>
 
-        {/* Header with Gradient Background */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-background to-background border border-white/10 p-8 shadow-xl">
-          {/* Gradient Orbs */}
-          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-blue-400/20 to-purple-500/20 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-pink-400/20 to-orange-500/20 rounded-full blur-3xl" />
-
-          <div className="relative z-10">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-3">
-                  <span className="text-5xl">{stageConfig.emoji}</span>
-                  <div>
-                    <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
-                      {opportunity.title}
-                    </h1>
-                    <p className="text-muted-foreground text-lg mt-1">{opportunity.opportunity_number}</p>
+        {/* Compact Header Card */}
+        <Card className="rounded-2xl border-white/10 bg-background/50 backdrop-blur-xl shadow-lg">
+          <div className="p-5 space-y-4">
+            {/* Row 1: Title, Account, Stage Flow, Actions */}
+            <div className="flex items-center justify-between gap-6">
+              {/* Left: Title and Account */}
+              <div className="flex items-center gap-4 min-w-0 flex-1">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h1 className="text-2xl font-bold truncate">{opportunity.title}</h1>
+                    <Badge className={cn('text-xs', priorityConfig.color)}>
+                      {priorityConfig.label}
+                    </Badge>
                   </div>
-                </div>
-                <div className="flex items-center gap-2 mt-4">
-                  <Badge className={`${stageConfig.color} px-3 py-1 text-sm`}>{stageConfig.label}</Badge>
-                  <Badge className={`${priorityConfig.color} px-3 py-1 text-sm`}>{priorityConfig.label}</Badge>
-                  <Badge variant="outline" className="px-3 py-1 text-sm">{opportunity.probability}% probability</Badge>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span className="text-xs font-mono">{opportunity.opportunity_number}</span>
+                    <span className="text-muted-foreground/50">•</span>
+                    <Link
+                      to={`/entities/${opportunity.account.id}`}
+                      className="flex items-center gap-1.5 hover:text-primary transition-colors"
+                    >
+                      <Building2 className="h-4 w-4" />
+                      <span className="font-medium">{opportunity.account.display_name}</span>
+                    </Link>
+                    {opportunity.contact_person && (
+                      <>
+                        <span className="text-muted-foreground/50">•</span>
+                        <span>{opportunity.contact_person.full_name}</span>
+                      </>
+                    )}
+                    <span className="text-muted-foreground/50">•</span>
+                    {/* Expected Close Date */}
+                    <Popover open={expectedCloseDateOpen} onOpenChange={setExpectedCloseDateOpen}>
+                      <PopoverTrigger asChild>
+                        <button
+                          className={cn(
+                            'flex items-center gap-1 px-1.5 py-0.5 rounded transition-colors hover:bg-muted/50',
+                            !opportunity.expected_close_date && 'text-amber-500'
+                          )}
+                          disabled={isSavingDates}
+                        >
+                          <CalendarIcon className="h-3.5 w-3.5" />
+                          {opportunity.expected_close_date
+                            ? formatDate(opportunity.expected_close_date)
+                            : 'Set close date'}
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={
+                            opportunity.expected_close_date
+                              ? new Date(opportunity.expected_close_date)
+                              : undefined
+                          }
+                          onSelect={handleSaveExpectedCloseDate}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex gap-2 flex-wrap justify-end">
-                {['shortlist', 'proposal_draft', 'qualified'].includes(opportunity.stage) && (
-                  <Button
-                    size="sm"
-                    onClick={() => setShowProposalWizard(true)}
-                    className="rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg"
-                  >
-                    Create Proposal
-                  </Button>
+              {/* Center: Stage Flow */}
+              <div className="flex items-center gap-1 p-1 bg-muted/30 rounded-xl">
+                {isTerminalStage ? (
+                  <Badge className={cn('text-xs px-3 py-1.5', stageConfig.color)}>
+                    {stageConfig.emoji} {stageConfig.label}
+                  </Badge>
+                ) : (
+                  STAGE_FLOW.slice(0, 6).map((stage, index) => {
+                    const config = STAGE_CONFIG[stage]
+                    const isCompleted = index < currentStageIndex
+                    const isCurrent = stage === opportunity.stage
+                    const isClickable = canTransitionTo(stage) && !isCurrent
+
+                    return (
+                      <div key={stage} className="flex items-center">
+                        <button
+                          onClick={() => isClickable && setShowStageConfirm(stage)}
+                          disabled={!isClickable}
+                          className={cn(
+                            'flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-all',
+                            isCurrent &&
+                              'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-md',
+                            isCompleted && 'bg-primary/10 text-primary',
+                            !isCompleted && !isCurrent && 'text-muted-foreground/60',
+                            isClickable && !isCurrent && 'cursor-pointer hover:bg-muted/50'
+                          )}
+                          title={isClickable ? `Click to change to ${config.label}` : config.label}
+                        >
+                          {isCompleted ? (
+                            <Check className="h-3 w-3" />
+                          ) : (
+                            <span className="text-sm">{config.emoji}</span>
+                          )}
+                          <span className={cn(isCurrent ? 'inline' : 'hidden sm:inline')}>
+                            {config.label.split(' ')[0]}
+                          </span>
+                        </button>
+                        {index < 5 && (
+                          <ChevronRight
+                            className={cn(
+                              'h-3 w-3 mx-0.5 shrink-0',
+                              index < currentStageIndex
+                                ? 'text-primary'
+                                : 'text-muted-foreground/30'
+                            )}
+                          />
+                        )}
+                      </div>
+                    )
+                  })
                 )}
-                {opportunity.stage !== 'won' && opportunity.stage !== 'closed_lost' && (
+              </div>
+
+              {/* Right: Actions */}
+              <div className="flex items-center gap-2 shrink-0">
+                {!isTerminalStage && (
                   <>
-                    <Button variant="outline" size="sm" onClick={handleMarkWon} className="rounded-xl border-white/10 hover:bg-white/10">
-                      <CheckCircle className="mr-2 h-4 w-4" />
-                      Mark Won
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleMarkWon}
+                      className="rounded-lg border-green-500/30 text-green-500 hover:bg-green-500/10"
+                    >
+                      <CheckCircle className="mr-1 h-4 w-4" />
+                      Won
                     </Button>
-                    <Button variant="outline" size="sm" onClick={handleMarkLost} className="rounded-xl border-white/10 hover:bg-white/10">
-                      <XCircle className="mr-2 h-4 w-4" />
-                      Mark Lost
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleMarkLost}
+                      className="rounded-lg border-red-500/30 text-red-500 hover:bg-red-500/10"
+                    >
+                      <XCircle className="mr-1 h-4 w-4" />
+                      Lost
                     </Button>
                   </>
                 )}
-                <Button variant="outline" size="sm" onClick={() => navigate(`/opportunities/${id}/edit`)} className="rounded-xl border-white/10 hover:bg-white/10">
-                  <Edit className="mr-2 h-4 w-4" />
-                  Edit
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 rounded-lg border-white/10"
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem onClick={() => navigate(`/opportunities/${id}/edit`)}>
+                      <Edit2 className="mr-2 h-4 w-4" />
+                      Edit Opportunity
+                    </DropdownMenuItem>
+                    {isTerminalStage && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => handleStageChange('brief')}
+                          className="text-blue-500"
+                        >
+                          <RotateCcw className="mr-2 h-4 w-4" />
+                          Reopen Opportunity
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete Opportunity
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+
+            {/* Row 2: Key Stats */}
+            <div className="flex items-center gap-4 pt-2 border-t border-white/10">
+              <div className="flex items-center gap-6 flex-1">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-md bg-emerald-500/20">
+                    <DollarSign className="h-3.5 w-3.5 text-emerald-500" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                      Est. Value
+                    </p>
+                    <p className="text-sm font-semibold">
+                      {opportunity.estimated_value
+                        ? formatMoney(parseFloat(opportunity.estimated_value), opportunity.currency)
+                        : '-'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-md bg-blue-500/20">
+                    <Target className="h-3.5 w-3.5 text-blue-500" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                      Probability
+                    </p>
+                    <p className="text-sm font-semibold">{opportunity.probability}%</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-md bg-purple-500/20">
+                    <Users className="h-3.5 w-3.5 text-purple-500" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                      Owner
+                    </p>
+                    <p className="text-sm font-semibold">{opportunity.owner.full_name}</p>
+                  </div>
+                </div>
+
+                {opportunity.team && (
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-md bg-amber-500/20">
+                      <TrendingUp className="h-3.5 w-3.5 text-amber-500" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                        Team
+                      </p>
+                      <p className="text-sm font-semibold">{opportunity.team.name}</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
-        </div>
+        </Card>
 
-        {/* Glassmorphic Info Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="relative overflow-hidden rounded-xl border-white/20 dark:border-white/10 bg-gradient-to-br from-blue-500/10 to-purple-500/10 backdrop-blur-xl shadow-lg p-5">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 to-transparent" />
-            <div className="relative">
-              <div className="text-sm font-medium text-muted-foreground mb-2">Account</div>
-              <div className="font-bold text-lg">{opportunity.account.display_name}</div>
-              {opportunity.contact_person && (
-                <div className="text-xs text-muted-foreground mt-2">
-                  Contact: {opportunity.contact_person.first_name} {opportunity.contact_person.last_name}
-                </div>
-              )}
-            </div>
-          </Card>
-
-          <Card className="relative overflow-hidden rounded-xl border-white/20 dark:border-white/10 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 backdrop-blur-xl shadow-lg p-5">
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-400/20 to-transparent" />
-            <div className="relative">
-              <div className="text-sm font-medium text-muted-foreground mb-2">Estimated Value</div>
-              <div className="font-bold text-2xl bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                {opportunity.estimated_value
-                  ? formatMoney(parseFloat(opportunity.estimated_value), opportunity.currency)
-                  : 'Not set'}
-              </div>
-            </div>
-          </Card>
-
-          <Card className="relative overflow-hidden rounded-xl border-white/20 dark:border-white/10 bg-gradient-to-br from-orange-500/10 to-red-500/10 backdrop-blur-xl shadow-lg p-5">
-            <div className="absolute inset-0 bg-gradient-to-br from-orange-400/20 to-transparent" />
-            <div className="relative">
-              <div className="text-sm font-medium text-muted-foreground mb-2">Expected Close</div>
-              <div className="font-bold text-lg">
-                {opportunity.expected_close_date ? formatDate(opportunity.expected_close_date) : 'Not set'}
-              </div>
-              <div className="text-xs text-muted-foreground mt-2">
-                {opportunity.probability}% probability
-              </div>
-            </div>
-          </Card>
-
-          <Card className="relative overflow-hidden rounded-xl border-white/20 dark:border-white/10 bg-gradient-to-br from-pink-500/10 to-purple-500/10 backdrop-blur-xl shadow-lg p-5">
-            <div className="absolute inset-0 bg-gradient-to-br from-pink-400/20 to-transparent" />
-            <div className="relative">
-              <div className="text-sm font-medium text-muted-foreground mb-2">Owner</div>
-              <div className="font-bold text-lg">{opportunity.owner.full_name}</div>
-              {opportunity.team && (
-                <div className="text-xs text-muted-foreground mt-2">
-                  Team: {opportunity.team.name}
-                </div>
-              )}
-            </div>
-          </Card>
-        </div>
-
-        {/* Modern iOS-style Tabs */}
+        {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-7 p-2 bg-muted/50 backdrop-blur-xl rounded-2xl border border-white/10 h-14 shadow-lg">
+          <TabsList className="grid w-full grid-cols-6 p-2 bg-muted/50 backdrop-blur-xl rounded-2xl border border-white/10 h-12 shadow-lg">
             <TabsTrigger
               value="overview"
-              className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
+              className="rounded-xl gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all text-xs"
             >
               Overview
             </TabsTrigger>
             <TabsTrigger
               value="artists"
-              className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
+              className="rounded-xl gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all text-xs"
             >
               Artists {opportunity.artists?.length ? `(${opportunity.artists.length})` : ''}
             </TabsTrigger>
             <TabsTrigger
-              value="tasks"
-              className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
-            >
-              Tasks {opportunity.tasks?.length ? `(${opportunity.tasks.length})` : ''}
-            </TabsTrigger>
-            <TabsTrigger
               value="deliverables"
-              className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
+              className="rounded-xl gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all text-xs"
             >
               Deliverables
             </TabsTrigger>
             <TabsTrigger
-              value="usage-terms"
-              className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
+              value="tasks"
+              className="rounded-xl gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all text-xs"
             >
-              Usage Terms
+              Tasks
             </TabsTrigger>
             <TabsTrigger
-              value="approvals"
-              className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
+              value="financials"
+              className="rounded-xl gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all text-xs"
             >
-              Approvals {approvals?.results?.length ? `(${approvals.results.length})` : ''}
+              Financials
             </TabsTrigger>
             <TabsTrigger
               value="activity"
-              className="rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
+              className="rounded-xl gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all text-xs"
             >
               Activity
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-6 mt-6">
-            {/* Campaign Details */}
-            {(opportunity.campaign_objectives || opportunity.target_audience || opportunity.brand_category) && (
-              <Card className="p-6 rounded-2xl border-white/10 bg-background/50 backdrop-blur-xl shadow-xl">
-                <h3 className="font-semibold mb-4 text-base">Campaign Details</h3>
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-4 col-span-2">
-                    {opportunity.campaign_objectives && (
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="mt-6 space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left Column: Details */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* Brief Details */}
+                <Card className="p-6 rounded-2xl border-white/10 bg-background/50 backdrop-blur-sm">
+                  <h3 className="font-semibold mb-4">Brief Details</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-xs text-muted-foreground uppercase tracking-wider">
+                        Campaign Objectives
+                      </label>
+                      <InlineEdit
+                        field="campaign_objectives"
+                        value={opportunity.campaign_objectives || ''}
+                        displayValue={opportunity.campaign_objectives || ''}
+                        type="textarea"
+                        className="w-full mt-1"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground uppercase tracking-wider">
+                        Target Audience
+                      </label>
+                      <InlineEdit
+                        field="target_audience"
+                        value={opportunity.target_audience || ''}
+                        displayValue={opportunity.target_audience || ''}
+                        type="textarea"
+                        className="w-full mt-1"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <div className="text-sm font-medium text-muted-foreground mb-2">Objectives</div>
-                        <div className="text-sm">{opportunity.campaign_objectives}</div>
+                        <label className="text-xs text-muted-foreground uppercase tracking-wider">
+                          Brand Category
+                        </label>
+                        <InlineEdit
+                          field="brand_category"
+                          value={opportunity.brand_category || ''}
+                          displayValue={opportunity.brand_category || ''}
+                          className="w-full mt-1"
+                        />
                       </div>
-                    )}
-                    {opportunity.target_audience && (
                       <div>
-                        <div className="text-sm font-medium text-muted-foreground mb-2">Target Audience</div>
-                        <div className="text-sm">{opportunity.target_audience}</div>
+                        <label className="text-xs text-muted-foreground uppercase tracking-wider">
+                          Channels
+                        </label>
+                        <p className="text-sm mt-1">
+                          {opportunity.channels?.length
+                            ? opportunity.channels.join(', ')
+                            : 'Not set'}
+                        </p>
                       </div>
-                    )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs text-muted-foreground uppercase tracking-wider">
+                          Campaign Start
+                        </label>
+                        <Popover
+                          open={campaignStartDateOpen}
+                          onOpenChange={setCampaignStartDateOpen}
+                        >
+                          <PopoverTrigger asChild>
+                            <button
+                              className={cn(
+                                'flex items-center gap-2 mt-1 px-2 py-1 -mx-2 rounded transition-colors hover:bg-muted/50 text-sm',
+                                !opportunity.campaign_start_date && 'text-amber-500'
+                              )}
+                              disabled={isSavingDates}
+                            >
+                              <CalendarIcon className="h-4 w-4" />
+                              {opportunity.campaign_start_date
+                                ? formatDate(opportunity.campaign_start_date)
+                                : 'Set date'}
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={
+                                opportunity.campaign_start_date
+                                  ? new Date(opportunity.campaign_start_date)
+                                  : undefined
+                              }
+                              onSelect={handleSaveCampaignStartDate}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground uppercase tracking-wider">
+                          Campaign End
+                        </label>
+                        <Popover open={campaignEndDateOpen} onOpenChange={setCampaignEndDateOpen}>
+                          <PopoverTrigger asChild>
+                            <button
+                              className={cn(
+                                'flex items-center gap-2 mt-1 px-2 py-1 -mx-2 rounded transition-colors hover:bg-muted/50 text-sm',
+                                !opportunity.campaign_end_date && 'text-amber-500'
+                              )}
+                              disabled={isSavingDates}
+                            >
+                              <CalendarIcon className="h-4 w-4" />
+                              {opportunity.campaign_end_date
+                                ? formatDate(opportunity.campaign_end_date)
+                                : 'Set date'}
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={
+                                opportunity.campaign_end_date
+                                  ? new Date(opportunity.campaign_end_date)
+                                  : undefined
+                              }
+                              onSelect={handleSaveCampaignEndDate}
+                              disabled={(date) =>
+                                opportunity.campaign_start_date
+                                  ? date < new Date(opportunity.campaign_start_date)
+                                  : false
+                              }
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs text-muted-foreground uppercase tracking-wider">
+                          Budget Min
+                        </label>
+                        <InlineEdit
+                          field="budget_range_min"
+                          value={opportunity.budget_range_min || ''}
+                          displayValue={
+                            opportunity.budget_range_min
+                              ? formatMoney(
+                                  parseFloat(opportunity.budget_range_min),
+                                  opportunity.currency
+                                )
+                              : ''
+                          }
+                          type="number"
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground uppercase tracking-wider">
+                          Budget Max
+                        </label>
+                        <InlineEdit
+                          field="budget_range_max"
+                          value={opportunity.budget_range_max || ''}
+                          displayValue={
+                            opportunity.budget_range_max
+                              ? formatMoney(
+                                  parseFloat(opportunity.budget_range_max),
+                                  opportunity.currency
+                                )
+                              : ''
+                          }
+                          type="number"
+                          className="mt-1"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  {opportunity.brand_category && (
-                    <div>
-                      <div className="text-sm font-medium text-muted-foreground mb-2">Brand Category</div>
-                      <div className="text-sm">{opportunity.brand_category}</div>
-                    </div>
-                  )}
-                  {opportunity.channels && opportunity.channels.length > 0 && (
-                    <div>
-                      <div className="text-sm font-medium text-muted-foreground mb-2">Channels</div>
-                      <div className="flex flex-wrap gap-2">
-                        {opportunity.channels.map((channel) => (
-                          <Badge key={channel} variant="secondary" className="text-xs">
-                            {channel}
-                          </Badge>
-                        ))}
+                </Card>
+
+                {/* Financial Summary */}
+                {opportunity.fee_gross && parseFloat(opportunity.fee_gross) > 0 && (
+                  <Card className="p-6 rounded-2xl border-white/10 bg-background/50 backdrop-blur-sm">
+                    <h3 className="font-semibold mb-4">Financial Summary</h3>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">Gross Fee</span>
+                        <span className="font-semibold">
+                          {formatMoney(parseFloat(opportunity.fee_gross), opportunity.currency)}
+                        </span>
                       </div>
-                    </div>
-                  )}
-                  {(opportunity.campaign_start_date || opportunity.campaign_end_date) && (
-                    <>
-                      {opportunity.campaign_start_date && (
-                        <div>
-                          <div className="text-sm font-medium text-muted-foreground mb-2">Campaign Start</div>
-                          <div className="text-sm">{formatDate(opportunity.campaign_start_date)}</div>
+                      {opportunity.discounts && parseFloat(opportunity.discounts) > 0 && (
+                        <div className="flex justify-between text-red-600">
+                          <span className="text-sm">Discounts</span>
+                          <span>
+                            -{formatMoney(parseFloat(opportunity.discounts), opportunity.currency)}
+                          </span>
                         </div>
                       )}
-                      {opportunity.campaign_end_date && (
-                        <div>
-                          <div className="text-sm font-medium text-muted-foreground mb-2">Campaign End</div>
-                          <div className="text-sm">{formatDate(opportunity.campaign_end_date)}</div>
+                      {opportunity.agency_fee && parseFloat(opportunity.agency_fee) > 0 && (
+                        <div className="flex justify-between text-orange-600">
+                          <span className="text-sm">Agency Fee</span>
+                          <span>
+                            -{formatMoney(parseFloat(opportunity.agency_fee), opportunity.currency)}
+                          </span>
                         </div>
                       )}
-                    </>
-                  )}
-                  {(opportunity.budget_range_min || opportunity.budget_range_max) && (
-                    <div className="col-span-2">
-                      <div className="text-sm font-medium text-muted-foreground mb-2">Budget Range</div>
-                      <div className="text-sm">
-                        {opportunity.budget_range_min && formatMoney(parseFloat(opportunity.budget_range_min), opportunity.currency)}
-                        {opportunity.budget_range_min && opportunity.budget_range_max && ' - '}
-                        {opportunity.budget_range_max && formatMoney(parseFloat(opportunity.budget_range_max), opportunity.currency)}
+                      <div className="flex justify-between border-t pt-2 mt-2">
+                        <span className="font-semibold">Net Fee</span>
+                        <span className="font-semibold text-green-600">
+                          {formatMoney(parseFloat(opportunity.fee_net || '0'), opportunity.currency)}
+                        </span>
                       </div>
                     </div>
-                  )}
-                </div>
-              </Card>
-            )}
+                  </Card>
+                )}
+              </div>
 
-            {/* Proposal Details */}
-            {(opportunity.proposal_sent_date || opportunity.proposal_version) && (
-              <Card className="p-6 rounded-2xl border-white/10 bg-background/50 backdrop-blur-xl shadow-xl">
-                <h3 className="font-semibold mb-4 text-base">Proposal Information</h3>
-                <div className="grid grid-cols-3 gap-4">
-                  {opportunity.proposal_version && (
-                    <div>
-                      <div className="text-sm font-medium text-muted-foreground mb-2">Version</div>
-                      <Badge variant="outline">v{opportunity.proposal_version}</Badge>
-                    </div>
-                  )}
-                  {opportunity.proposal_sent_date && (
-                    <div>
-                      <div className="text-sm font-medium text-muted-foreground mb-2">Sent Date</div>
-                      <div className="text-sm">{formatDate(opportunity.proposal_sent_date)}</div>
-                    </div>
-                  )}
-                  {opportunity.proposal_valid_until && (
-                    <div>
-                      <div className="text-sm font-medium text-muted-foreground mb-2">Valid Until</div>
-                      <div className="text-sm">{formatDate(opportunity.proposal_valid_until)}</div>
-                    </div>
-                  )}
-                </div>
-              </Card>
-            )}
+              {/* Right Column: Notes & Team */}
+              <div className="space-y-6">
+                {/* Team Assignments */}
+                <OpportunityAssignmentSection
+                  opportunityId={opportunityId}
+                  assignments={opportunity.assignments || []}
+                  createdBy={opportunity.created_by?.id}
+                  isLoading={isLoading}
+                />
 
-            {/* Financial Details */}
-            {opportunity.fee_gross && parseFloat(opportunity.fee_gross) > 0 && (
-              <Card className="p-6 rounded-2xl border-white/10 bg-background/50 backdrop-blur-xl shadow-xl">
-                <h3 className="font-semibold mb-4">Financial Breakdown</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Gross Fee</span>
-                    <span className="font-semibold">
-                      {formatMoney(parseFloat(opportunity.fee_gross), opportunity.currency)}
-                    </span>
-                  </div>
-                  {opportunity.discounts && parseFloat(opportunity.discounts) > 0 && (
-                    <div className="flex justify-between text-red-600">
-                      <span className="text-sm">Discounts</span>
-                      <span>-{formatMoney(parseFloat(opportunity.discounts), opportunity.currency)}</span>
-                    </div>
-                  )}
-                  {opportunity.agency_fee && parseFloat(opportunity.agency_fee) > 0 && (
-                    <div className="flex justify-between text-orange-600">
-                      <span className="text-sm">Agency Fee</span>
-                      <span>-{formatMoney(parseFloat(opportunity.agency_fee), opportunity.currency)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between border-t pt-2 mt-2">
-                    <span className="font-semibold">Net Fee</span>
-                    <span className="font-semibold text-green-600">
-                      {formatMoney(parseFloat(opportunity.fee_net || '0'), opportunity.currency)}
-                    </span>
-                  </div>
-                </div>
-              </Card>
-            )}
-
-            {/* Contract Details */}
-            {opportunity.contract_number && (
-              <Card className="p-6 rounded-2xl border-white/10 bg-background/50 backdrop-blur-xl shadow-xl">
-                <h3 className="font-semibold mb-4">Contract Details</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Contract Number</span>
-                    <span className="font-semibold">{opportunity.contract_number}</span>
-                  </div>
-                  {opportunity.po_number && (
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">PO Number</span>
-                      <span className="font-semibold">{opportunity.po_number}</span>
-                    </div>
-                  )}
-                  {opportunity.contract_signed_date && (
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Signed Date</span>
-                      <span>{formatDate(opportunity.contract_signed_date)}</span>
-                    </div>
-                  )}
-                </div>
-              </Card>
-            )}
+                {/* Notes */}
+                <OpportunityNotesSection
+                  notes={opportunity.notes}
+                  onSave={async (notes) => {
+                    await updateOpportunity.mutateAsync({
+                      id: opportunityId,
+                      data: { notes },
+                    })
+                  }}
+                  isLoading={isLoading}
+                />
+              </div>
+            </div>
           </TabsContent>
 
+          {/* Artists Tab */}
           <TabsContent value="artists" className="mt-6">
-            <Card className="p-6 rounded-2xl border-white/10 bg-background/50 backdrop-blur-xl shadow-xl">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold">Artists</h3>
-                <Button
-                  size="sm"
-                  onClick={() => setShowArtistModal(true)}
-                  className="rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg"
-                >
-                  Add Artist
-                </Button>
+            <div className="space-y-4">
+              {/* Header with Add Button */}
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-sm text-muted-foreground">
+                  {opportunity.artists?.length || 0} Artist{(opportunity.artists?.length || 0) !== 1 ? 's' : ''}
+                </h3>
+                {!showAddArtist && (
+                  <Button
+                    onClick={() => setShowAddArtist(true)}
+                    className="rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Artist
+                  </Button>
+                )}
               </div>
+
+              {/* Inline Add Form */}
+              {showAddArtist && (
+                <InlineArtistAdd
+                  opportunityId={opportunityId}
+                  currency={opportunity.currency}
+                  existingArtistIds={opportunity.artists?.map((a) => a.artist.id) || []}
+                  onClose={() => setShowAddArtist(false)}
+                  onSuccess={(artistId) => {
+                    // Expand the newly added artist
+                    setExpandedArtistIds((prev) => new Set(prev).add(artistId))
+                  }}
+                />
+              )}
+
+              {/* Artists List */}
               {opportunity.artists && opportunity.artists.length > 0 ? (
                 <div className="space-y-3">
-                  {opportunity.artists.map(artist => (
-                    <div key={artist.id} className="flex items-center justify-between p-4 border border-white/10 rounded-xl bg-background/30 backdrop-blur-sm">
-                      <div>
-                        <div className="font-semibold">{artist.artist.display_name}</div>
-                        <div className="text-sm text-muted-foreground">{artist.role}</div>
-                      </div>
-                      <div className="text-right">
-                        {artist.confirmed_fee && (
-                          <div className="font-semibold text-green-600">
-                            {formatMoney(parseFloat(artist.confirmed_fee), opportunity.currency)}
-                          </div>
-                        )}
-                        <Badge variant="outline">{artist.contract_status}</Badge>
-                      </div>
-                    </div>
+                  {opportunity.artists.map((artist) => (
+                    <ArtistCard
+                      key={artist.id}
+                      artist={artist}
+                      opportunityId={opportunityId}
+                      currency={opportunity.currency}
+                      isExpanded={expandedArtistIds.has(artist.id)}
+                      onToggleExpand={() => toggleArtistExpanded(artist.id)}
+                    />
                   ))}
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-8">No artists added yet</p>
-              )}
-            </Card>
+              ) : !showAddArtist ? (
+                <Card className="p-12 rounded-2xl border-white/10 bg-background/50 backdrop-blur-sm text-center">
+                  <div className="w-16 h-16 rounded-full bg-purple-500/10 flex items-center justify-center mx-auto mb-4">
+                    <Users className="h-8 w-8 text-purple-500" />
+                  </div>
+                  <h4 className="font-semibold mb-2">No artists yet</h4>
+                  <p className="text-muted-foreground text-sm max-w-sm mx-auto">
+                    Add artists to track their roles, fees, and contract status for this opportunity.
+                  </p>
+                </Card>
+              ) : null}
+            </div>
           </TabsContent>
 
-          <TabsContent value="tasks" className="space-y-6 mt-6">
-            {/* Legacy manual tasks - keeping for backward compatibility */}
-            {opportunity.tasks && opportunity.tasks.length > 0 && (
-              <Card className="p-6 rounded-2xl border-white/10 bg-background/50 backdrop-blur-xl shadow-xl">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold">Manual Tasks (Legacy)</h3>
+          {/* Deliverables Tab */}
+          <TabsContent value="deliverables" className="mt-6">
+            <div className="space-y-4">
+              {/* Header with Add Button */}
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-sm text-muted-foreground">
+                  {opportunity.deliverables?.length || 0} Deliverable{(opportunity.deliverables?.length || 0) !== 1 ? 's' : ''}
+                </h3>
+                {!showAddDeliverable && (
                   <Button
-                    size="sm"
-                    onClick={() => setShowTaskModal(true)}
-                    className="rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg"
+                    onClick={() => setShowAddDeliverable(true)}
+                    className="rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
                   >
-                    Add Task
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Deliverable
                   </Button>
-                </div>
+                )}
+              </div>
+
+              {/* Inline Add Form */}
+              {showAddDeliverable && (
+                <InlineDeliverableAdd
+                  opportunityId={opportunityId}
+                  onClose={() => setShowAddDeliverable(false)}
+                  onSuccess={(deliverableId) => {
+                    // Expand the newly added deliverable
+                    setExpandedDeliverableIds((prev) => new Set(prev).add(deliverableId))
+                  }}
+                />
+              )}
+
+              {/* Deliverables List */}
+              {opportunity.deliverables && opportunity.deliverables.length > 0 ? (
                 <div className="space-y-3">
-                  {opportunity.tasks.map(task => (
-                    <div key={task.id} className="flex items-start justify-between p-4 border border-white/10 rounded-xl bg-background/30 backdrop-blur-sm">
-                      <div className="flex-1">
-                        <div className="font-semibold">{task.title}</div>
-                        <div className="text-sm text-muted-foreground mt-1">
-                          {task.assigned_to && `Assigned to ${task.assigned_to.full_name}`}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <Badge
-                          variant={task.status === 'completed' ? 'default' : 'secondary'}
-                          className="mb-2"
-                        >
-                          {task.status}
-                        </Badge>
-                        {task.due_date && (
-                          <div className="text-xs text-muted-foreground">
-                            Due {formatDate(task.due_date)}
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                  {opportunity.deliverables.map((deliverable) => (
+                    <DeliverableCard
+                      key={deliverable.id}
+                      deliverable={deliverable}
+                      opportunityId={opportunityId}
+                      isExpanded={expandedDeliverableIds.has(deliverable.id)}
+                      onToggleExpand={() => toggleDeliverableExpanded(deliverable.id)}
+                    />
                   ))}
                 </div>
-              </Card>
-            )}
+              ) : !showAddDeliverable ? (
+                <Card className="p-12 rounded-2xl border-white/10 bg-background/50 backdrop-blur-sm text-center">
+                  <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center mx-auto mb-4">
+                    <FileVideo className="h-8 w-8 text-blue-500" />
+                  </div>
+                  <h4 className="font-semibold mb-2">No deliverables yet</h4>
+                  <p className="text-muted-foreground text-sm max-w-sm mx-auto">
+                    Add deliverables to track content requirements for this opportunity.
+                  </p>
+                </Card>
+              ) : null}
+            </div>
+          </TabsContent>
 
-            {/* New universal task system tasks */}
+          {/* Tasks Tab */}
+          <TabsContent value="tasks" className="mt-6">
             <RelatedTasks
               entityType="opportunity"
-              entityId={opportunity.id}
+              entityId={opportunityId}
               title="Opportunity Tasks"
-              description="Tasks automatically created and updated based on this opportunity's progress"
+              description="Tasks related to this opportunity"
               showEmpty={true}
             />
           </TabsContent>
 
-          <TabsContent value="deliverables" className="mt-6">
-            <Card className="p-6 rounded-2xl border-white/10 bg-background/50 backdrop-blur-xl shadow-xl">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold">Deliverables</h3>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => navigate(`/opportunities/${opportunity.id}/edit`)}
-                    className="rounded-xl border-white/10 hover:bg-white/10"
-                  >
-                    Add Pack
-                  </Button>
-                  {deliverablePack && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={handleImportFromPack}
-                      className="rounded-xl border-white/10 hover:bg-white/10"
-                    >
-                      Import from Pack
-                    </Button>
-                  )}
-                  <Button
-                    size="sm"
-                    onClick={() => setShowDeliverableModal(true)}
-                    className="rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg"
-                  >
-                    Add Deliverable
-                  </Button>
-                </div>
-              </div>
-              {opportunity.deliverables && opportunity.deliverables.length > 0 ? (
-                <div className="space-y-3">
-                  {opportunity.deliverables.map(deliverable => (
-                    <div key={deliverable.id} className="border border-white/10 rounded-xl p-4 bg-background/30 backdrop-blur-sm hover:bg-background/50 transition-all">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="font-semibold text-sm">
-                              {DELIVERABLE_TYPE_CONFIG[deliverable.deliverable_type as DeliverableType]?.emoji || '📄'}{' '}
-                              {DELIVERABLE_TYPE_CONFIG[deliverable.deliverable_type as DeliverableType]?.label || deliverable.deliverable_type}
-                            </span>
-                            <Badge variant="secondary" className="text-xs">
-                              Qty: {deliverable.quantity}
-                            </Badge>
-                            <Badge variant={
-                              deliverable.status === 'completed' ? 'default' :
-                              deliverable.status === 'approved' ? 'default' :
-                              deliverable.status === 'in_progress' ? 'secondary' :
-                              'outline'
-                            } className="text-xs">
-                              {deliverable.status.replace('_', ' ')}
-                            </Badge>
-                          </div>
-                          {deliverable.description && (
-                            <p className="text-xs text-muted-foreground">{deliverable.description}</p>
-                          )}
-                          {deliverable.due_date && (
-                            <p className="text-xs text-muted-foreground mt-2">
-                              Due: {formatDate(deliverable.due_date)}
-                            </p>
-                          )}
-
-                          {/* Asset URL Input */}
-                          <div className="mt-3">
-                            <label className="text-xs text-muted-foreground mb-1 block">
-                              Asset URL
-                            </label>
-                            <Input
-                              placeholder="https://s3.amazonaws.com/... or Google Drive link"
-                              value={assetUrlEdits[deliverable.id] ?? deliverable.asset_url ?? ''}
-                              onChange={(e) => handleAssetUrlChange(deliverable.id, e.target.value)}
-                              onBlur={() => handleAssetUrlSave(deliverable.id, deliverable.asset_url || '')}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  e.currentTarget.blur();
-                                }
-                              }}
-                              className="text-xs h-8"
-                              disabled={updateDeliverableMutation.isPending}
-                            />
-                            {deliverable.asset_url && (
-                              <a
-                                href={deliverable.asset_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs text-primary hover:underline mt-1 inline-block"
-                              >
-                                View asset →
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <DeliverableTriggerButton
-                            deliverableId={deliverable.id}
-                            context="opportunity_detail"
-                            contextData={{
-                              deliverable_type: DELIVERABLE_TYPE_CONFIG[deliverable.deliverable_type as DeliverableType]?.label || deliverable.deliverable_type,
-                              quantity: deliverable.quantity,
-                              due_date: deliverable.due_date || 'Not set',
-                              status: deliverable.status.replace('_', ' '),
-                              description: deliverable.description || 'No description provided',
-                              opportunity: {
-                                id: opportunity.id,
-                                name: opportunity.title
-                              }
-                            }}
-                            className="text-xs"
-                            variant="outline"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-sm text-muted-foreground mb-4">No deliverables added yet</p>
-                  {deliverablePack && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={handleImportFromPack}
-                      className="rounded-xl border-white/10 hover:bg-white/10"
-                    >
-                      Import {deliverablePack.items?.length || 0} items from {deliverablePack.name}
-                    </Button>
-                  )}
-                </div>
-              )}
-            </Card>
+          {/* Financials Tab */}
+          <TabsContent value="financials" className="space-y-6 mt-6">
+            <OpportunityInvoicesSection opportunityId={opportunityId} />
+            <OpportunityContractsSection
+              opportunityId={opportunityId}
+              accountId={opportunity.account?.id}
+            />
           </TabsContent>
 
-          <TabsContent value="usage-terms" className="mt-6">
-            <Card className="p-6 rounded-2xl border-white/10 bg-background/50 backdrop-blur-xl shadow-xl">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold">Usage Terms</h3>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowUsageTermsModal(true)}
-                  className="rounded-xl border-white/10 hover:bg-white/10"
-                >
-                  {usageTerms ? 'Change' : 'Configure'}
-                </Button>
-              </div>
-              {usageTerms ? (
-                <div className="space-y-4">
-                  <div className="border border-white/10 rounded-xl p-4 bg-background/30 backdrop-blur-sm">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <div className="text-xs font-medium text-muted-foreground mb-1">TEMPLATE</div>
-                        <div className="text-lg font-bold">{usageTerms.name}</div>
-                      </div>
-                      <Badge variant="outline">Active</Badge>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-6 mt-4">
-                      <div className="space-y-3">
-                        <h4 className="font-semibold text-sm">Usage Rights</h4>
-                        {usageTerms.usage_scope && (
-                          <div className="flex items-start gap-2">
-                            <Badge variant="outline" className="text-xs">Scope</Badge>
-                            <span className="text-sm">{usageTerms.usage_scope}</span>
-                          </div>
-                        )}
-                        {usageTerms.territories && usageTerms.territories.length > 0 && (
-                          <div className="flex items-start gap-2">
-                            <Badge variant="outline" className="text-xs">Territories</Badge>
-                            <span className="text-sm">{usageTerms.territories.join(', ')}</span>
-                          </div>
-                        )}
-                        {usageTerms.usage_duration_days && (
-                          <div className="flex items-start gap-2">
-                            <Badge variant="outline" className="text-xs">Duration</Badge>
-                            <span className="text-sm">{usageTerms.usage_duration_days} days</span>
-                          </div>
-                        )}
-                        {usageTerms.media_types && usageTerms.media_types.length > 0 && (
-                          <div className="flex items-start gap-2">
-                            <Badge variant="outline" className="text-xs">Media</Badge>
-                            <div className="flex flex-wrap gap-1">
-                              {usageTerms.media_types.map((media: string) => (
-                                <Badge key={media} variant="secondary" className="text-xs">
-                                  {media}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="space-y-3">
-                        <h4 className="font-semibold text-sm">Exclusivity & Options</h4>
-                        {usageTerms.exclusivity_category && (
-                          <div className="flex items-start gap-2">
-                            <Badge variant="outline" className="text-xs">Category</Badge>
-                            <span className="text-sm">{usageTerms.exclusivity_category}</span>
-                          </div>
-                        )}
-                        {usageTerms.exclusivity_duration_days && (
-                          <div className="flex items-start gap-2">
-                            <Badge variant="outline" className="text-xs">Duration</Badge>
-                            <span className="text-sm">{usageTerms.exclusivity_duration_days} days</span>
-                          </div>
-                        )}
-                        <div className="flex flex-wrap gap-2 mt-3">
-                          {usageTerms.buyout && (
-                            <Badge className="bg-green-600 text-white">✓ Buyout</Badge>
-                          )}
-                          {usageTerms.extensions_allowed && (
-                            <Badge variant="secondary">Extensions Allowed</Badge>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {usageTerms.description && (
-                      <div className="mt-4 pt-4 border-t">
-                        <div className="text-xs font-medium text-muted-foreground mb-2">NOTES</div>
-                        <p className="text-sm text-muted-foreground">{usageTerms.description}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted mb-4">
-                    <span className="text-3xl">📄</span>
-                  </div>
-                  <h3 className="font-semibold mb-2">No Usage Terms Configured</h3>
-                  <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-                    Define usage rights, territories, duration, and exclusivity terms for this opportunity
-                  </p>
-                  <div className="flex gap-2 justify-center">
-                    <Button
-                      variant="outline"
-                      onClick={() => navigate('/artist-sales/admin/usage-terms')}
-                      className="rounded-xl border-white/10 hover:bg-white/10"
-                    >
-                      Browse Templates
-                    </Button>
-                    <Button
-                      onClick={() => setShowUsageTermsModal(true)}
-                      className="rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg"
-                    >
-                      Configure Now
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="approvals" className="mt-6">
-            <OpportunityApprovalsTab opportunityId={opportunity.id} />
-          </TabsContent>
-
+          {/* Activity Tab */}
           <TabsContent value="activity" className="mt-6">
-            <Card className="p-6 rounded-2xl border-white/10 bg-background/50 backdrop-blur-xl shadow-xl">
+            <Card className="p-6 rounded-2xl border-white/10 bg-background/50 backdrop-blur-sm">
               <h3 className="font-semibold mb-4">Activity Timeline</h3>
               {activities.length > 0 ? (
                 <div className="space-y-4">
-                  {activities.map(activity => (
+                  {activities.map((activity) => (
                     <div key={activity.id} className="flex gap-4 border-l-2 pl-4 pb-4">
                       <div className="flex-1">
                         <div className="font-semibold text-sm">{activity.title}</div>
                         {activity.description && (
-                          <div className="text-sm text-muted-foreground mt-1">{activity.description}</div>
+                          <div className="text-sm text-muted-foreground mt-1">
+                            {activity.description}
+                          </div>
                         )}
                         <div className="text-xs text-muted-foreground mt-2">
                           {activity.user?.full_name} • {formatDate(activity.created_at)}
@@ -853,110 +1046,52 @@ export default function OpportunityDetail() {
           </TabsContent>
         </Tabs>
 
-        {/* Artist Modal */}
-        <OpportunityArtistModal
-          open={showArtistModal}
-          onOpenChange={setShowArtistModal}
-          opportunityId={opportunity.id}
-        />
-
-        {/* Task Modal */}
-        <OpportunityTaskModal
-          open={showTaskModal}
-          onOpenChange={setShowTaskModal}
-          opportunityId={opportunity.id}
-        />
-
-        {/* Deliverable Modal */}
-        <OpportunityDeliverableModal
-          open={showDeliverableModal}
-          onOpenChange={setShowDeliverableModal}
-          opportunityId={opportunity.id}
-        />
-
-        {/* Proposal Wizard */}
-        <ProposalWizard
-          open={showProposalWizard}
-          onOpenChange={setShowProposalWizard}
-          opportunityId={opportunity.id}
-          currentData={opportunity}
-          currency={opportunity.currency}
-        />
-
-        {/* Usage Terms Configuration Modal */}
-        <Dialog open={showUsageTermsModal} onOpenChange={setShowUsageTermsModal}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Configure Usage Terms</DialogTitle>
-              <DialogDescription>
-                Select a usage terms template for this opportunity
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Usage Terms Template</label>
-                <Select
-                  value={selectedUsageTermId?.toString() || opportunity.usage_terms?.toString() || ''}
-                  onValueChange={(val) => setSelectedUsageTermId(Number(val))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a template" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {usageTermsList?.results?.map((term) => (
-                      <SelectItem key={term.id} value={term.id.toString()}>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{term.name}</span>
-                          {term.description && (
-                            <span className="text-xs text-muted-foreground">{term.description}</span>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Choose from pre-defined usage rights templates
-                </p>
-              </div>
-
-              {usageTermsList?.results?.length === 0 && (
-                <div className="text-center py-4 border border-dashed rounded-lg">
-                  <p className="text-sm text-muted-foreground mb-3">No templates available</p>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setShowUsageTermsModal(false);
-                      navigate('/artist-sales/admin/usage-terms');
-                    }}
-                  >
-                    Create Template
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-end gap-2 pt-4 border-t">
-              <Button
-                variant="outline"
-                onClick={() => setShowUsageTermsModal(false)}
-                disabled={updateMutation.isPending}
+        {/* Stage Change Confirmation */}
+        <AlertDialog open={!!showStageConfirm} onOpenChange={() => setShowStageConfirm(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Change Stage</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to change the stage to{' '}
+                <strong>{showStageConfirm ? STAGE_CONFIG[showStageConfirm].label : ''}</strong>?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => showStageConfirm && handleStageChange(showStageConfirm)}
               >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleConfigureUsageTerms}
-                disabled={updateMutation.isPending || !selectedUsageTermId}
+                Change Stage
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete Confirmation */}
+        <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Opportunity</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this opportunity? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Apply Template
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+                {deleteOpportunity.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  'Delete'
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AppLayout>
-  );
+  )
 }

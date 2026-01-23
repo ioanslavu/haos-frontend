@@ -180,6 +180,15 @@ export interface ProjectTask {
     value: string | null;
     display_value: string | number | boolean | null;
   }>;
+  // Domain info from registry (campaign, song, opportunity, etc.)
+  domain_info?: {
+    domain_type: string;
+    entity_id: number;
+    entity_name: string;
+    entity_url: string;
+    wrapper_id?: number;
+    extra?: Record<string, any>;
+  };
 }
 
 // Task Detail (from TaskDetailSerializer)

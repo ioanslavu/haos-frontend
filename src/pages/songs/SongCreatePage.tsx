@@ -225,7 +225,7 @@ export default function SongCreatePage() {
                         value={field.value || null}
                         onValueChange={field.onChange}
                         placeholder="Search for artist..."
-                        filter={{ has_role: 'artist' }}
+                        filter={{ classification: 'CREATIVE', entity_type: 'artist' }}
                       />
                     </FormControl>
                     <FormDescription>
@@ -256,12 +256,10 @@ export default function SongCreatePage() {
                           <Label className="text-xs mb-2 block">Artist</Label>
                           <EntitySearchCombobox
                             value={newArtistId}
-                            onValueChange={(id, entity) => {
-                              setNewArtistId(id);
-                              setNewArtistName(entity?.display_name || '');
-                            }}
+                            onValueChange={(id) => setNewArtistId(id)}
+                            onEntitySelect={(entity) => setNewArtistName(entity?.display_name || '')}
                             placeholder="Search for artist..."
-                            filter={{ has_role: 'artist' }}
+                            filter={{ classification: 'CREATIVE', entity_type: 'artist' }}
                           />
                         </div>
                         <div className="md:col-span-4">

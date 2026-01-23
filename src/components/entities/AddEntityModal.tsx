@@ -96,11 +96,9 @@ export function AddEntityModal({
     );
   };
 
-  const hasInternalRole = (entity: EntityListItem) => {
-    // Check if entity has internal role badge
-    return entity.roles?.some(role =>
-      ['artist', 'producer', 'composer'].includes(role.toLowerCase())
-    );
+  const isInternalEntity = (entity: EntityListItem) => {
+    // Check if entity is internal (signed artist)
+    return entity.is_internal === true;
   };
 
   return (
@@ -152,7 +150,7 @@ export function AddEntityModal({
               <div className="max-h-[400px] overflow-y-auto">
                 <div className="divide-y">
                   {globalResults.map((entity) => {
-                    const isInternal = hasInternalRole(entity);
+                    const isInternal = isInternalEntity(entity);
                     return (
                       <div
                         key={entity.id}
@@ -190,14 +188,17 @@ export function AddEntityModal({
                                 )}
                               </div>
 
-                              {/* Roles */}
-                              {entity.roles && entity.roles.length > 0 && (
+                              {/* Classification & Type */}
+                              {entity.classification_display && (
                                 <div className="flex items-center gap-1 mt-1 flex-wrap">
-                                  {entity.roles.map((role, idx) => (
-                                    <Badge key={idx} variant="outline" className="text-xs capitalize">
-                                      {role}
+                                  <Badge variant="outline" className="text-xs">
+                                    {entity.classification_display}
+                                  </Badge>
+                                  {entity.type_display && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      {entity.type_display}
                                     </Badge>
-                                  ))}
+                                  )}
                                 </div>
                               )}
                             </div>

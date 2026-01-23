@@ -16,6 +16,7 @@ import {
   useInfiniteQuery,
   keepPreviousData,
 } from '@tanstack/react-query'
+import apiClient from '../client'
 import { distributionsService } from '../services/distributions.service'
 import { useUIStore } from '@/stores/uiStore'
 import type {
@@ -25,11 +26,18 @@ import type {
   DistributionStats,
   DistributionCatalogItem,
   DistributionCatalogItemFormData,
+  DistributionSong,
+  DistributionSongFormData,
   DistributionRevenueReport,
   DistributionRevenueReportFormData,
+  DistributionAssignment,
+  DistributionAssignmentRole,
   DealStatus,
 } from '@/types/distribution'
 import type { PaginatedResponse } from '@/types'
+
+// Base URL for distribution endpoints
+const DISTRIBUTIONS_BASE_URL = '/api/v1/distributions'
 
 // ============================================
 // QUERY KEYS
@@ -63,6 +71,18 @@ export const distributionKeys = {
   // Revenue Reports
   revenueReports: (distributionId: number, catalogItemId: number) =>
     [...distributionKeys.catalogItemDetail(distributionId, catalogItemId), 'revenue-reports'] as const,
+
+  // Songs (External)
+  songs: (distributionId: number) => [...distributionKeys.detail(distributionId), 'songs'] as const,
+  songList: (distributionId: number, filters?: { page?: number; page_size?: number }) =>
+    filters
+      ? [...distributionKeys.songs(distributionId), filters] as const
+      : distributionKeys.songs(distributionId),
+  songDetail: (distributionId: number, songId: number) =>
+    [...distributionKeys.songs(distributionId), songId] as const,
+
+  // Assignments
+  assignments: (distributionId: number) => [...distributionKeys.detail(distributionId), 'assignments'] as const,
 }
 
 // ============================================
@@ -373,6 +393,121 @@ export const useRemoveCatalogItem = () => {
 }
 
 // ============================================
+// DISTRIBUTION SONG HOOKS (External Songs)
+// ============================================
+
+/**
+ * Hook to get songs for a distribution
+ */
+export const useSongs = (
+  distributionId: number,
+  params?: { page?: number; page_size?: number },
+  enabled = true
+) => {
+  return useQuery<PaginatedResponse<DistributionSong>>({
+    queryKey: distributionKeys.songList(distributionId, params),
+    queryFn: () => distributionsService.getSongs(distributionId, params),
+    enabled: enabled && !!distributionId,
+  })
+}
+
+/**
+ * Hook to add a song to a distribution
+ */
+export const useAddSong = () => {
+  const queryClient = useQueryClient()
+  const { addNotification } = useUIStore()
+
+  return useMutation({
+    mutationFn: ({ distributionId, data }: { distributionId: number; data: DistributionSongFormData }) =>
+      distributionsService.addSong(distributionId, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: distributionKeys.songs(variables.distributionId) })
+      queryClient.invalidateQueries({ queryKey: distributionKeys.detail(variables.distributionId) })
+      queryClient.invalidateQueries({ queryKey: distributionKeys.lists() })
+      addNotification({
+        type: 'success',
+        title: 'Song Added',
+        description: 'Song has been added to the distribution.',
+      })
+    },
+    onError: (error: any) => {
+      addNotification({
+        type: 'error',
+        title: 'Add Failed',
+        description: error.response?.data?.error || 'Failed to add song.',
+      })
+    },
+  })
+}
+
+/**
+ * Hook to update a song
+ */
+export const useUpdateSong = () => {
+  const queryClient = useQueryClient()
+  const { addNotification } = useUIStore()
+
+  return useMutation({
+    mutationFn: ({
+      distributionId,
+      songId,
+      data,
+    }: {
+      distributionId: number
+      songId: number
+      data: Partial<DistributionSongFormData>
+    }) => distributionsService.updateSong(distributionId, songId, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: distributionKeys.songs(variables.distributionId) })
+      queryClient.invalidateQueries({ queryKey: distributionKeys.detail(variables.distributionId) })
+      addNotification({
+        type: 'success',
+        title: 'Song Updated',
+        description: 'Song has been updated.',
+      })
+    },
+    onError: (error: any) => {
+      addNotification({
+        type: 'error',
+        title: 'Update Failed',
+        description: error.response?.data?.error || 'Failed to update song.',
+      })
+    },
+  })
+}
+
+/**
+ * Hook to remove a song from a distribution
+ */
+export const useRemoveSong = () => {
+  const queryClient = useQueryClient()
+  const { addNotification } = useUIStore()
+
+  return useMutation({
+    mutationFn: ({ distributionId, songId }: { distributionId: number; songId: number }) =>
+      distributionsService.removeSong(distributionId, songId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: distributionKeys.songs(variables.distributionId) })
+      queryClient.invalidateQueries({ queryKey: distributionKeys.detail(variables.distributionId) })
+      queryClient.invalidateQueries({ queryKey: distributionKeys.lists() })
+      addNotification({
+        type: 'success',
+        title: 'Song Removed',
+        description: 'Song has been removed from the distribution.',
+      })
+    },
+    onError: (error: any) => {
+      addNotification({
+        type: 'error',
+        title: 'Removal Failed',
+        description: error.response?.data?.error || 'Failed to remove song.',
+      })
+    },
+  })
+}
+
+// ============================================
 // REVENUE REPORT HOOKS
 // ============================================
 
@@ -506,6 +641,273 @@ export const useDeleteRevenueReport = () => {
         type: 'error',
         title: 'Deletion Failed',
         description: error.response?.data?.error || 'Failed to delete revenue report.',
+      })
+    },
+  })
+}
+
+// ============================================
+// ASSIGNMENT HOOKS
+// ============================================
+
+/**
+ * Hook to get assignments for a distribution
+ */
+export const useDistributionAssignments = (distributionId: number, enabled = true) => {
+  return useQuery<DistributionAssignment[]>({
+    queryKey: distributionKeys.assignments(distributionId),
+    queryFn: () => distributionsService.getAssignments(distributionId),
+    enabled: enabled && !!distributionId,
+  })
+}
+
+/**
+ * Hook to create a distribution assignment
+ */
+export const useCreateDistributionAssignment = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      distributionId,
+      userId,
+      role,
+    }: {
+      distributionId: number
+      userId: number
+      role: DistributionAssignmentRole
+    }) => distributionsService.createAssignment(distributionId, userId, role),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: distributionKeys.assignments(variables.distributionId) })
+      queryClient.invalidateQueries({ queryKey: distributionKeys.detail(variables.distributionId) })
+    },
+  })
+}
+
+/**
+ * Hook to delete a distribution assignment
+ */
+export const useDeleteDistributionAssignment = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ distributionId, assignmentId }: { distributionId: number; assignmentId: number }) =>
+      distributionsService.deleteAssignment(distributionId, assignmentId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: distributionKeys.assignments(variables.distributionId) })
+      queryClient.invalidateQueries({ queryKey: distributionKeys.detail(variables.distributionId) })
+    },
+  })
+}
+
+// ============================================
+// TASK HOOKS
+// ============================================
+
+import { useTasks } from './useTasks'
+
+/**
+ * Hook to get tasks for a distribution
+ */
+export const useDistributionTasks = (distributionId: number, additionalParams?: any) => {
+  return useTasks({ distribution: distributionId, ...additionalParams })
+}
+
+// ============================================
+// INVOICE HOOKS
+// ============================================
+
+export interface DistributionInvoice {
+  id: number
+  distribution: number
+  invoice_id: number
+  invoice_number: string
+  invoice_name: string
+  invoice_type: 'income' | 'expense'
+  invoice_type_display: string
+  amount: string | null
+  currency: string
+  status: string
+  status_display: string
+  issue_date: string | null
+  due_date: string | null
+  notes?: string
+  file?: string
+  extraction_status?: string
+  created_at: string
+  created_by: number | null
+  created_by_name: string | null
+}
+
+/**
+ * Hook to get invoices for a distribution
+ */
+export const useDistributionInvoices = (distributionId: number) => {
+  return useQuery({
+    queryKey: ['distributions', distributionId, 'invoices'],
+    queryFn: async () => {
+      const response = await apiClient.get<{ count: number; results: DistributionInvoice[] } | DistributionInvoice[]>(
+        `${DISTRIBUTIONS_BASE_URL}/${distributionId}/invoices/`
+      )
+      // Handle both paginated and non-paginated responses
+      return Array.isArray(response.data) ? response.data : response.data.results
+    },
+    enabled: !!distributionId && !isNaN(distributionId) && distributionId > 0,
+  })
+}
+
+/**
+ * Hook to link an existing invoice to a distribution
+ */
+export const useLinkDistributionInvoice = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      distributionId,
+      invoiceId,
+    }: {
+      distributionId: number
+      invoiceId: number
+    }) => {
+      const response = await apiClient.post<DistributionInvoice>(
+        `${DISTRIBUTIONS_BASE_URL}/${distributionId}/invoices/`,
+        { invoice_id: invoiceId }
+      )
+      return response.data
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['distributions', variables.distributionId, 'invoices'],
+      })
+      toast.success('Invoice linked to distribution')
+    },
+    onError: (error: any) => {
+      handleApiError(error, {
+        context: 'linking invoice to distribution',
+        showToast: true,
+      })
+    },
+  })
+}
+
+/**
+ * Hook to unlink an invoice from a distribution
+ */
+export const useUnlinkDistributionInvoice = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      distributionId,
+      invoiceLinkId,
+    }: {
+      distributionId: number
+      invoiceLinkId: number
+    }) => {
+      await apiClient.delete(
+        `${DISTRIBUTIONS_BASE_URL}/${distributionId}/invoices/${invoiceLinkId}/`
+      )
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['distributions', variables.distributionId, 'invoices'],
+      })
+      toast.success('Invoice unlinked from distribution')
+    },
+    onError: (error: any) => {
+      handleApiError(error, {
+        context: 'unlinking invoice from distribution',
+        showToast: true,
+      })
+    },
+  })
+}
+
+/**
+ * Hook to upload a new invoice to a distribution
+ */
+export const useUploadDistributionInvoice = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      distributionId,
+      formData,
+    }: {
+      distributionId: number
+      formData: FormData
+    }) => {
+      const response = await apiClient.post<DistributionInvoice>(
+        `${DISTRIBUTIONS_BASE_URL}/${distributionId}/invoices/upload/`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      )
+      return response.data
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['distributions', variables.distributionId, 'invoices'],
+      })
+      toast.success('Invoice uploaded and linked')
+    },
+    onError: (error: any) => {
+      handleApiError(error, {
+        context: 'uploading invoice',
+        showToast: true,
+      })
+    },
+  })
+}
+
+// ============================================
+// CONTRACT HOOKS
+// ============================================
+
+/**
+ * Hook to generate a contract for a distribution
+ * Uses the existing generate_contract action on DistributionViewSet
+ */
+export const useGenerateDistributionContract = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      distributionId,
+      formData,
+    }: {
+      distributionId: number
+      formData?: {
+        form_data?: Record<string, any>
+        start_date?: string
+        end_date?: string
+        title?: string
+        label_entity_id?: number
+      }
+    }) => {
+      const response = await apiClient.post(
+        `${DISTRIBUTIONS_BASE_URL}/${distributionId}/contracts/generate/`,
+        formData || {}
+      )
+      return response.data
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['distribution', variables.distributionId],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['contracts'],
+      })
+      toast.success('Contract generation started')
+    },
+    onError: (error: any) => {
+      handleApiError(error, {
+        context: 'generating contract',
+        showToast: true,
       })
     },
   })

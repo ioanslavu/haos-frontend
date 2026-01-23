@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { NotificationProvider } from "@/providers/NotificationProvider";
@@ -17,6 +17,16 @@ const PageLoader = () => (
     <Loader2 className="h-8 w-8 animate-spin text-primary" />
   </div>
 );
+
+// Redirect component that preserves URL parameters
+const RedirectWithParams = ({ to }: { to: string }) => {
+  const params = useParams();
+  const resolvedPath = Object.entries(params).reduce(
+    (path, [key, value]) => path.replace(`:${key}`, value || ''),
+    to
+  );
+  return <Navigate to={resolvedPath} replace />;
+};
 
 // Auth pages (keep these eager since they're entry points)
 import Login from "./pages/auth/Login";
@@ -49,7 +59,6 @@ const DigitalFinancial = lazy(() => import("./pages/digital/FinancialPage"));
 // Distributions pages (new architecture - like campaigns)
 const DistributionsPage = lazy(() => import("./pages/distributions/index"));
 const DistributionDetailPage = lazy(() => import("./pages/distributions/DistributionDetailPage"));
-const DistributionFormPage = lazy(() => import("./pages/distributions/DistributionFormPage"));
 const DigitalTasks = lazy(() => import("./pages/digital/TasksPage"));
 const DigitalReporting = lazy(() => import("./pages/digital/ReportingPage"));
 const Settings = lazy(() => import("./pages/Settings"));
@@ -79,7 +88,7 @@ const CampDetail = lazy(() => import("./pages/camps/CampDetail"));
 const TeamsPage = lazy(() => import("./pages/teams/TeamsPage"));
 
 // Opportunities pages (unified artist sales system)
-const OpportunitiesKanban = lazy(() => import("./pages/opportunities/OpportunitiesKanban"));
+const OpportunitiesPage = lazy(() => import("./pages/opportunities"));
 const OpportunityDetail = lazy(() => import("./pages/opportunities/OpportunityDetail"));
 const OpportunityForm = lazy(() => import("./pages/opportunities/OpportunityForm"));
 const DeliverablePacksAdmin = lazy(() => import("./pages/opportunities/DeliverablePacksAdmin"));
@@ -199,7 +208,7 @@ const App = () => (
             {/* Opportunities routes (unified artist sales system) */}
             <Route path="/opportunities" element={
               <ProtectedRoute>
-                <OpportunitiesKanban />
+                <OpportunitiesPage />
               </ProtectedRoute>
             } />
             <Route path="/opportunities/new" element={
@@ -309,21 +318,11 @@ const App = () => (
             <Route path="/digital/clients" element={<Navigate to="/entities" replace />} />
             {/* Redirect old digital campaigns to new campaigns page */}
             <Route path="/digital/campaigns" element={<Navigate to="/campaigns" replace />} />
-            <Route path="/digital/campaigns/:id" element={<Navigate to="/campaigns/:id" replace />} />
+            <Route path="/digital/campaigns/:id" element={<RedirectWithParams to="/campaigns/:id" />} />
             {/* Distributions routes (new architecture) */}
             <Route path="/distributions" element={
               <ProtectedRoute>
                 <DistributionsPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/distributions/new" element={
-              <ProtectedRoute>
-                <DistributionFormPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/distributions/:id/edit" element={
-              <ProtectedRoute>
-                <DistributionFormPage />
               </ProtectedRoute>
             } />
             <Route path="/distributions/:id" element={
@@ -333,9 +332,9 @@ const App = () => (
             } />
             {/* Redirect old digital distributions routes */}
             <Route path="/digital/distributions" element={<Navigate to="/distributions" replace />} />
-            <Route path="/digital/distributions/new" element={<Navigate to="/distributions/new" replace />} />
-            <Route path="/digital/distributions/:id/edit" element={<Navigate to="/distributions/:id/edit" replace />} />
-            <Route path="/digital/distributions/:id" element={<Navigate to="/distributions/:id" replace />} />
+            <Route path="/digital/distributions/new" element={<Navigate to="/distributions" replace />} />
+            <Route path="/digital/distributions/:id/edit" element={<RedirectWithParams to="/distributions/:id" />} />
+            <Route path="/digital/distributions/:id" element={<RedirectWithParams to="/distributions/:id" />} />
             <Route path="/digital/financial" element={
               <ProtectedRoute>
                 <DigitalFinancial />

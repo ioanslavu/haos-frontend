@@ -119,12 +119,14 @@ export function GenerateContractModal({
   }
 
   // Check if we can generate
-  // Main contract: needs dates, valid entity, budgets, and platforms
-  // Annex: needs valid entity, budgets, and platforms (no dates required)
+  // Main contract: needs dates + valid entity (platforms optional)
+  // Annex: needs valid entity + uncovered platforms with budgets
   const hasStartDate = campaign.start_date || startDateOverride
   const hasEndDate = campaign.end_date || endDateOverride
-  const datesValid = willGenerateAnnex || (hasStartDate && hasEndDate)
-  const canGenerate = datesValid && entityValid && !hasBudgetIssues && uncoveredCount > 0
+  const datesValid = hasStartDate && hasEndDate
+  const canGenerate = willGenerateAnnex
+    ? entityValid && !hasBudgetIssues && uncoveredCount > 0
+    : datesValid && entityValid
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -366,17 +368,30 @@ export function GenerateContractModal({
             </div>
           )}
 
-          {/* No platforms warning */}
-          {uncoveredCount === 0 && (
+          {/* No platforms warning - only blocks annex generation */}
+          {uncoveredCount === 0 && willGenerateAnnex && (
+            <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-medium text-sm text-amber-600 dark:text-amber-400">No Platforms to Cover</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    All platforms already have contracts. Add new platforms first to generate an annex.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Info when generating main contract without platforms */}
+          {uncoveredCount === 0 && !willGenerateAnnex && (
             <div className="p-4 rounded-xl bg-muted/50 border border-border/50">
               <div className="flex items-start gap-3">
                 <Info className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
                 <div>
-                  <p className="font-medium text-sm">No Platforms to Cover</p>
+                  <p className="font-medium text-sm">No Platforms Added</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {willGenerateAnnex
-                      ? 'All platforms already have contracts. Add new platforms first.'
-                      : 'Add platforms to the campaign before generating a contract.'}
+                    You can generate the main contract now. Platforms can be added later and covered by annexes.
                   </p>
                 </div>
               </div>

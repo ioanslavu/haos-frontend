@@ -2,7 +2,7 @@
  * React Query hooks for Opportunities
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   opportunitiesApi,
@@ -14,6 +14,16 @@ import {
   usageTermsApi,
   deliverablePacksApi,
   approvalsApi,
+  opportunityStatsApi,
+  opportunityInvoicesApi,
+  opportunityContractsApi,
+  opportunityAssignmentsApi,
+  type OpportunityInvoiceLink,
+  type OpportunityContractLink,
+  type LinkInvoiceInput,
+  type LinkContractInput,
+  type CreateAndLinkContractInput,
+  type InvoiceType,
 } from '../services/opportunities.service';
 import type {
   OpportunityListParams,
@@ -22,6 +32,8 @@ import type {
   BulkUpdateInput,
   AdvanceStageInput,
   MarkLostInput,
+  OpportunityDeliverable,
+  OpportunityAssignmentRole,
 } from '@/types/opportunities';
 
 // === QUERY KEYS ===
@@ -474,6 +486,267 @@ export function useRequestChangesApproval() {
       queryClient.invalidateQueries({ queryKey: ['approvals'] });
       queryClient.invalidateQueries({ queryKey: opportunityKeys.activities(data.opportunity) });
       toast.success('Changes requested');
+    },
+  });
+}
+
+// === INFINITE SCROLL ===
+
+/**
+ * Hook for infinite scroll opportunities list
+ */
+export function useInfiniteOpportunities(params?: OpportunityListParams, pageSize = 20) {
+  return useInfiniteQuery({
+    queryKey: [...opportunityKeys.lists(), 'infinite', params],
+    queryFn: ({ pageParam = 1 }) =>
+      opportunitiesApi.list({ ...params, page: pageParam, page_size: pageSize }).then(res => res.data),
+    getNextPageParam: (lastPage, pages) =>
+      lastPage.next ? pages.length + 1 : undefined,
+    initialPageParam: 1,
+  });
+}
+
+// === STATS ===
+
+/**
+ * Hook to get opportunity stats (counts by stage, total value, etc.)
+ */
+export function useOpportunityStats(params?: OpportunityListParams) {
+  return useQuery({
+    queryKey: [...opportunityKeys.all, 'stats', params],
+    queryFn: () => opportunityStatsApi.get(params).then(res => res.data),
+  });
+}
+
+// === OPPORTUNITY INVOICE LINKS ===
+
+export const opportunityInvoiceKeys = {
+  all: ['opportunity-invoices'] as const,
+  list: (opportunityId: number) => [...opportunityInvoiceKeys.all, opportunityId] as const,
+};
+
+/**
+ * Hook to list invoices linked to an opportunity
+ */
+export function useOpportunityInvoices(opportunityId: number, enabled = true) {
+  return useQuery({
+    queryKey: opportunityInvoiceKeys.list(opportunityId),
+    queryFn: () => opportunityInvoicesApi.list(opportunityId).then(res => res.data),
+    enabled: !!opportunityId && enabled,
+  });
+}
+
+/**
+ * Hook to link an invoice to an opportunity
+ */
+export function useLinkInvoice() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: LinkInvoiceInput) => opportunityInvoicesApi.link(data).then(res => res.data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: opportunityInvoiceKeys.list(variables.opportunity) });
+      queryClient.invalidateQueries({ queryKey: opportunityKeys.detail(variables.opportunity) });
+      toast.success('Invoice linked successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.error || 'Failed to link invoice');
+    },
+  });
+}
+
+/**
+ * Hook to unlink an invoice from an opportunity
+ */
+export function useUnlinkInvoice() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ linkId, opportunityId }: { linkId: number; opportunityId: number }) =>
+      opportunityInvoicesApi.unlink(linkId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: opportunityInvoiceKeys.list(variables.opportunityId) });
+      queryClient.invalidateQueries({ queryKey: opportunityKeys.detail(variables.opportunityId) });
+      toast.success('Invoice unlinked');
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.error || 'Failed to unlink invoice');
+    },
+  });
+}
+
+/**
+ * Hook to update invoice link (type, primary status)
+ */
+export function useUpdateInvoiceLink() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ linkId, opportunityId, data }: { linkId: number; opportunityId: number; data: { invoice_type?: InvoiceType; is_primary?: boolean } }) =>
+      opportunityInvoicesApi.update(linkId, data).then(res => res.data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: opportunityInvoiceKeys.list(variables.opportunityId) });
+      toast.success('Invoice link updated');
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.error || 'Failed to update invoice link');
+    },
+  });
+}
+
+// === OPPORTUNITY CONTRACT LINKS ===
+
+export const opportunityContractKeys = {
+  all: ['opportunity-contracts'] as const,
+  list: (opportunityId: number) => [...opportunityContractKeys.all, opportunityId] as const,
+};
+
+/**
+ * Hook to list contracts linked to an opportunity
+ */
+export function useOpportunityContracts(opportunityId: number, enabled = true) {
+  return useQuery({
+    queryKey: opportunityContractKeys.list(opportunityId),
+    queryFn: () => opportunityContractsApi.list(opportunityId).then(res => res.data),
+    enabled: !!opportunityId && enabled,
+  });
+}
+
+/**
+ * Hook to link an existing contract to an opportunity
+ */
+export function useLinkContract() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: LinkContractInput) => opportunityContractsApi.link(data).then(res => res.data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: opportunityContractKeys.list(variables.opportunity) });
+      queryClient.invalidateQueries({ queryKey: opportunityKeys.detail(variables.opportunity) });
+      toast.success('Contract linked successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.error || 'Failed to link contract');
+    },
+  });
+}
+
+/**
+ * Hook to create a new contract and link it to an opportunity
+ */
+export function useCreateAndLinkContract() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: CreateAndLinkContractInput) => opportunityContractsApi.createAndLink(data).then(res => res.data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: opportunityContractKeys.list(variables.opportunity) });
+      queryClient.invalidateQueries({ queryKey: opportunityKeys.detail(variables.opportunity) });
+      queryClient.invalidateQueries({ queryKey: ['contracts'] }); // Invalidate contracts list too
+      toast.success('Contract created and linked');
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.error || 'Failed to create contract');
+    },
+  });
+}
+
+/**
+ * Hook to unlink a contract from an opportunity
+ */
+export function useUnlinkContract() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ linkId, opportunityId }: { linkId: number; opportunityId: number }) =>
+      opportunityContractsApi.unlink(linkId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: opportunityContractKeys.list(variables.opportunityId) });
+      queryClient.invalidateQueries({ queryKey: opportunityKeys.detail(variables.opportunityId) });
+      toast.success('Contract unlinked');
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.error || 'Failed to unlink contract');
+    },
+  });
+}
+
+/**
+ * Hook to update contract link (primary status)
+ */
+export function useUpdateContractLink() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ linkId, opportunityId, data }: { linkId: number; opportunityId: number; data: { is_primary?: boolean } }) =>
+      opportunityContractsApi.update(linkId, data).then(res => res.data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: opportunityContractKeys.list(variables.opportunityId) });
+      toast.success('Contract link updated');
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.error || 'Failed to update contract link');
+    },
+  });
+}
+
+// === OPPORTUNITY ASSIGNMENTS ===
+
+export const assignmentKeys = {
+  all: ['opportunity-assignments'] as const,
+  list: (opportunityId: number) => [...assignmentKeys.all, opportunityId] as const,
+};
+
+export function useOpportunityAssignments(opportunityId: number, enabled = true) {
+  return useQuery({
+    queryKey: assignmentKeys.list(opportunityId),
+    queryFn: () => opportunityAssignmentsApi.list(opportunityId).then(res => res.data),
+    enabled: enabled && !!opportunityId,
+  });
+}
+
+export function useCreateOpportunityAssignment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      opportunityId,
+      userId,
+      role,
+    }: {
+      opportunityId: number;
+      userId: number;
+      role: OpportunityAssignmentRole;
+    }) => opportunityAssignmentsApi.create(opportunityId, userId, role).then(res => res.data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: assignmentKeys.list(variables.opportunityId) });
+      queryClient.invalidateQueries({ queryKey: opportunityKeys.detail(variables.opportunityId) });
+      toast.success('Team member added');
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.error || 'Failed to add team member');
+    },
+  });
+}
+
+export function useDeleteOpportunityAssignment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      opportunityId,
+      assignmentId,
+    }: {
+      opportunityId: number;
+      assignmentId: number;
+    }) => opportunityAssignmentsApi.delete(opportunityId, assignmentId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: assignmentKeys.list(variables.opportunityId) });
+      queryClient.invalidateQueries({ queryKey: opportunityKeys.detail(variables.opportunityId) });
+      toast.success('Team member removed');
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.error || 'Failed to remove team member');
     },
   });
 }

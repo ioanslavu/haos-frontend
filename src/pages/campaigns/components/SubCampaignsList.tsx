@@ -25,6 +25,7 @@ import {
   Receipt,
   Target,
   Plus,
+  ClipboardList,
 } from 'lucide-react'
 import { HiSquares2X2 } from 'react-icons/hi2'
 import { PLATFORM_ICONS, PLATFORM_COLORS, PLATFORM_TEXT_COLORS } from '@/lib/platform-icons'
@@ -71,6 +72,7 @@ import {
 } from '@/api/hooks/useCampaigns'
 import { SubCampaignInvoiceDialog } from './SubCampaignInvoiceDialog'
 import { SubCampaignInvoiceList } from './SubCampaignInvoiceList'
+import { TaskDetailPanel } from '@/components/tasks/TaskDetailPanel'
 import { formatMoney, formatDate, cn } from '@/lib/utils'
 import type { SubCampaign, Platform, ServiceType, PaymentMethod, KPIType, KPITarget } from '@/types/campaign'
 import {
@@ -355,6 +357,7 @@ function SubCampaignCard({
   const [endDateOpen, setEndDateOpen] = useState(false)
   const [isSavingDates, setIsSavingDates] = useState(false)
   const [showInvoiceDialog, setShowInvoiceDialog] = useState(false)
+  const [showTaskPanel, setShowTaskPanel] = useState(false)
 
   // Prefetch invoice count for header display
   const { data: invoices } = useSubCampaignInvoices(campaignId, subcampaign.id, isExpanded)
@@ -628,6 +631,20 @@ function SubCampaignCard({
                   </span>
                 )}
               </div>
+
+              {/* Create Task Button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowTaskPanel(true)
+                }}
+                title="Create task for this platform"
+              >
+                <ClipboardList className="h-4 w-4" />
+              </Button>
 
               {/* Delete Button */}
               <Button
@@ -1200,6 +1217,16 @@ function SubCampaignCard({
         campaignName={campaignName}
         subcampaign={subcampaign}
         onSuccess={() => setShowInvoiceDialog(false)}
+      />
+
+      {/* Task Create Panel - Pre-linked to campaign and platform */}
+      <TaskDetailPanel
+        task={null}
+        open={showTaskPanel}
+        onOpenChange={setShowTaskPanel}
+        createMode={true}
+        defaultCampaignId={campaignId}
+        defaultSubcampaignId={subcampaign.id}
       />
     </>
   )

@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { User, X, Plus } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, getInitials } from '@/lib/utils';
 import { useUsersList } from '@/api/hooks/useUsers';
 import { handleApiError } from '@/lib/error-handler';
 
@@ -113,7 +113,7 @@ export function InlineAssigneeSelect({
                   {assignedUsers.slice(0, 3).map((user) => (
                     <Avatar key={user.id} className="h-5 w-5 border border-background">
                       <AvatarFallback className="text-[10px] font-medium">
-                        {(user.full_name || user.email || 'U').substring(0, 2).toUpperCase()}
+                        {getInitials(user.full_name || user.email)}
                       </AvatarFallback>
                     </Avatar>
                   ))}
@@ -135,7 +135,7 @@ export function InlineAssigneeSelect({
                   >
                     <Avatar className="h-5 w-5">
                       <AvatarFallback className="text-xs">
-                        {(user.full_name || user.email || 'U').substring(0, 2).toUpperCase()}
+                        {getInitials(user.full_name || user.email)}
                       </AvatarFallback>
                     </Avatar>
                     <span className="text-xs">{user.full_name || user.email}</span>
@@ -204,7 +204,7 @@ export function InlineAssigneeSelect({
                 >
                   <Avatar className="h-6 w-6">
                     <AvatarFallback className="text-xs">
-                      {(user.full_name || user.email || 'U').substring(0, 2).toUpperCase()}
+                      {getInitials(user.full_name || user.email)}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 text-left">

@@ -138,6 +138,7 @@ import { AssignmentSection } from './components/AssignmentSection'
 import { ClientScoreSection } from './components/ClientScoreSection'
 import { ContractDetailSheet } from '@/components/contracts/ContractDetailSheet'
 import { useRefreshContractGeneration } from '@/api/hooks/useContracts'
+import { CampaignTasksTab } from './components/CampaignTasksTab'
 
 export default function CampaignDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -1306,31 +1307,7 @@ export default function CampaignDetailPage() {
 
           {/* Tasks Tab */}
           <TabsContent value="tasks" className="mt-6">
-            <div className="space-y-6">
-              {/* Header */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold text-lg">Tasks</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Track campaign tasks, deadlines and deliverables
-                  </p>
-                </div>
-                <Button className="rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Task
-                </Button>
-              </div>
-              {/* Empty State */}
-              <Card className="p-12 rounded-2xl border-white/10 bg-background/50 backdrop-blur-sm text-center">
-                <div className="w-16 h-16 rounded-full bg-cyan-500/10 flex items-center justify-center mx-auto mb-4">
-                  <CheckSquare className="h-8 w-8 text-cyan-500" />
-                </div>
-                <h4 className="font-semibold mb-2">No tasks yet</h4>
-                <p className="text-muted-foreground text-sm max-w-sm mx-auto">
-                  Create tasks to track campaign deliverables, deadlines and team assignments.
-                </p>
-              </Card>
-            </div>
+            <CampaignTasksTab campaignId={campaignId} />
           </TabsContent>
 
           {/* Contracts Tab */}
@@ -2333,6 +2310,7 @@ export default function CampaignDetailPage() {
         open={!!selectedContractId}
         onOpenChange={(open) => !open && setSelectedContractId(null)}
       />
+
     </AppLayout>
   )
 }
