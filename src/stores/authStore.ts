@@ -179,6 +179,10 @@ export const useAuthStore = create<AuthState>()(
         error: null,
         permissions: [],
         csrfToken: null,
+        // Role impersonation state
+        impersonatedRole: null,
+        impersonatedDepartment: null,
+        realUser: null,
 
         setUser: (user) => {
           set({
@@ -382,6 +386,34 @@ export const useAuthStore = create<AuthState>()(
           const { user } = get();
           if (!user?.role) return false;
           return ['administrator', 'digital_manager', 'sales_manager', 'marketing_manager', 'publishing_manager'].includes(user.role);
+        },
+
+        // Role impersonation methods
+        startImpersonation: (role: UserRole, department?: string | null) => {
+          const { user } = get();
+          set({
+            realUser: user,
+            impersonatedRole: role,
+            impersonatedDepartment: department ?? null,
+          });
+        },
+
+        stopImpersonation: () => {
+          set({
+            impersonatedRole: null,
+            impersonatedDepartment: null,
+            realUser: null,
+          });
+        },
+
+        isImpersonating: () => {
+          const { impersonatedRole } = get();
+          return impersonatedRole !== null;
+        },
+
+        getRealRole: () => {
+          const { realUser, user } = get();
+          return realUser?.role ?? user?.role;
         },
       }),
       {

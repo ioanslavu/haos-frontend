@@ -1,0 +1,1 @@
+export { useEntityDetailState } from './useEntityDetailState';

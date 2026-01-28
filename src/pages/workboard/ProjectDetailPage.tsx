@@ -3,7 +3,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { useProject } from '@/api/hooks/useProjects';
-import { ProjectTasksView } from './components/ProjectTasksView';
+import { ProjectTasksView } from './components/ProjectTasksView/index';
 
 export default function ProjectDetailPage() {
   const navigate = useNavigate();

@@ -21,8 +21,7 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { StageBadge } from '@/components/songs/StageBadge';
-import { ProgressBar } from '@/components/songs/ProgressBar';
+import { StageBadge, ProgressBar } from '@/components/songs';
 import { fetchSongs } from '@/api/songApi';
 import { SongStage, SongFilters } from '@/types/song';
 import { useAuthStore } from '@/stores/authStore';

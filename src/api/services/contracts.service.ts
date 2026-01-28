@@ -275,6 +275,15 @@ export interface ContractAuditTrail {
   };
 }
 
+// Entity latest shares for auto-populating contract generation forms
+export interface EntityLatestShares {
+  entity_id: number;
+  entity_name: string;
+  shares: Record<string, number>;
+  last_contract_date?: string;
+  last_contract_type?: string;
+}
+
 class ContractsService {
   // Templates
   async getTemplates(): Promise<ContractTemplate[]> {

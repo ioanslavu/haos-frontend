@@ -20,8 +20,6 @@ export const rightsKeys = {
   creditsByObject: (scope: 'work' | 'recording', objectId: number) =>
     [...rightsKeys.credits(), 'byObject', scope, objectId] as const,
   creditsByEntity: (entityId: number) => [...rightsKeys.credits(), 'byEntity', entityId] as const,
-  writerCredits: () => [...rightsKeys.credits(), 'writers'] as const,
-  performerCredits: () => [...rightsKeys.credits(), 'performers'] as const,
   splits: () => [...rightsKeys.all, 'splits'] as const,
   splitList: (params?: SplitSearchParams) => [...rightsKeys.splits(), params] as const,
   splitDetail: (id: number) => [...rightsKeys.splits(), 'detail', id] as const,
@@ -31,7 +29,6 @@ export const rightsKeys = {
     [...rightsKeys.splits(), 'validate', scope, objectId, rightType] as const,
   rightsReport: (scope: 'work' | 'recording', objectId: number) =>
     [...rightsKeys.all, 'report', scope, objectId] as const,
-  splitStats: () => [...rightsKeys.splits(), 'stats'] as const,
 };
 
 // Credits hooks
@@ -67,20 +64,6 @@ export const useCreditsByEntity = (entityId: number, enabled = true) => {
     queryKey: rightsKeys.creditsByEntity(entityId),
     queryFn: () => rightsService.getCreditsByEntity(entityId),
     enabled: enabled && entityId > 0,
-  });
-};
-
-export const useWriterCredits = () => {
-  return useQuery({
-    queryKey: rightsKeys.writerCredits(),
-    queryFn: () => rightsService.getWriterCredits(),
-  });
-};
-
-export const usePerformerCredits = () => {
-  return useQuery({
-    queryKey: rightsKeys.performerCredits(),
-    queryFn: () => rightsService.getPerformerCredits(),
   });
 };
 
@@ -207,13 +190,6 @@ export const useRightsReport = (
   });
 };
 
-export const useSplitStats = () => {
-  return useQuery({
-    queryKey: rightsKeys.splitStats(),
-    queryFn: () => rightsService.getSplitStats(),
-  });
-};
-
 export const useCreateSplit = () => {
   const queryClient = useQueryClient();
 
@@ -282,75 +258,3 @@ export const useBulkCreateSplits = () => {
   });
 };
 
-export const useAutoCalculateSplits = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (payload: AutoCalculatePayload) => rightsService.autoCalculateSplits(payload),
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: rightsKeys.splits() });
-      queryClient.invalidateQueries({
-        queryKey: rightsKeys.splitsByObject(variables.scope, variables.object_id)
-      });
-      queryClient.invalidateQueries({
-        queryKey: rightsKeys.rightsReport(variables.scope, variables.object_id)
-      });
-    },
-  });
-};
-
-export const useLockSplit = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (id: number) => rightsService.lockSplit(id),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: rightsKeys.splits() });
-      queryClient.invalidateQueries({ queryKey: rightsKeys.splitDetail(data.id) });
-      if (data.scope && data.object_id) {
-        queryClient.invalidateQueries({
-          queryKey: rightsKeys.splitsByObject(data.scope, data.object_id)
-        });
-      }
-    },
-  });
-};
-
-export const useUnlockSplit = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (id: number) => rightsService.unlockSplit(id),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: rightsKeys.splits() });
-      queryClient.invalidateQueries({ queryKey: rightsKeys.splitDetail(data.id) });
-      if (data.scope && data.object_id) {
-        queryClient.invalidateQueries({
-          queryKey: rightsKeys.splitsByObject(data.scope, data.object_id)
-        });
-      }
-    },
-  });
-};
-
-export const useLockAllSplits = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      scope,
-      objectId,
-      rightType,
-    }: {
-      scope: 'work' | 'recording';
-      objectId: number;
-      rightType?: string;
-    }) => rightsService.lockAllSplits(scope, objectId, rightType),
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: rightsKeys.splits() });
-      queryClient.invalidateQueries({
-        queryKey: rightsKeys.splitsByObject(variables.scope, variables.objectId)
-      });
-    },
-  });
-};

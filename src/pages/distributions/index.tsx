@@ -43,7 +43,7 @@ import {
 import { DistributionsTable } from './components/DistributionsTable'
 import { CreateDistributionModal } from './components/CreateDistributionModal'
 import { DistributionFiltersSheet } from './components/DistributionFiltersSheet'
-import { useInView } from 'react-intersection-observer'
+import { useInView } from '@/hooks/useIntersectionObserver'
 
 type TabMode = 'all' | 'by-entity' | 'by-type'
 

@@ -64,14 +64,6 @@ All colors MUST be HSL.
     --radius-lg: 0.75rem;
     --radius-xl: 1rem;
 
-    /* Fluid spacing tokens - Responsive spacing */
-    --spacing-xs: clamp(0.25rem, 0.5vw, 0.5rem);
-    --spacing-sm: clamp(0.5rem, 1vw, 0.75rem);
-    --spacing-md: clamp(0.75rem, 1.5vw, 1rem);
-    --spacing-lg: clamp(1rem, 2vw, 1.5rem);
-    --spacing-xl: clamp(1.5rem, 3vw, 2rem);
-    --spacing-2xl: clamp(2rem, 4vw, 3rem);
-
     /* Chart colors - Data visualization palette */
     --chart-1: 221.2 83.2% 53.3%;
     --chart-2: 212 95% 68%;
@@ -228,78 +220,14 @@ All colors MUST be HSL.
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
   }
 
-  /* Scale on hover */
-  .hover-scale {
-    transition: transform 0.2s ease;
-  }
-  .hover-scale:hover {
-    transform: scale(1.02);
-  }
-
-  /* Glow effect on hover */
-  .hover-glow {
-    transition: box-shadow 0.3s ease, border-color 0.3s ease;
-  }
-  .hover-glow:hover {
-    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.1);
-    border-color: hsl(var(--primary) / 0.5);
-  }
-
-  /* AI feature glow effect */
-  .ai-glow {
-    box-shadow: 0 0 20px hsl(var(--ai-glow) / 0.3);
-    transition: box-shadow 0.3s ease;
-  }
-  .ai-glow:hover {
-    box-shadow: 0 0 30px hsl(var(--ai-glow) / 0.5);
-  }
-
   /* Smooth transitions */
   .transition-smooth {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* Fast transitions for micro-interactions */
-  .transition-fast {
-    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  /* Glass morphism for modern cards */
-  .glass {
-    background: hsl(var(--background) / 0.8);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-  }
-
-  /* Bento grid container (for dashboard) */
-  .bento-grid {
-    display: grid;
-    gap: var(--spacing-lg);
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
-  }
-
   /* Fade in animation */
   .fade-in {
     animation: fadeIn 0.3s ease-in;
-  }
-
-  /* Slide up animation */
-  .slide-up {
-    animation: slideUp 0.4s ease-out;
-  }
-
-  /* Pulse animation for loading states */
-  .pulse-soft {
-    animation: pulseSoft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  }
-
-  /* Mobile touch targets (min 44x44px for WCAG) */
-  .touch-target {
-    min-width: 44px;
-    min-height: 44px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
   }
 
   /* Screen reader only - visually hidden but accessible */
@@ -314,66 +242,15 @@ All colors MUST be HSL.
     white-space: nowrap;
     border-width: 0;
   }
-
-  /* Mobile responsive table - stack on small screens */
-  @media (max-width: 768px) {
-    .mobile-stack-table thead {
-      display: none;
-    }
-
-    .mobile-stack-table tbody tr {
-      display: block;
-      margin-bottom: 1rem;
-      border: 1px solid hsl(var(--border));
-      border-radius: var(--radius);
-    }
-
-    .mobile-stack-table tbody td {
-      display: flex;
-      justify-content: space-between;
-      padding: 0.75rem;
-      border-bottom: 1px solid hsl(var(--border));
-    }
-
-    .mobile-stack-table tbody td:last-child {
-      border-bottom: none;
-    }
-
-    .mobile-stack-table tbody td::before {
-      content: attr(data-label);
-      font-weight: 600;
-      margin-right: 1rem;
-    }
-  }
 }
 
-/* Additional keyframes */
+/* Keyframes for animations */
 @keyframes fadeIn {
   from {
     opacity: 0;
   }
   to {
     opacity: 1;
-  }
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes pulseSoft {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
   }
 }
 

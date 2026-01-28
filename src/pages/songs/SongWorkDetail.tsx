@@ -27,9 +27,7 @@ import {
 } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { AddISWCDialog } from '@/components/songs/AddISWCDialog';
-import { AddCreditDialog } from '@/components/songs/AddCreditDialog';
-import { AddSplitDialog } from '@/components/songs/AddSplitDialog';
+import { AddISWCDialog, AddCreditDialog, AddSplitDialog } from '@/components/songs';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/api/client';
 

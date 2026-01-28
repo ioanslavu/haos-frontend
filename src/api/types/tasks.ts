@@ -272,10 +272,8 @@ export interface Task {
   // Review workflow
   needs_review: boolean;
 
-  // Workflow timestamps
-  started_at?: string;
+  // Workflow timestamps (already defined above under Timeline)
   submitted_for_review_at?: string;
-  completed_at?: string;
 
   // Timestamps
   created_at: string;

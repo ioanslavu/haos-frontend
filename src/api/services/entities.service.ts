@@ -228,21 +228,7 @@ export interface PaginatedResponse<T> {
   results: T[];
 }
 
-export interface SensitiveIdentity {
-  id: number;
-  entity: number;
-  entity_name?: string;
-  date_of_birth?: string;
-  place_of_birth?: string;
-  cnp?: string; // Masked by default
-  id_series?: string;
-  id_number?: string;
-  id_issued_by?: string;
-  id_issued_date?: string;
-  id_expiry_date?: string;
-  created_at: string;
-  updated_at: string;
-}
+// Note: SensitiveIdentity is defined above (lines 4-26) - this duplicate is removed
 
 export interface RevealCNPResponse {
   cnp: string;

@@ -73,4 +73,5 @@ const AuthError: React.FC = () => {
   );
 };
 
+export { AuthError };
 export default AuthError;

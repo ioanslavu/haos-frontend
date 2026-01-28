@@ -1,0 +1,9 @@
+export { DetailsTab } from './DetailsTab';
+export { IdentifiersTab } from './IdentifiersTab';
+export { ContractsTab } from './ContractsTab';
+export { CampaignsTab } from './CampaignsTab';
+export { FinancialTab } from './FinancialTab';
+export { ActivityTab } from './ActivityTab';
+export { SocialMediaTab } from './SocialMediaTab';
+export { SensitiveTab } from './SensitiveTab';
+export { ContractGenerationTab } from './ContractGenerationTab';

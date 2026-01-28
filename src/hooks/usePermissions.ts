@@ -119,44 +119,6 @@ export const useDetailedPermissions = () => {
 };
 
 /**
- * Hook for checking specific permissions dynamically
- */
-export const usePermissionCheck = () => {
-  return useMutation({
-    mutationFn: async (request: PermissionCheckRequest) => {
-      return permissionService.checkPermissions(request);
-    },
-  });
-};
-
-/**
- * Hook for batch checking permissions
- */
-export const useBatchPermissionCheck = () => {
-  return useMutation({
-    mutationFn: async (checks: BatchPermissionCheck[]) => {
-      return permissionService.batchCheck(checks);
-    },
-  });
-};
-
-/**
- * Hook for getting all system permissions (admin only)
- */
-export const useAllPermissions = () => {
-  const { permissions } = usePermissions();
-  
-  return useQuery({
-    queryKey: QUERY_KEYS.PERMISSIONS.ALL,
-    queryFn: async () => {
-      return permissionService.getAllPermissions();
-    },
-    enabled: permissions.canManageRoles,
-    staleTime: 1000 * 60 * 60, // 1 hour
-  });
-};
-
-/**
  * Helper hook for conditional rendering based on permissions
  */
 export const usePermissionGate = (

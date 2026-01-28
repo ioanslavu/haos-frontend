@@ -49,7 +49,7 @@ import { OpportunitiesTable } from './components/OpportunitiesTable'
 import { OpportunitiesKanban } from './components/OpportunitiesKanban'
 import { OpportunityFiltersSheet } from './components/OpportunityFiltersSheet'
 import { QuickCreateModal } from './components/QuickCreateModal'
-import { useInView } from 'react-intersection-observer'
+import { useInView } from '@/hooks/useIntersectionObserver'
 
 export default function OpportunitiesPage() {
   const navigate = useNavigate()

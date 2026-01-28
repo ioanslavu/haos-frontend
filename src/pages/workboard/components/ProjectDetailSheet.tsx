@@ -3,7 +3,7 @@ import {
   SheetContent,
 } from '@/components/ui/sheet';
 import { type Project } from '@/types/projects';
-import { ProjectTasksView } from './ProjectTasksView';
+import { ProjectTasksView } from './ProjectTasksView/index';
 
 interface ProjectDetailSheetProps {
   project: Project | null;

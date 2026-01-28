@@ -1,4 +1,39 @@
-import { Entity } from './entity'
+// Entity type for distribution - matches the Entity from api/services/entities.service.ts
+export interface Entity {
+  id: number
+  kind: 'PF' | 'PJ'
+  kind_display?: string
+  classification: 'CREATIVE' | 'CLIENT'
+  classification_display: string
+  is_internal: boolean
+  entity_type: string | null
+  type_display: string | null
+  display_name: string
+  alias_name?: string
+  first_name?: string
+  last_name?: string
+  stage_name?: string
+  nationality?: string
+  gender?: 'M' | 'F' | 'O'
+  image?: string
+  image_url?: string
+  profile_photo?: string
+  email?: string
+  phone?: string
+  address?: string
+  city?: string
+  state?: string
+  zip_code?: string
+  country?: string
+  company_registration_number?: string
+  vat_number?: string
+  iban?: string
+  bank_name?: string
+  bank_branch?: string
+  notes?: string
+  created_at: string
+  updated_at: string
+}
 
 // Minimal types for distribution catalog items
 export interface Recording {

@@ -1,13 +1,6 @@
-export { StageBadge } from './StageBadge';
-export { ProgressBar } from './ProgressBar';
-export { ChecklistItem } from './ChecklistItem';
-export { ChecklistSection } from './ChecklistSection';
-export { AssetCard } from './AssetCard';
-export { AssetUploader } from './AssetUploader';
-export { ActivityLogItem } from './ActivityLogItem';
-export { AlertBell } from './AlertBell';
-export { WorkTab } from './WorkTab';
-export { EditWorkDialog } from './EditWorkDialog';
-export { AddSplitDialog } from './AddSplitDialog';
-export { EditSplitDialog } from './EditSplitDialog';
-export { SplitVisualization } from './SplitVisualization';
+// Re-export from subdirectories
+export * from './dialogs';
+export * from './tabs';
+export * from './cards';
+export * from './sections';
+export * from './shared';

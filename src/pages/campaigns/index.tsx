@@ -48,7 +48,7 @@ import { ViewToggle, ViewType } from './components/ViewToggle'
 import { ClientGroupHeader, PlatformGroupHeader } from './components/GroupHeader'
 import { CreateCampaignModal } from './components/CreateCampaignModal'
 import { CampaignFiltersSheet } from './components/CampaignFiltersSheet'
-import { useInView } from 'react-intersection-observer'
+import { useInView } from '@/hooks/useIntersectionObserver'
 
 type TabMode = 'all' | 'by-client' | 'by-platform'
 

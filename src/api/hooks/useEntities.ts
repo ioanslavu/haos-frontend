@@ -24,7 +24,7 @@ export const entityKeys = {
   searchGlobal: (query: string) => [...entityKeys.all, 'searchGlobal', query] as const,
   sensitiveIdentity: (entityId: number) => ['sensitiveIdentity', entityId] as const,
   contactPersons: (entityId?: number) => ['contactPersons', entityId] as const,
-  contactPerson: (id: number) => ['contactPerson', id] as const,
+  contactPerson: (id: number) => ['contactPersons', 'detail', id] as const,
 };
 
 // Hooks
@@ -69,18 +69,6 @@ export const useEntity = (id: number, enabled = true) => {
     queryKey: entityKeys.detail(id),
     queryFn: () => entitiesService.getEntity(id),
     enabled: enabled && id > 0,
-  });
-};
-
-export const useEntityLatestShares = (
-  entityId: number | null,
-  contractType?: string,
-  enabled = true
-) => {
-  return useQuery({
-    queryKey: entityKeys.latestShares(entityId || 0, contractType),
-    queryFn: () => entitiesService.getLatestContractShares(entityId!, contractType),
-    enabled: enabled && !!entityId && entityId > 0,
   });
 };
 
@@ -156,19 +144,6 @@ export const useSensitiveIdentity = (entityId: number, enabled = true) => {
   });
 };
 
-export const useRevealCNP = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ id, reason }: { id: number; reason: string }) =>
-      entitiesService.revealCNP(id, reason),
-    onSuccess: (data, variables) => {
-      // Optionally refresh sensitive identity data
-      // queryClient.invalidateQueries({ queryKey: entityKeys.sensitiveIdentity(variables.entityId) });
-    },
-  });
-};
-
 // Alias for better clarity in detail pages
 export const useEntityDetail = useEntity;
 
@@ -182,32 +157,12 @@ export const useSearchGlobal = (query: string, enabled = true) => {
 };
 
 // Add entity to department mutation
-export const useAddToMyDepartment = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (entityId: number) => entitiesService.addToMyDepartment(entityId),
-    onSuccess: () => {
-      // Invalidate entity lists to show the newly added entity
-      queryClient.invalidateQueries({ queryKey: entityKeys.lists() });
-    },
-  });
-};
-
 // Contact Person hooks
 export const useContactPersons = (entityId?: number, enabled = true) => {
   return useQuery({
     queryKey: entityKeys.contactPersons(entityId),
     queryFn: () => entitiesService.getContactPersons(entityId),
     enabled: enabled && (entityId === undefined || entityId > 0),
-  });
-};
-
-export const useContactPerson = (id: number, enabled = true) => {
-  return useQuery({
-    queryKey: entityKeys.contactPerson(id),
-    queryFn: () => entitiesService.getContactPerson(id),
-    enabled: enabled && id > 0,
   });
 };
 
@@ -253,6 +208,18 @@ export const useDeleteContactPerson = () => {
       queryClient.invalidateQueries({ queryKey: ['contactPersons'] });
       // Invalidate all entity details (to refresh contact_persons array)
       queryClient.invalidateQueries({ queryKey: entityKeys.details() });
+    },
+  });
+};
+
+export const useAddToMyDepartment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (entityId: number) => entitiesService.addToMyDepartment(entityId),
+    onSuccess: () => {
+      // Invalidate entity lists to refresh department-scoped entities
+      queryClient.invalidateQueries({ queryKey: entityKeys.lists() });
     },
   });
 };

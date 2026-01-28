@@ -48,7 +48,7 @@ const ContractGeneration = lazy(() => import("./pages/ContractGeneration"));
 const Templates = lazy(() => import("./pages/Templates"));
 const TemplateDetail = lazy(() => import("./pages/TemplateDetail"));
 const ImportTemplate = lazy(() => import("./pages/ImportTemplate"));
-const TaskManagement = lazy(() => import("./pages/TaskManagement"));
+const TaskManagement = lazy(() => import("./pages/task-management"));
 const WorkboardPage = lazy(() => import("./pages/workboard"));
 const ProjectDetailPage = lazy(() => import("./pages/workboard/ProjectDetailPage"));
 
@@ -75,7 +75,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Entity pages
 const Entities = lazy(() => import("./pages/Entities"));
-const EntityDetail = lazy(() => import("./pages/EntityDetail"));
+const EntityDetail = lazy(() => import("./pages/entities"));
 
 // Activity pages
 const ActivitiesPage = lazy(() => import("./pages/activities/ActivitiesPage"));

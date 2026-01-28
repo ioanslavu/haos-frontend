@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useUIStore } from '@/stores/uiStore';
-import { AuthError } from './components/AuthError';
+import { AuthError } from './AuthError';
 import authService from '@/services/auth.service';
 
 const AuthCallback: React.FC = () => {
