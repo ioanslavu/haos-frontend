@@ -1,5 +1,5 @@
 /**
- * TypeScript types for Artist Sales - Unified Opportunities System
+ * TypeScript types for Opportunities
  */
 
 // === ENUMS & CONSTANTS ===
@@ -159,7 +159,7 @@ export interface Opportunity {
   priority_display: string;
 
   // Relationships
-  account: Entity;
+  client: Entity;
   contact_person?: ContactPerson;
   owner: User;
   team?: Department;
@@ -191,18 +191,6 @@ export interface Opportunity {
   proposal_sent_date?: string;
   proposal_valid_until?: string;
 
-  // Contract fields
-  contract_number?: string;
-  po_number?: string;
-  contract_signed_date?: string;
-  contract_start_date?: string;
-  contract_end_date?: string;
-  contract_file?: string;
-
-  // Execution
-  deliverable_pack?: number;
-  usage_terms?: number;
-
   // Lost
   lost_reason?: string;
   lost_date?: string;
@@ -219,11 +207,15 @@ export interface Opportunity {
   tasks?: OpportunityTask[];
   deliverables?: OpportunityDeliverable[];
   assignments?: OpportunityAssignment[];
+  linked_invoices?: OpportunityInvoiceLink[];
+  linked_contracts?: OpportunityContractLink[];
 
   // Annotated fields (for list view)
   artists_count?: number;
   tasks_count?: number;
   active_tasks_count?: number;
+  linked_invoices_count?: number;
+  linked_contracts_count?: number;
 }
 
 export interface OpportunityArtist {
@@ -246,7 +238,7 @@ export interface OpportunityTask {
   title: string;
   description?: string;
   task_type: TaskType;
-  assigned_to?: User;
+  assigned_to_users?: User[];
   assigned_by?: User;
   due_date?: string;
   priority: TaskPriority;
@@ -306,7 +298,7 @@ export interface OpportunityListParams {
   priority__in?: OpportunityPriority[];
   owner?: number;
   team?: number;
-  account?: number;
+  client?: number;
   currency?: string;
   expected_close_date_after?: string;
   expected_close_date_before?: string;
@@ -320,7 +312,7 @@ export interface OpportunityCreateInput {
   title: string;
   stage?: OpportunityStage;
   priority?: OpportunityPriority;
-  account: number;
+  client: number;
   contact_person?: number;
   owner: number;
   team?: number;
@@ -370,7 +362,7 @@ export interface OpportunityFilters {
   priority?: OpportunityPriority[];
   owner?: number;
   team?: number;
-  account?: number;
+  client?: number;
   expected_close_date_after?: string;
   expected_close_date_before?: string;
   estimated_value_min?: number;
@@ -427,4 +419,100 @@ export const OPPORTUNITY_ASSIGNMENT_ROLE_LABELS: Record<OpportunityAssignmentRol
 // === VIEW MODE TYPES ===
 
 export type OpportunityViewType = 'table' | 'kanban';
-export type OpportunityTabMode = 'all' | 'by-account' | 'by-owner';
+export type OpportunityTabMode = 'all' | 'by-client' | 'by-owner';
+
+// === INVOICE LINK TYPES ===
+
+export type InvoiceType = 'advance' | 'milestone' | 'final' | 'full';
+
+export interface OpportunityInvoiceLink {
+  id: number;
+  opportunity: number;
+  invoice: number;
+  invoice_type: InvoiceType;
+  is_primary: boolean;
+  created_at: string;
+  // Nested invoice info
+  invoice_details?: {
+    id: number;
+    invoice_number: string;
+    status: string;
+    total_amount: string;
+    currency: string;
+    due_date: string;
+    client_name: string;
+  };
+}
+
+export interface LinkInvoiceInput {
+  opportunity: number;
+  invoice: number;
+  invoice_type: InvoiceType;
+  is_primary?: boolean;
+}
+
+// === CONTRACT LINK TYPES ===
+
+export interface OpportunityContractLink {
+  id: number;
+  opportunity: number;
+  contract: number;
+  is_primary: boolean;
+  created_at: string;
+  // Nested contract info
+  contract_details?: {
+    id: number;
+    contract_type: string;
+    contract_type_display: string;
+    status: string;
+    status_display: string;
+    entity_name: string;
+    created_at: string;
+  };
+}
+
+export interface LinkContractInput {
+  opportunity: number;
+  contract: number;
+  is_primary?: boolean;
+}
+
+export interface CreateAndLinkContractInput {
+  opportunity: number;
+  contract_type: string;
+  entity: number;
+  effective_date?: string;
+  expiry_date?: string;
+  notes?: string;
+  is_primary?: boolean;
+}
+
+// === STATS TYPES ===
+
+export interface OpportunityStats {
+  total: number;
+  by_stage: Record<string, number>;
+  by_priority: Record<string, number>;
+  total_value: string;
+  won_value: string;
+  pipeline_value: string;
+}
+
+// === APPROVAL TYPES ===
+
+export interface Approval {
+  id: number;
+  opportunity: number;
+  deliverable?: number | null;
+  stage: string;
+  version: number;
+  status: 'pending' | 'approved' | 'rejected' | 'changes_requested';
+  submitted_at: string;
+  resolved_at?: string | null;
+  approver_contact?: { id: number; name: string } | null;
+  approver_user?: { id: number; email: string; first_name: string; last_name: string } | null;
+  notes?: string | null;
+  file_url?: string | null;
+  created_at: string;
+  updated_at: string;
+}

@@ -60,11 +60,8 @@ import {
 } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
 import { useUpdateOpportunityDeliverable } from '@/api/hooks/useOpportunities'
-import { opportunityDeliverablesApi } from '@/api/services/opportunities.service'
-import { useQueryClient } from '@tanstack/react-query'
-import { opportunityKeys } from '@/api/hooks/useOpportunities'
+import { useDeleteOpportunityDeliverable } from '@/api/hooks/opportunities/useOpportunityMutations'
 import { cn, formatDate } from '@/lib/utils'
-import { toast } from 'sonner'
 import type { DeliverableType, DeliverableStatus } from '@/types/opportunities'
 import { DELIVERABLE_TYPE_CONFIG } from '@/types/opportunities'
 
@@ -95,7 +92,7 @@ const DELIVERABLE_ICON_CONFIG: Record<DeliverableType, {
 
 // Status options
 const STATUS_OPTIONS: { value: DeliverableStatus; label: string }[] = [
-  { value: 'pending', label: 'Pending' },
+  { value: 'planned', label: 'Planned' },
   { value: 'in_progress', label: 'In Progress' },
   { value: 'completed', label: 'Completed' },
   { value: 'approved', label: 'Approved' },
@@ -123,7 +120,7 @@ export function DeliverableCard({
   isExpanded,
   onToggleExpand,
 }: DeliverableCardProps) {
-  const queryClient = useQueryClient()
+  const deleteDeliverable = useDeleteOpportunityDeliverable(opportunityId)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [dueDateOpen, setDueDateOpen] = useState(false)
 
@@ -216,12 +213,10 @@ export function DeliverableCard({
   // Handle delete
   const handleDelete = async () => {
     try {
-      await opportunityDeliverablesApi.delete(deliverable.id)
-      queryClient.invalidateQueries({ queryKey: opportunityKeys.detail(opportunityId) })
-      toast.success('Deliverable removed')
+      await deleteDeliverable.mutateAsync(deliverable.id)
       setShowDeleteConfirm(false)
     } catch {
-      toast.error('Failed to remove deliverable')
+      // Error handled by mutation
     }
   }
 

@@ -9,8 +9,6 @@ import {
   opportunityArtistsApi,
   opportunityTasksApi,
   opportunityDeliverablesApi,
-  usageTermsApi,
-  deliverablePacksApi,
   approvalsApi,
   opportunityInvoicesApi,
   opportunityContractsApi,
@@ -46,8 +44,8 @@ export function useCreateOpportunity() {
       queryClient.invalidateQueries({ queryKey: opportunityKeys.lists() })
       toast.success('Opportunity created successfully')
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || 'Failed to create opportunity')
+    onError: (error: Error) => {
+      toast.error((error as any)?.response?.data?.message || 'Failed to create opportunity')
     },
   })
 }
@@ -66,8 +64,8 @@ export function useUpdateOpportunity() {
       queryClient.invalidateQueries({ queryKey: opportunityKeys.lists() })
       toast.success('Opportunity updated successfully')
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || 'Failed to update opportunity')
+    onError: (error: Error) => {
+      toast.error((error as any)?.response?.data?.message || 'Failed to update opportunity')
     },
   })
 }
@@ -84,8 +82,8 @@ export function useDeleteOpportunity() {
       queryClient.invalidateQueries({ queryKey: opportunityKeys.lists() })
       toast.success('Opportunity deleted successfully')
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || 'Failed to delete opportunity')
+    onError: (error: Error) => {
+      toast.error((error as any)?.response?.data?.message || 'Failed to delete opportunity')
     },
   })
 }
@@ -104,8 +102,8 @@ export function useAdvanceStage() {
       queryClient.invalidateQueries({ queryKey: opportunityKeys.lists() })
       toast.success('Opportunity stage updated')
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || 'Failed to update stage')
+    onError: (error: Error) => {
+      toast.error((error as any)?.response?.data?.message || 'Failed to update stage')
     },
   })
 }
@@ -123,8 +121,8 @@ export function useMarkWon() {
       queryClient.invalidateQueries({ queryKey: opportunityKeys.lists() })
       toast.success('Opportunity marked as Won! 🎉')
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || 'Failed to mark as won')
+    onError: (error: Error) => {
+      toast.error((error as any)?.response?.data?.message || 'Failed to mark as won')
     },
   })
 }
@@ -143,8 +141,8 @@ export function useMarkLost() {
       queryClient.invalidateQueries({ queryKey: opportunityKeys.lists() })
       toast.success('Opportunity marked as Lost')
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || 'Failed to mark as lost')
+    onError: (error: Error) => {
+      toast.error((error as any)?.response?.data?.message || 'Failed to mark as lost')
     },
   })
 }
@@ -157,14 +155,15 @@ export function useCreateOpportunityArtist() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (data: any) => opportunityArtistsApi.create(data).then(res => res.data),
+    mutationFn: (data: { opportunity: number; artist: number; role: string; proposed_fee?: string; notes?: string }) =>
+      opportunityArtistsApi.create(data).then(res => res.data),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: opportunityKeys.artists(data.opportunity) })
       queryClient.invalidateQueries({ queryKey: opportunityKeys.detail(data.opportunity) })
       toast.success('Artist added')
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || 'Failed to add artist')
+    onError: (error: Error) => {
+      toast.error((error as any)?.response?.data?.message || 'Failed to add artist')
     },
   })
 }
@@ -177,14 +176,15 @@ export function useCreateOpportunityTask() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (data: any) => opportunityTasksApi.create(data).then(res => res.data),
+    mutationFn: (data: { opportunity: number; title: string; description?: string; task_type: string; assigned_to?: number; due_date?: string; priority?: string }) =>
+      opportunityTasksApi.create(data).then(res => res.data),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: opportunityKeys.tasks(data.opportunity) })
       queryClient.invalidateQueries({ queryKey: opportunityKeys.detail(data.opportunity) })
       toast.success('Task created')
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || 'Failed to create task')
+    onError: (error: Error) => {
+      toast.error((error as any)?.response?.data?.message || 'Failed to create task')
     },
   })
 }
@@ -197,14 +197,15 @@ export function useCreateOpportunityDeliverable() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (data: any) => opportunityDeliverablesApi.create(data).then(res => res.data),
+    mutationFn: (data: { opportunity: number; deliverable_type: string; quantity: number; description?: string; due_date?: string; status?: string }) =>
+      opportunityDeliverablesApi.create(data).then(res => res.data),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: opportunityKeys.deliverables(data.opportunity) })
       queryClient.invalidateQueries({ queryKey: opportunityKeys.detail(data.opportunity) })
       toast.success('Deliverable created')
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || 'Failed to create deliverable')
+    onError: (error: Error) => {
+      toast.error((error as any)?.response?.data?.message || 'Failed to create deliverable')
     },
   })
 }
@@ -220,40 +221,8 @@ export function useUpdateOpportunityDeliverable() {
       queryClient.invalidateQueries({ queryKey: opportunityKeys.detail(data.opportunity) })
       toast.success('Deliverable updated')
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || 'Failed to update deliverable')
-    },
-  })
-}
-
-// ============================================
-// USAGE TERMS MUTATIONS
-// ============================================
-
-export function useCreateUsageTerm() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (data: any) => usageTermsApi.create(data).then(res => res.data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['usage-terms'] })
-      toast.success('Usage terms created')
-    },
-  })
-}
-
-// ============================================
-// DELIVERABLE PACK MUTATIONS
-// ============================================
-
-export function useCreateDeliverablePack() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (data: any) => deliverablePacksApi.create(data).then(res => res.data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['deliverable-packs'] })
-      toast.success('Deliverable pack created')
+    onError: (error: Error) => {
+      toast.error((error as any)?.response?.data?.message || 'Failed to update deliverable')
     },
   })
 }
@@ -266,7 +235,8 @@ export function useCreateApproval() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (data: any) => approvalsApi.create(data).then(res => res.data),
+    mutationFn: (data: { opportunity: number; stage: string; version: number; status?: string; deliverable?: number | null; notes?: string; file_url?: string; submitted_at?: string }) =>
+      approvalsApi.create(data).then(res => res.data),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['approvals'] })
       queryClient.invalidateQueries({ queryKey: opportunityKeys.detail(data.opportunity) })
@@ -334,8 +304,8 @@ export function useLinkInvoice() {
       queryClient.invalidateQueries({ queryKey: opportunityKeys.detail(variables.opportunity) })
       toast.success('Invoice linked successfully')
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.error || 'Failed to link invoice')
+    onError: (error: Error) => {
+      toast.error((error as any)?.response?.data?.error || 'Failed to link invoice')
     },
   })
 }
@@ -348,14 +318,14 @@ export function useUnlinkInvoice() {
 
   return useMutation({
     mutationFn: ({ linkId, opportunityId }: { linkId: number; opportunityId: number }) =>
-      opportunityInvoicesApi.unlink(linkId),
+      opportunityInvoicesApi.unlink(opportunityId, linkId),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: opportunityInvoiceKeys.list(variables.opportunityId) })
       queryClient.invalidateQueries({ queryKey: opportunityKeys.detail(variables.opportunityId) })
       toast.success('Invoice unlinked')
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.error || 'Failed to unlink invoice')
+    onError: (error: Error) => {
+      toast.error((error as any)?.response?.data?.error || 'Failed to unlink invoice')
     },
   })
 }
@@ -368,13 +338,13 @@ export function useUpdateInvoiceLink() {
 
   return useMutation({
     mutationFn: ({ linkId, opportunityId, data }: { linkId: number; opportunityId: number; data: { invoice_type?: InvoiceType; is_primary?: boolean } }) =>
-      opportunityInvoicesApi.update(linkId, data).then(res => res.data),
+      opportunityInvoicesApi.update(opportunityId, linkId, data).then(res => res.data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: opportunityInvoiceKeys.list(variables.opportunityId) })
       toast.success('Invoice link updated')
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.error || 'Failed to update invoice link')
+    onError: (error: Error) => {
+      toast.error((error as any)?.response?.data?.error || 'Failed to update invoice link')
     },
   })
 }
@@ -396,8 +366,8 @@ export function useLinkContract() {
       queryClient.invalidateQueries({ queryKey: opportunityKeys.detail(variables.opportunity) })
       toast.success('Contract linked successfully')
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.error || 'Failed to link contract')
+    onError: (error: Error) => {
+      toast.error((error as any)?.response?.data?.error || 'Failed to link contract')
     },
   })
 }
@@ -416,8 +386,8 @@ export function useCreateAndLinkContract() {
       queryClient.invalidateQueries({ queryKey: ['contracts'] })
       toast.success('Contract created and linked')
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.error || 'Failed to create contract')
+    onError: (error: Error) => {
+      toast.error((error as any)?.response?.data?.error || 'Failed to create contract')
     },
   })
 }
@@ -430,14 +400,14 @@ export function useUnlinkContract() {
 
   return useMutation({
     mutationFn: ({ linkId, opportunityId }: { linkId: number; opportunityId: number }) =>
-      opportunityContractsApi.unlink(linkId),
+      opportunityContractsApi.unlink(opportunityId, linkId),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: opportunityContractKeys.list(variables.opportunityId) })
       queryClient.invalidateQueries({ queryKey: opportunityKeys.detail(variables.opportunityId) })
       toast.success('Contract unlinked')
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.error || 'Failed to unlink contract')
+    onError: (error: Error) => {
+      toast.error((error as any)?.response?.data?.error || 'Failed to unlink contract')
     },
   })
 }
@@ -450,13 +420,13 @@ export function useUpdateContractLink() {
 
   return useMutation({
     mutationFn: ({ linkId, opportunityId, data }: { linkId: number; opportunityId: number; data: { is_primary?: boolean } }) =>
-      opportunityContractsApi.update(linkId, data).then(res => res.data),
+      opportunityContractsApi.update(opportunityId, linkId, data).then(res => res.data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: opportunityContractKeys.list(variables.opportunityId) })
       toast.success('Contract link updated')
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.error || 'Failed to update contract link')
+    onError: (error: Error) => {
+      toast.error((error as any)?.response?.data?.error || 'Failed to update contract link')
     },
   })
 }
@@ -483,8 +453,8 @@ export function useCreateOpportunityAssignment() {
       queryClient.invalidateQueries({ queryKey: opportunityKeys.detail(variables.opportunityId) })
       toast.success('Team member added')
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.error || 'Failed to add team member')
+    onError: (error: Error) => {
+      toast.error((error as any)?.response?.data?.error || 'Failed to add team member')
     },
   })
 }
@@ -505,8 +475,87 @@ export function useDeleteOpportunityAssignment() {
       queryClient.invalidateQueries({ queryKey: opportunityKeys.detail(variables.opportunityId) })
       toast.success('Team member removed')
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.error || 'Failed to remove team member')
+    onError: (error: Error) => {
+      toast.error((error as any)?.response?.data?.error || 'Failed to remove team member')
+    },
+  })
+}
+
+// ============================================
+// ADDITIONAL MUTATIONS
+// ============================================
+
+// Update an opportunity artist
+export function useUpdateOpportunityArtist(opportunityId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { artistId: number; updates: Record<string, unknown> }) =>
+      opportunityArtistsApi.update(data.artistId, data.updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: opportunityKeys.detail(opportunityId) })
+    },
+    onError: () => {
+      toast.error('Failed to update artist')
+    },
+  })
+}
+
+// Delete an opportunity artist
+export function useDeleteOpportunityArtist(opportunityId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (artistId: number) => opportunityArtistsApi.delete(artistId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: opportunityKeys.detail(opportunityId) })
+      toast.success('Artist removed')
+    },
+    onError: () => {
+      toast.error('Failed to remove artist')
+    },
+  })
+}
+
+// Delete an opportunity deliverable
+export function useDeleteOpportunityDeliverable(opportunityId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (deliverableId: number) => opportunityDeliverablesApi.delete(deliverableId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: opportunityKeys.detail(opportunityId) })
+      toast.success('Deliverable removed')
+    },
+    onError: () => {
+      toast.error('Failed to remove deliverable')
+    },
+  })
+}
+
+// Update an approval
+export function useUpdateApproval(opportunityId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { approvalId: number; updates: Record<string, unknown> }) =>
+      approvalsApi.update(data.approvalId, data.updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: opportunityKeys.detail(opportunityId) })
+    },
+    onError: () => {
+      toast.error('Failed to update approval')
+    },
+  })
+}
+
+// Delete an approval
+export function useDeleteApproval(opportunityId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (approvalId: number) => approvalsApi.delete(approvalId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: opportunityKeys.detail(opportunityId) })
+      toast.success('Approval deleted')
+    },
+    onError: () => {
+      toast.error('Failed to delete approval')
     },
   })
 }

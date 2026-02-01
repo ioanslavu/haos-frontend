@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useMutation } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { Calendar as CalendarIcon, Loader2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
@@ -36,9 +35,9 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
-import apiClient from '@/api/client';
 import { useToast } from '@/hooks/use-toast';
 import { Publication } from '@/types/song';
+import { useUpdatePublication } from '@/api/hooks/useSongs';
 
 const editPublicationFormSchema = z.object({
   url: z.string().url('Must be a valid URL').optional().or(z.literal('')),
@@ -97,42 +96,41 @@ export function EditPublicationDialog({
     });
   }, [publication, form]);
 
-  const updatePublicationMutation = useMutation({
-    mutationFn: async (data: EditPublicationFormValues) => {
-      const payload = {
-        url: data.url || undefined,
-        status: data.status,
-        external_id: data.external_id || undefined,
-        territory: data.territory,
-        published_at: data.published_at ? data.published_at.toISOString() : null,
-        scheduled_for: data.scheduled_for ? data.scheduled_for.toISOString() : null,
-        is_monetized: data.is_monetized,
-        notes: data.notes || undefined,
-      };
-
-      return await apiClient.patch(`/api/v1/publications/${publication.id}/`, payload);
-    },
-    onSuccess: () => {
-      toast({
-        title: 'Success',
-        description: 'Publication updated successfully.',
-      });
-      onOpenChange(false);
-      onSuccess?.();
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Error',
-        description: error?.response?.data?.detail || 'Failed to update publication. Please try again.',
-        variant: 'destructive',
-      });
-    },
-  });
+  const updatePublicationMutation = useUpdatePublication();
 
   const onSubmit = async (data: EditPublicationFormValues) => {
     setIsSubmitting(true);
+    const payload = {
+      url: data.url || undefined,
+      status: data.status,
+      external_id: data.external_id || undefined,
+      territory: data.territory,
+      published_at: data.published_at ? data.published_at.toISOString() : null,
+      scheduled_for: data.scheduled_for ? data.scheduled_for.toISOString() : null,
+      is_monetized: data.is_monetized,
+      notes: data.notes || undefined,
+    };
     try {
-      await updatePublicationMutation.mutateAsync(data);
+      await updatePublicationMutation.mutateAsync(
+        { id: publication.id, data: payload as any },
+        {
+          onSuccess: () => {
+            toast({
+              title: 'Success',
+              description: 'Publication updated successfully.',
+            });
+            onOpenChange(false);
+            onSuccess?.();
+          },
+          onError: (error: any) => {
+            toast({
+              title: 'Error',
+              description: error?.response?.data?.detail || 'Failed to update publication. Please try again.',
+              variant: 'destructive',
+            });
+          },
+        }
+      );
     } finally {
       setIsSubmitting(false);
     }

@@ -28,8 +28,7 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { AddISWCDialog, AddCreditDialog, AddSplitDialog } from '@/components/songs';
-import { useQuery } from '@tanstack/react-query';
-import apiClient from '@/api/client';
+import { useSong } from '@/api/hooks/useSongs';
 
 export default function SongWorkDetail() {
   const { id: songIdParam } = useParams();
@@ -37,16 +36,7 @@ export default function SongWorkDetail() {
   const songId = parseInt(songIdParam || '0', 10);
 
   // Fetch song to get work ID
-  const { data: songData, isLoading: songLoading } = useQuery({
-    queryKey: ['song', songId],
-    queryFn: async () => {
-      const response = await apiClient.get(`/api/v1/songs/${songId}/`);
-      return response.data;
-    },
-    enabled: !!songId,
-  });
-
-  const song = songData?.data || songData;
+  const { data: song, isLoading: songLoading } = useSong(songId, !!songId);
   const workId = song?.work?.id;
 
   const { data: workDetails, isLoading: workLoading } = useWorkDetails(workId, { enabled: !!workId });

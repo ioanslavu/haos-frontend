@@ -26,10 +26,8 @@ import {
 } from '@/components/ui/form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { useWork, useUpdateWork } from '@/api/hooks/useSongs';
+import { useWork, useUpdateWork, useSong } from '@/api/hooks/useSongs';
 import { toast as sonnerToast } from 'sonner';
-import { useQuery } from '@tanstack/react-query';
-import apiClient from '@/api/client';
 
 // Form schema
 const workFormSchema = z.object({
@@ -55,16 +53,7 @@ export default function SongWorkEdit() {
   const [activeTab, setActiveTab] = useState('basic');
 
   // Fetch song to get work ID
-  const { data: songData, isLoading: songLoading } = useQuery({
-    queryKey: ['song', songId],
-    queryFn: async () => {
-      const response = await apiClient.get(`/api/v1/songs/${songId}/`);
-      return response.data;
-    },
-    enabled: !!songId,
-  });
-
-  const song = songData?.data || songData;
+  const { data: song, isLoading: songLoading } = useSong(songId, !!songId);
   const workId = song?.work?.id;
 
   const { data: work, isLoading: workLoading } = useWork(workId, !!workId);

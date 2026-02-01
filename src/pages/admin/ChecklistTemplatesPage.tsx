@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Edit, Copy, Trash2, CheckSquare, Settings2 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -36,7 +35,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { useForm } from 'react-hook-form';
 import { useToast } from '@/hooks/use-toast';
-import apiClient from '@/api/client';
+import { useChecklistTemplates, useCreateChecklistTemplate } from '@/api/hooks/useChecklistTemplates';
 
 interface ChecklistTemplate {
   id: number;
@@ -82,7 +81,6 @@ export default function ChecklistTemplatesPage() {
   const navigate = useNavigate();
   const [selectedStage, setSelectedStage] = useState<string>('all');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const form = useForm<CreateTemplateFormData>({
@@ -97,13 +95,7 @@ export default function ChecklistTemplatesPage() {
   });
 
   // Fetch templates
-  const { data: templatesData, isLoading } = useQuery({
-    queryKey: ['checklist-templates'],
-    queryFn: async () => {
-      const response = await apiClient.get('/api/v1/checklist-templates/');
-      return response.data;
-    },
-  });
+  const { data: templatesData, isLoading } = useChecklistTemplates();
 
   // Handle both paginated and non-paginated responses
   const templates = Array.isArray(templatesData)
@@ -111,33 +103,28 @@ export default function ChecklistTemplatesPage() {
     : templatesData?.results || [];
 
   // Create template mutation
-  const createMutation = useMutation({
-    mutationFn: async (data: CreateTemplateFormData) => {
-      const response = await apiClient.post('/api/v1/checklist-templates/', data);
-      return response.data;
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['checklist-templates'] });
-      setCreateDialogOpen(false);
-      form.reset();
-      toast({
-        title: 'Template created',
-        description: `"${data.name}" has been created successfully.`,
-      });
-      // Navigate to editor to add items
-      navigate(`/admin/checklist-templates/${data.id}`);
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Failed to create template',
-        description: error.response?.data?.detail || 'An error occurred',
-        variant: 'destructive',
-      });
-    },
-  });
+  const createMutation = useCreateChecklistTemplate();
 
   const onSubmit = (data: CreateTemplateFormData) => {
-    createMutation.mutate(data);
+    createMutation.mutate(data, {
+      onSuccess: (data) => {
+        setCreateDialogOpen(false);
+        form.reset();
+        toast({
+          title: 'Template created',
+          description: `"${data.name}" has been created successfully.`,
+        });
+        // Navigate to editor to add items
+        navigate(`/admin/checklist-templates/${data.id}`);
+      },
+      onError: (error: any) => {
+        toast({
+          title: 'Failed to create template',
+          description: error.response?.data?.detail || 'An error occurred',
+          variant: 'destructive',
+        });
+      },
+    });
   };
 
   // Group templates by stage

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { Calendar as CalendarIcon, Loader2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
@@ -35,8 +34,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import apiClient from '@/api/client';
 import { useToast } from '@/hooks/use-toast';
+import { useCreateRelease, useLinkRelease } from '@/api/hooks/useSongs';
 
 const releaseFormSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -66,7 +65,6 @@ export function CreateReleaseDialog({
   onSuccess,
 }: CreateReleaseDialogProps) {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<ReleaseFormValues>({
@@ -81,35 +79,24 @@ export function CreateReleaseDialog({
     },
   });
 
-  const createReleaseMutation = useMutation({
-    mutationFn: async (data: ReleaseFormValues) => {
-      // Step 1: Create the release
-      const releasePayload = {
-        title: data.title,
-        type: data.type,
-        upc: data.upc || undefined,
-        release_date: data.release_date ? format(data.release_date, 'yyyy-MM-dd') : undefined,
-        catalog_number: data.catalog_number || undefined,
-        label_name: data.label_name || undefined,
-        description: data.description || undefined,
-        status: 'draft',
-      };
+  const createReleaseMutation = useCreateRelease();
+  const linkReleaseMutation = useLinkRelease();
 
-      const releaseResponse = await apiClient.post('/api/v1/releases/', releasePayload);
-      const release = releaseResponse.data;
-
-      // Step 2: Link the release to the song
-      // The Song model has a M2M relationship with Release
-      // We need to use a custom endpoint or add the release directly
-      await apiClient.post(`/api/v1/songs/${songId}/add-release/`, {
-        release_id: release.id,
-      });
-
-      return release;
-    },
-    onSuccess: (release) => {
-      queryClient.invalidateQueries({ queryKey: ['song', songId] });
-      queryClient.invalidateQueries({ queryKey: ['release', release.id] });
+  const onSubmit = async (data: ReleaseFormValues) => {
+    setIsSubmitting(true);
+    const releasePayload = {
+      title: data.title,
+      type: data.type,
+      upc: data.upc || undefined,
+      release_date: data.release_date ? format(data.release_date, 'yyyy-MM-dd') : undefined,
+      catalog_number: data.catalog_number || undefined,
+      label_name: data.label_name || undefined,
+      description: data.description || undefined,
+      status: 'draft',
+    };
+    try {
+      const release = await createReleaseMutation.mutateAsync(releasePayload as any);
+      await linkReleaseMutation.mutateAsync({ songId, releaseId: release.id });
       toast({
         title: 'Success',
         description: 'Release created and linked to song successfully.',
@@ -117,20 +104,12 @@ export function CreateReleaseDialog({
       onOpenChange(false);
       form.reset();
       onSuccess?.();
-    },
-    onError: (error: any) => {
+    } catch (error: any) {
       toast({
         title: 'Error',
         description: error?.response?.data?.detail || 'Failed to create release. Please try again.',
         variant: 'destructive',
       });
-    },
-  });
-
-  const onSubmit = async (data: ReleaseFormValues) => {
-    setIsSubmitting(true);
-    try {
-      await createReleaseMutation.mutateAsync(data);
     } finally {
       setIsSubmitting(false);
     }

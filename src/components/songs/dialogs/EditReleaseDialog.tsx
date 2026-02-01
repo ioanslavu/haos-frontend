@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useMutation } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { Calendar as CalendarIcon, Loader2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
@@ -35,9 +34,9 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import apiClient from '@/api/client';
 import { useToast } from '@/hooks/use-toast';
 import { ReleaseDetails } from '@/types/song';
+import { useUpdateRelease } from '@/api/hooks/useSongs';
 
 const editReleaseFormSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -99,44 +98,42 @@ export function EditReleaseDialog({
     });
   }, [release, form]);
 
-  const updateReleaseMutation = useMutation({
-    mutationFn: async (data: EditReleaseFormValues) => {
-      const payload = {
-        title: data.title,
-        type: data.type,
-        status: data.status,
-        upc: data.upc || undefined,
-        release_date: data.release_date ? format(data.release_date, 'yyyy-MM-dd') : undefined,
-        catalog_number: data.catalog_number || undefined,
-        label_name: data.label_name || undefined,
-        description: data.description || undefined,
-        notes: data.notes || undefined,
-      };
-
-      const response = await apiClient.patch(`/api/v1/releases/${release.id}/`, payload);
-      return response.data;
-    },
-    onSuccess: () => {
-      toast({
-        title: 'Success',
-        description: 'Release details updated successfully.',
-      });
-      onOpenChange(false);
-      onSuccess?.();
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Error',
-        description: error?.response?.data?.detail || 'Failed to update release. Please try again.',
-        variant: 'destructive',
-      });
-    },
-  });
+  const updateReleaseMutation = useUpdateRelease();
 
   const onSubmit = async (data: EditReleaseFormValues) => {
     setIsSubmitting(true);
+    const payload = {
+      title: data.title,
+      type: data.type,
+      status: data.status,
+      upc: data.upc || undefined,
+      release_date: data.release_date ? format(data.release_date, 'yyyy-MM-dd') : undefined,
+      catalog_number: data.catalog_number || undefined,
+      label_name: data.label_name || undefined,
+      description: data.description || undefined,
+      notes: data.notes || undefined,
+    };
     try {
-      await updateReleaseMutation.mutateAsync(data);
+      await updateReleaseMutation.mutateAsync(
+        { id: release.id, data: payload as any },
+        {
+          onSuccess: () => {
+            toast({
+              title: 'Success',
+              description: 'Release details updated successfully.',
+            });
+            onOpenChange(false);
+            onSuccess?.();
+          },
+          onError: (error: any) => {
+            toast({
+              title: 'Error',
+              description: error?.response?.data?.detail || 'Failed to update release. Please try again.',
+              variant: 'destructive',
+            });
+          },
+        }
+      );
     } finally {
       setIsSubmitting(false);
     }

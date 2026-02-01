@@ -11,9 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import apiClient from '@/api/client';
 import { toast as sonnerToast } from 'sonner';
+import { useAddISRC as useAddISRCHook } from '@/api/hooks/useSongs';
 
 interface AddISRCDialogProps {
   recordingId: number;
@@ -22,18 +21,9 @@ interface AddISRCDialogProps {
 }
 
 export function AddISRCDialog({ recordingId, open, onOpenChange }: AddISRCDialogProps) {
-  const queryClient = useQueryClient();
   const [isrc, setIsrc] = useState('');
 
-  const addISRC = useMutation({
-    mutationFn: async ({ recordingId, isrc }: { recordingId: number; isrc: string }) => {
-      const response = await apiClient.post(`/api/v1/recordings/${recordingId}/add_isrc/`, { isrc });
-      return response.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['recording'] });
-    },
-  });
+  const addISRC = useAddISRCHook();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

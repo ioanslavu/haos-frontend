@@ -193,7 +193,7 @@ export default function OpportunityDetail() {
 
           {/* Contracts Tab */}
           <TabsContent value="contracts">
-            <OpportunityContractsSection opportunityId={opportunity.id} />
+            <OpportunityContractsSection opportunityId={opportunity.id} clientId={opportunity.client?.id} />
           </TabsContent>
 
           {/* Invoices Tab */}

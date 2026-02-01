@@ -80,10 +80,10 @@ const CONTRACT_TYPE_CONFIG: Record<string, { label: string }> = {
 
 interface OpportunityContractsSectionProps {
   opportunityId: number
-  accountId?: number
+  clientId?: number
 }
 
-export function OpportunityContractsSection({ opportunityId, accountId }: OpportunityContractsSectionProps) {
+export function OpportunityContractsSection({ opportunityId, clientId }: OpportunityContractsSectionProps) {
   const [showLinkModal, setShowLinkModal] = useState(false)
   const [unlinkingId, setUnlinkingId] = useState<number | null>(null)
 
@@ -239,7 +239,7 @@ export function OpportunityContractsSection({ opportunityId, accountId }: Opport
         open={showLinkModal}
         onOpenChange={setShowLinkModal}
         opportunityId={opportunityId}
-        accountId={accountId}
+        clientId={clientId}
       />
 
       {/* Unlink Confirmation */}
@@ -276,10 +276,10 @@ interface LinkContractModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   opportunityId: number
-  accountId?: number
+  clientId?: number
 }
 
-function LinkContractModal({ open, onOpenChange, opportunityId, accountId }: LinkContractModalProps) {
+function LinkContractModal({ open, onOpenChange, opportunityId, clientId }: LinkContractModalProps) {
   const [mode, setMode] = useState<'link' | 'create'>('link')
   const [selectedContract, setSelectedContract] = useState<number | null>(null)
   const [contractType, setContractType] = useState('sync_license')
@@ -301,12 +301,12 @@ function LinkContractModal({ open, onOpenChange, opportunityId, accountId }: Lin
   }
 
   const handleCreate = async () => {
-    if (!accountId) return
+    if (!clientId) return
 
     await createAndLinkMutation.mutateAsync({
       opportunity: opportunityId,
       contract_type: contractType,
-      entity: accountId,
+      entity: clientId,
       is_primary: isPrimary,
     })
 
@@ -382,9 +382,9 @@ function LinkContractModal({ open, onOpenChange, opportunityId, accountId }: Lin
           </TabsContent>
 
           <TabsContent value="create" className="space-y-4 py-4">
-            {!accountId ? (
+            {!clientId ? (
               <div className="text-center py-4 text-muted-foreground">
-                <p>Cannot create contract: No account associated with this opportunity</p>
+                <p>Cannot create contract: No client associated with this opportunity</p>
               </div>
             ) : (
               <>

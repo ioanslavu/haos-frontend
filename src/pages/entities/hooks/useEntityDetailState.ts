@@ -3,9 +3,16 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { toast as sonnerToast } from 'sonner';
 import { useEntityDetail as useEntityDetailQuery } from '@/api/hooks/useEntities';
 import { useArtistAnalyticsDetail, useClientAnalyticsDetail, useBrandAnalyticsDetail } from '@/api/hooks/useCampaigns';
+import { useContracts } from '@/api/hooks/useContracts';
 import { useAuthStore } from '@/stores/authStore';
-import apiClient from '@/api/client';
 import entitiesService from '@/api/services/entities.service';
+import {
+  useContractTemplates,
+  useContractDraft,
+  useSaveContractDraft,
+  usePreviewContractGeneration,
+  useGenerateContractWithTerms,
+} from '@/api/hooks/useContractGeneration';
 import {
   CommissionByYear,
   CommissionRates,
@@ -49,14 +56,13 @@ export function useEntityDetailState() {
 
   // Contract generation state
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [previewing, setPreviewing] = useState(false);
-  const [templates, setTemplates] = useState<Template[]>([]);
   const selectedTemplate = '2'; // Always use template ID 2 for artists
 
   // Contracts state
-  const [contracts, setContracts] = useState<any[]>([]);
-  const [contractsLoading, setContractsLoading] = useState(false);
+  const { data: contractsData, isLoading: contractsLoading } = useContracts(
+    activeTab === 'contracts' ? { counterparty_entity: Number(id) } : undefined
+  );
+  const contracts = contractsData?.results || contractsData || [];
 
   // Contract Terms
   const [contractTerms, setContractTerms] = useState<ContractTerms>(DEFAULT_CONTRACT_TERMS);
@@ -70,6 +76,14 @@ export function useEntityDetailState() {
   // Preview data
   const [previewData, setPreviewData] = useState<any>(null);
   const [missingPlaceholders, setMissingPlaceholders] = useState<string[]>([]);
+
+  // Contract generation hooks
+  const { data: templatesData } = useContractTemplates(showContractGeneration);
+  const templates = templatesData || [];
+  const { data: draftData } = useContractDraft(Number(id), showContractGeneration);
+  const saveDraftMutation = useSaveContractDraft();
+  const previewMutation = usePreviewContractGeneration();
+  const generateMutation = useGenerateContractWithTerms();
 
   // Fetch entity data
   const { data: entity, isLoading, error } = useEntityDetailQuery(Number(id));
@@ -88,67 +102,18 @@ export function useEntityDetailState() {
   const { data: clientAnalytics } = useClientAnalyticsDetail(Number(id), isClient && !!id);
   const { data: brandAnalytics } = useBrandAnalyticsDetail(Number(id), isBrand && !!id);
 
-  // Load templates and draft when contract generation is shown
+  // Load draft data when it arrives
   useEffect(() => {
-    if (showContractGeneration) {
-      loadTemplates();
-      loadDraft();
-    }
-  }, [showContractGeneration]);
-
-  // Fetch contracts when contracts tab is opened
-  useEffect(() => {
-    if (activeTab === 'contracts') {
-      fetchContracts();
-    }
-  }, [activeTab, id]);
-
-  const loadTemplates = async () => {
-    try {
-      const response = await apiClient.get('/api/v1/templates/');
-      setTemplates(response.data.results || response.data);
-    } catch (error) {
-      console.error('Failed to load templates:', error);
-      sonnerToast.error('Failed to load contract templates');
-    }
-  };
-
-  const loadDraft = async () => {
-    if (!id) return;
-    try {
-      const response = await apiClient.get('/api/v1/contracts/load_draft/', {
-        params: { entity_id: id },
-      });
-      if (response.data.draft_data) {
-        setContractTerms(response.data.draft_data.contract_terms || DEFAULT_CONTRACT_TERMS);
-        if (response.data.draft_data.commission_by_year) {
-          setCommissionByYear(response.data.draft_data.commission_by_year);
-        }
-        if (response.data.draft_data.enabled_rights) {
-          setEnabledRights(response.data.draft_data.enabled_rights);
-        }
-        sonnerToast.success('Draft loaded successfully');
+    if (draftData?.draft_data) {
+      setContractTerms(draftData.draft_data.contract_terms || DEFAULT_CONTRACT_TERMS);
+      if (draftData.draft_data.commission_by_year) {
+        setCommissionByYear(draftData.draft_data.commission_by_year);
       }
-    } catch (error) {
-      console.error('Failed to load draft:', error);
+      if (draftData.draft_data.enabled_rights) {
+        setEnabledRights(draftData.draft_data.enabled_rights);
+      }
     }
-  };
-
-  const fetchContracts = useCallback(async () => {
-    if (!id) return;
-    setContractsLoading(true);
-    try {
-      const response = await apiClient.get('/api/v1/contracts/', {
-        params: { counterparty_entity: id },
-      });
-      setContracts(response.data.results || response.data);
-    } catch (error) {
-      console.error('Failed to fetch contracts:', error);
-      sonnerToast.error('Failed to load contracts');
-    } finally {
-      setContractsLoading(false);
-    }
-  }, [id]);
+  }, [draftData]);
 
   // Update contract duration and adjust commission years
   const updateContractDuration = useCallback((newDuration: number) => {
@@ -331,55 +296,53 @@ export function useEntityDetailState() {
       sonnerToast.error('Entity not found');
       return;
     }
-    setSaving(true);
-    try {
-      await apiClient.post('/api/v1/contracts/save_draft/', {
-        entity_id: parseInt(id),
-        draft_data: {
-          contract_terms: contractTerms,
-          commission_by_year: commissionByYear,
-          enabled_rights: enabledRights,
-        },
-      });
-      sonnerToast.success('Draft saved successfully');
-    } catch (error) {
-      console.error('Failed to save draft:', error);
-      sonnerToast.error('Failed to save draft');
-    } finally {
-      setSaving(false);
-    }
-  }, [id, contractTerms, commissionByYear, enabledRights]);
+    saveDraftMutation.mutate({
+      entityId: parseInt(id),
+      draftData: {
+        contract_terms: contractTerms,
+        commission_by_year: commissionByYear,
+        enabled_rights: enabledRights,
+      },
+    }, {
+      onSuccess: () => {
+        sonnerToast.success('Draft saved successfully');
+      },
+      onError: (error) => {
+        console.error('Failed to save draft:', error);
+        sonnerToast.error('Failed to save draft');
+      },
+    });
+  }, [id, contractTerms, commissionByYear, enabledRights, saveDraftMutation]);
 
   const previewContract = useCallback(async () => {
     if (!id || !selectedTemplate) {
       sonnerToast.error('Missing required information');
       return;
     }
-    setPreviewing(true);
-    try {
-      const response = await apiClient.post('/api/v1/contracts/preview_generation/', {
-        entity_id: id,
-        template_id: selectedTemplate,
-        contract_terms: {
-          ...contractTerms,
-          commission_by_year: commissionByYear,
-          enabled_rights: enabledRights,
-        },
-      });
-      setPreviewData(response.data);
-      setMissingPlaceholders(response.data.missing_placeholders || []);
-      if (response.data.missing_placeholders?.length > 0) {
-        sonnerToast.warning(`${response.data.missing_placeholders.length} placeholders are missing values`);
-      } else {
-        sonnerToast.success('All placeholders have values!');
-      }
-    } catch (error) {
-      console.error('Failed to preview contract:', error);
-      sonnerToast.error('Failed to preview contract');
-    } finally {
-      setPreviewing(false);
-    }
-  }, [id, selectedTemplate, contractTerms, commissionByYear, enabledRights]);
+    previewMutation.mutate({
+      entityId: id,
+      templateId: selectedTemplate,
+      contractTerms: {
+        ...contractTerms,
+        commission_by_year: commissionByYear,
+        enabled_rights: enabledRights,
+      },
+    }, {
+      onSuccess: (data) => {
+        setPreviewData(data);
+        setMissingPlaceholders(data.missing_placeholders || []);
+        if (data.missing_placeholders?.length > 0) {
+          sonnerToast.warning(`${data.missing_placeholders.length} placeholders are missing values`);
+        } else {
+          sonnerToast.success('All placeholders have values!');
+        }
+      },
+      onError: (error) => {
+        console.error('Failed to preview contract:', error);
+        sonnerToast.error('Failed to preview contract');
+      },
+    });
+  }, [id, selectedTemplate, contractTerms, commissionByYear, enabledRights, previewMutation]);
 
   const generateContract = useCallback(async () => {
     if (!id || !selectedTemplate) {
@@ -391,39 +354,41 @@ export function useEntityDetailState() {
       if (!proceed) return;
     }
     setLoading(true);
-    try {
-      const formattedContractTerms = {
-        entity_id: parseInt(id),
-        contract_duration_years: parseInt(contractTerms.contract_duration_years),
-        notice_period_days: parseInt(contractTerms.notice_period_days),
-        auto_renewal: contractTerms.auto_renewal,
-        auto_renewal_years: parseInt(contractTerms.auto_renewal_years),
-        minimum_launches_per_year: parseInt(contractTerms.minimum_launches_per_year),
-        max_investment_per_song: parseFloat(contractTerms.max_investment_per_song),
-        max_investment_per_year: parseFloat(contractTerms.max_investment_per_year),
-        penalty_amount: parseFloat(contractTerms.penalty_amount),
-        currency: contractTerms.currency,
-        start_date: contractTerms.start_date,
-        special_terms: contractTerms.special_terms,
-        commission_by_year: commissionByYear,
-        enabled_rights: enabledRights,
-      };
-      await apiClient.post('/api/v1/contracts/generate_with_terms/', {
-        entity_id: parseInt(id),
-        template_id: parseInt(selectedTemplate),
-        contract_terms: formattedContractTerms,
-      });
-      sonnerToast.success('Contract generation started!');
-      setShowContractGeneration(false);
-      setActiveTab('contracts');
-      fetchContracts();
-    } catch (error) {
-      console.error('Failed to generate contract:', error);
-      sonnerToast.error('Failed to generate contract');
-    } finally {
-      setLoading(false);
-    }
-  }, [id, selectedTemplate, contractTerms, commissionByYear, enabledRights, missingPlaceholders, fetchContracts]);
+    const formattedContractTerms = {
+      entity_id: parseInt(id),
+      contract_duration_years: parseInt(contractTerms.contract_duration_years),
+      notice_period_days: parseInt(contractTerms.notice_period_days),
+      auto_renewal: contractTerms.auto_renewal,
+      auto_renewal_years: parseInt(contractTerms.auto_renewal_years),
+      minimum_launches_per_year: parseInt(contractTerms.minimum_launches_per_year),
+      max_investment_per_song: parseFloat(contractTerms.max_investment_per_song),
+      max_investment_per_year: parseFloat(contractTerms.max_investment_per_year),
+      penalty_amount: parseFloat(contractTerms.penalty_amount),
+      currency: contractTerms.currency,
+      start_date: contractTerms.start_date,
+      special_terms: contractTerms.special_terms,
+      commission_by_year: commissionByYear,
+      enabled_rights: enabledRights,
+    };
+    generateMutation.mutate({
+      entityId: parseInt(id),
+      templateId: parseInt(selectedTemplate),
+      contractTerms: formattedContractTerms,
+    }, {
+      onSuccess: () => {
+        sonnerToast.success('Contract generation started!');
+        setShowContractGeneration(false);
+        setActiveTab('contracts');
+        fetchContracts();
+        setLoading(false);
+      },
+      onError: (error) => {
+        console.error('Failed to generate contract:', error);
+        sonnerToast.error('Failed to generate contract');
+        setLoading(false);
+      },
+    });
+  }, [id, selectedTemplate, contractTerms, commissionByYear, enabledRights, missingPlaceholders, fetchContracts, generateMutation]);
 
   const handleGenerateContract = useCallback(() => {
     setShowContractGeneration(true);
@@ -504,8 +469,8 @@ export function useEntityDetailState() {
     showContractGeneration,
     setShowContractGeneration,
     loading,
-    saving,
-    previewing,
+    saving: saveDraftMutation.isPending,
+    previewing: previewMutation.isPending,
     templates,
     selectedTemplate,
     contracts,

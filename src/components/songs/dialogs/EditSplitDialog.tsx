@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useMutation } from '@tanstack/react-query';
 import {
   Dialog,
   DialogContent,
@@ -23,9 +22,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import apiClient from '@/api/client';
 import { useToast } from '@/hooks/use-toast';
 import { Split } from '@/types/song';
+import { useUpdateRecordingSplit, useDeleteRecordingSplit } from '@/api/hooks/useSongs';
 
 interface EditSplitDialogProps {
   split: Split;
@@ -47,64 +46,8 @@ export function EditSplitDialog({ split, open, onClose, onSuccess }: EditSplitDi
     setErrors({});
   }, [split]);
 
-  const updateMutation = useMutation({
-    mutationFn: async (data: { share: string; source: string }) => {
-      return apiClient.patch(`/api/v1/rights/splits/${split.id}/`, {
-        share: data.share,
-        source: data.source,
-      });
-    },
-    onSuccess: () => {
-      onSuccess();
-      toast({
-        title: 'Split Updated',
-        description: 'Split has been updated successfully.',
-      });
-    },
-    onError: (error: any) => {
-      const errorMessage = error.response?.data?.detail || 'Failed to update split';
-      toast({
-        title: 'Error',
-        description: errorMessage,
-        variant: 'destructive',
-      });
-
-      // Handle field-specific errors
-      if (error.response?.data) {
-        const fieldErrors: Record<string, string> = {};
-        Object.keys(error.response.data).forEach((key) => {
-          if (Array.isArray(error.response.data[key])) {
-            fieldErrors[key] = error.response.data[key][0];
-          } else {
-            fieldErrors[key] = error.response.data[key];
-          }
-        });
-        setErrors(fieldErrors);
-      }
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async () => {
-      return apiClient.delete(`/api/v1/rights/splits/${split.id}/`);
-    },
-    onSuccess: () => {
-      onSuccess();
-      setShowDeleteDialog(false);
-      toast({
-        title: 'Split Deleted',
-        description: 'Split has been removed successfully.',
-      });
-    },
-    onError: (error: any) => {
-      const errorMessage = error.response?.data?.detail || 'Failed to delete split';
-      toast({
-        title: 'Error',
-        description: errorMessage,
-        variant: 'destructive',
-      });
-    },
-  });
+  const updateSplitHook = useUpdateRecordingSplit();
+  const deleteSplitHook = useDeleteRecordingSplit();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,11 +70,60 @@ export function EditSplitDialog({ split, open, onClose, onSuccess }: EditSplitDi
       return;
     }
 
-    updateMutation.mutate({ share, source });
+    updateSplitHook.mutate(
+      { splitId: split.id, data: { share: parseFloat(share) as any, territory: undefined } },
+      {
+        onSuccess: () => {
+          onSuccess();
+          toast({
+            title: 'Split Updated',
+            description: 'Split has been updated successfully.',
+          });
+        },
+        onError: (error: any) => {
+          const errorMessage = error.response?.data?.detail || 'Failed to update split';
+          toast({
+            title: 'Error',
+            description: errorMessage,
+            variant: 'destructive',
+          });
+
+          // Handle field-specific errors
+          if (error.response?.data) {
+            const fieldErrors: Record<string, string> = {};
+            Object.keys(error.response.data).forEach((key) => {
+              if (Array.isArray(error.response.data[key])) {
+                fieldErrors[key] = error.response.data[key][0];
+              } else {
+                fieldErrors[key] = error.response.data[key];
+              }
+            });
+            setErrors(fieldErrors);
+          }
+        },
+      }
+    );
   };
 
   const handleDelete = () => {
-    deleteMutation.mutate();
+    deleteSplitHook.mutate(split.id, {
+      onSuccess: () => {
+        onSuccess();
+        setShowDeleteDialog(false);
+        toast({
+          title: 'Split Deleted',
+          description: 'Split has been removed successfully.',
+        });
+      },
+      onError: (error: any) => {
+        const errorMessage = error.response?.data?.detail || 'Failed to delete split';
+        toast({
+          title: 'Error',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+      },
+    });
   };
 
   return (
@@ -223,7 +215,7 @@ export function EditSplitDialog({ split, open, onClose, onSuccess }: EditSplitDi
                     variant="destructive"
                     size="sm"
                     onClick={() => setShowDeleteDialog(true)}
-                    disabled={updateMutation.isPending || deleteMutation.isPending}
+                    disabled={updateSplitHook.isPending || deleteSplitHook.isPending}
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
                     Delete
@@ -235,15 +227,15 @@ export function EditSplitDialog({ split, open, onClose, onSuccess }: EditSplitDi
                   type="button"
                   variant="outline"
                   onClick={onClose}
-                  disabled={updateMutation.isPending || deleteMutation.isPending}
+                  disabled={updateSplitHook.isPending || deleteSplitHook.isPending}
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
-                  disabled={split.is_locked || updateMutation.isPending || deleteMutation.isPending}
+                  disabled={split.is_locked || updateSplitHook.isPending || deleteSplitHook.isPending}
                 >
-                  {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {updateSplitHook.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Save Changes
                 </Button>
               </div>
@@ -263,13 +255,13 @@ export function EditSplitDialog({ split, open, onClose, onSuccess }: EditSplitDi
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteSplitHook.isPending}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
-              disabled={deleteMutation.isPending}
+              disabled={deleteSplitHook.isPending}
               className="bg-destructive hover:bg-destructive/90"
             >
-              {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {deleteSplitHook.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Delete Split
             </AlertDialogAction>
           </AlertDialogFooter>

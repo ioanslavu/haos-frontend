@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useMutation } from '@tanstack/react-query';
 import {
   Dialog,
   DialogContent,
@@ -13,9 +12,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2 } from 'lucide-react';
-import apiClient from '@/api/client';
 import { WorkWithSplits } from '@/types/song';
 import { useToast } from '@/hooks/use-toast';
+import { useUpdateWork } from '@/api/hooks/useSongs';
 
 interface EditWorkDialogProps {
   work: WorkWithSplits;
@@ -50,49 +49,53 @@ export function EditWorkDialog({ work, open, onClose, onSuccess }: EditWorkDialo
     });
   }, [work]);
 
-  const updateMutation = useMutation({
-    mutationFn: async (data: Partial<typeof formData>) => {
-      const payload: any = {
-        title: data.title,
-        language: data.language || null,
-        genre: data.genre || null,
-        sub_genre: data.sub_genre || null,
-        year_composed: data.year_composed ? parseInt(data.year_composed) : null,
-        notes: data.notes || null,
-      };
+  const updateMutation = useUpdateWork();
 
-      // Only include ISWC if changed
-      if (data.iswc && data.iswc !== work.iswc) {
-        payload.iswc = data.iswc;
-      }
+  const handleMutate = (data: Partial<typeof formData>) => {
+    const payload: any = {
+      title: data.title,
+      language: data.language || null,
+      genre: data.genre || null,
+      sub_genre: data.sub_genre || null,
+      year_composed: data.year_composed ? parseInt(data.year_composed) : null,
+      notes: data.notes || null,
+    };
 
-      return apiClient.patch(`/api/v1/works/${work.id}/`, payload).then(res => res.data);
-    },
-    onSuccess: () => {
-      onSuccess();
-    },
-    onError: (error: any) => {
-      const errorMessage = error.response?.data?.detail || 'Failed to update work';
-      toast({
-        title: 'Error',
-        description: errorMessage,
-        variant: 'destructive',
-      });
+    // Only include ISWC if changed
+    if (data.iswc && data.iswc !== work.iswc) {
+      payload.iswc = data.iswc;
+    }
 
-      // Handle field-specific errors
-      if (error.response?.data) {
-        const fieldErrors: Record<string, string> = {};
-        Object.keys(error.response.data).forEach((key) => {
-          if (Array.isArray(error.response.data[key])) {
-            fieldErrors[key] = error.response.data[key][0];
-          } else {
-            fieldErrors[key] = error.response.data[key];
+    updateMutation.mutate(
+      { id: work.id, payload },
+      {
+        onSuccess: () => {
+          onSuccess();
+        },
+        onError: (error: any) => {
+          const errorMessage = error.response?.data?.detail || 'Failed to update work';
+          toast({
+            title: 'Error',
+            description: errorMessage,
+            variant: 'destructive',
+          });
+
+          // Handle field-specific errors
+          if (error.response?.data) {
+            const fieldErrors: Record<string, string> = {};
+            Object.keys(error.response.data).forEach((key) => {
+              if (Array.isArray(error.response.data[key])) {
+                fieldErrors[key] = error.response.data[key][0];
+              } else {
+                fieldErrors[key] = error.response.data[key];
+              }
+            });
+            setErrors(fieldErrors);
           }
-        });
-        setErrors(fieldErrors);
+        },
       }
-    },
-  });
+    );
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,7 +120,7 @@ export function EditWorkDialog({ work, open, onClose, onSuccess }: EditWorkDialo
       return;
     }
 
-    updateMutation.mutate(formData);
+    handleMutate(formData);
   };
 
   return (

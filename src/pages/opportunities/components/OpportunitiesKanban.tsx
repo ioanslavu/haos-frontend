@@ -42,13 +42,13 @@ import { STAGE_CONFIG, KANBAN_STAGES, PRIORITY_CONFIG } from '@/types/opportunit
 interface OpportunitiesKanbanProps {
   opportunities: Opportunity[]
   onOpportunityClick: (id: number) => void
-  onAccountClick: (accountId: number) => void
+  onClientClick: (clientId: number) => void
 }
 
 export function OpportunitiesKanban({
   opportunities,
   onOpportunityClick,
-  onAccountClick,
+  onClientClick,
 }: OpportunitiesKanbanProps) {
   const [activeId, setActiveId] = useState<number | null>(null)
   const advanceStageMutation = useAdvanceStage()
@@ -169,7 +169,7 @@ export function OpportunitiesKanban({
                 count={totals?.count || 0}
                 totalValue={totals?.value || 0}
                 onOpportunityClick={onOpportunityClick}
-                onAccountClick={onAccountClick}
+                onClientClick={onClientClick}
               />
             )
           })}
@@ -180,7 +180,7 @@ export function OpportunitiesKanban({
             <OpportunityCard
               opportunity={activeOpportunity}
               onOpportunityClick={() => {}}
-              onAccountClick={() => {}}
+              onClientClick={() => {}}
               isDragging
             />
           )}
@@ -199,7 +199,7 @@ export function OpportunitiesKanban({
                 key={opp.id}
                 opportunity={opp}
                 onOpportunityClick={onOpportunityClick}
-                onAccountClick={onAccountClick}
+                onClientClick={onClientClick}
                 compact
               />
             ))}
@@ -218,7 +218,7 @@ interface KanbanColumnProps {
   count: number
   totalValue: number
   onOpportunityClick: (id: number) => void
-  onAccountClick: (accountId: number) => void
+  onClientClick: (clientId: number) => void
 }
 
 function KanbanColumn({
@@ -228,7 +228,7 @@ function KanbanColumn({
   count,
   totalValue,
   onOpportunityClick,
-  onAccountClick,
+  onClientClick,
 }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useSortable({
     id: stage,
@@ -273,7 +273,7 @@ function KanbanColumn({
                 key={opp.id}
                 opportunity={opp}
                 onOpportunityClick={onOpportunityClick}
-                onAccountClick={onAccountClick}
+                onClientClick={onClientClick}
               />
             ))}
           </div>
@@ -287,13 +287,13 @@ function KanbanColumn({
 interface DraggableOpportunityCardProps {
   opportunity: Opportunity
   onOpportunityClick: (id: number) => void
-  onAccountClick: (accountId: number) => void
+  onClientClick: (clientId: number) => void
 }
 
 function DraggableOpportunityCard({
   opportunity,
   onOpportunityClick,
-  onAccountClick,
+  onClientClick,
 }: DraggableOpportunityCardProps) {
   const {
     attributes,
@@ -317,7 +317,7 @@ function DraggableOpportunityCard({
       <OpportunityCard
         opportunity={opportunity}
         onOpportunityClick={onOpportunityClick}
-        onAccountClick={onAccountClick}
+        onClientClick={onClientClick}
         isDragging={isDragging}
       />
     </div>
@@ -328,7 +328,7 @@ function DraggableOpportunityCard({
 interface OpportunityCardProps {
   opportunity: Opportunity
   onOpportunityClick: (id: number) => void
-  onAccountClick: (accountId: number) => void
+  onClientClick: (clientId: number) => void
   isDragging?: boolean
   compact?: boolean
 }
@@ -336,7 +336,7 @@ interface OpportunityCardProps {
 function OpportunityCard({
   opportunity,
   onOpportunityClick,
-  onAccountClick,
+  onClientClick,
   isDragging,
   compact,
 }: OpportunityCardProps) {
@@ -382,16 +382,16 @@ function OpportunityCard({
         className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mb-2"
         onClick={(e) => {
           e.stopPropagation()
-          if (opportunity.account?.id) onAccountClick(opportunity.account.id)
+          if (opportunity.client?.id) onClientClick(opportunity.client.id)
         }}
       >
         <Avatar className="h-4 w-4">
           <AvatarFallback className="text-[8px] bg-muted">
-            {opportunity.account?.display_name?.charAt(0)?.toUpperCase() || '?'}
+            {opportunity.client?.display_name?.charAt(0)?.toUpperCase() || '?'}
           </AvatarFallback>
         </Avatar>
         <span className="truncate max-w-[180px]">
-          {opportunity.account?.display_name || 'Unknown'}
+          {opportunity.client?.display_name || 'Unknown'}
         </span>
       </button>
 

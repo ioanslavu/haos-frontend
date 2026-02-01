@@ -140,35 +140,21 @@ export function OpportunityOverviewTab({
                 </PopoverContent>
               </Popover>
             </div>
-            {/* Territory */}
-            {opportunity.territory && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Territory</span>
-                <span className="text-sm">{opportunity.territory}</span>
-              </div>
-            )}
-            {/* Usage Terms */}
-            {opportunity.usage_terms && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Usage Terms</span>
-                <span className="text-sm">{opportunity.usage_terms.name}</span>
-              </div>
-            )}
           </CardContent>
         </Card>
 
-        {/* Description Card */}
+        {/* Campaign Objectives Card */}
         <Card className="rounded-xl border-white/10 bg-background/50 backdrop-blur-sm">
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Description</CardTitle>
+            <CardTitle className="text-sm font-medium">Campaign Objectives</CardTitle>
           </CardHeader>
           <CardContent>
-            {opportunity.description ? (
+            {opportunity.campaign_objectives ? (
               <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                {opportunity.description}
+                {opportunity.campaign_objectives}
               </p>
             ) : (
-              <p className="text-sm text-muted-foreground/50 italic">No description provided</p>
+              <p className="text-sm text-muted-foreground/50 italic">No objectives provided</p>
             )}
           </CardContent>
         </Card>
@@ -177,8 +163,9 @@ export function OpportunityOverviewTab({
       {/* Team Assignments */}
       <OpportunityAssignmentSection
         opportunityId={opportunity.id}
-        ownerId={opportunity.owner.id}
-        ownerName={opportunity.owner.full_name}
+        assignments={opportunity.assignments || []}
+        createdBy={opportunity.created_by?.id}
+        isLoading={isLoading}
       />
 
       {/* Notes with Autosave */}

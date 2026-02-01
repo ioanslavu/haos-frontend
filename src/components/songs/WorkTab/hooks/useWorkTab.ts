@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { useSplitsByObject, useDeleteCredit, useCreditsByObject } from '@/api/hooks/useRights'
 import { fetchSongWork, createWorkInSongContext } from '@/api/songApi'
-import apiClient from '@/api/client'
+import { useUpdateWork } from '@/api/hooks/useSongs'
 import { toast as sonnerToast } from 'sonner'
 import type { Song } from '@/types/song'
 
@@ -78,6 +78,7 @@ export function useWorkTab(song: Song) {
 
   // Mutations
   const deleteCredit = useDeleteCredit()
+  const updateWork = useUpdateWork()
 
   // Form
   const form = useForm<WorkFormValues>({
@@ -176,10 +177,8 @@ export function useWorkTab(song: Song) {
         queryClient.invalidateQueries({ queryKey: ['song-work', songId] })
         setViewMode('details')
       } else if (viewMode === 'edit' && workId) {
-        await apiClient.patch(`/api/v1/works/${workId}/`, payload)
+        await updateWork.mutateAsync({ id: workId, payload })
         sonnerToast.success('Work updated successfully')
-        queryClient.invalidateQueries({ queryKey: ['song', song.id] })
-        queryClient.invalidateQueries({ queryKey: ['song-work', songId] })
         setViewMode('details')
       }
     } catch (error: any) {

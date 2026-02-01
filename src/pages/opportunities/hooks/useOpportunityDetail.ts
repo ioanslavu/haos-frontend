@@ -175,19 +175,14 @@ export function useOpportunityDetail() {
   }
 
   const handleMarkWon = async () => {
-    if (confirm('Mark this opportunity as Won?')) {
-      await markWonMutation.mutateAsync(opportunityId)
-    }
+    await markWonMutation.mutateAsync(opportunityId)
   }
 
-  const handleMarkLost = async () => {
-    const reason = prompt('Why was this opportunity lost?')
-    if (reason) {
-      await markLostMutation.mutateAsync({
-        id: opportunityId,
-        data: { lost_reason: reason },
-      })
-    }
+  const handleMarkLost = async (reason: string) => {
+    await markLostMutation.mutateAsync({
+      id: opportunityId,
+      data: { lost_reason: reason },
+    })
   }
 
   const handleDelete = async () => {

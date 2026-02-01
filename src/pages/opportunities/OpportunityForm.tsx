@@ -18,7 +18,6 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-  FormDescription,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -30,7 +29,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { EntitySearchCombobox } from '@/components/entities/EntitySearchCombobox';
-import { useCreateOpportunity, useUpdateOpportunity, useOpportunity, useUsageTerms, useDeliverablePacks } from '@/api/hooks/useOpportunities';
+import { useCreateOpportunity, useUpdateOpportunity, useOpportunity } from '@/api/hooks/useOpportunities';
 import { useAuthStore } from '@/stores/authStore';
 import { useDepartmentUsers } from '@/api/hooks/useUsers';
 import { useContactPersons } from '@/api/hooks/useEntities';
@@ -42,7 +41,7 @@ const opportunityFormSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   stage: z.string().optional(),
   priority: z.string().optional(),
-  account: z.number({ required_error: 'Account is required' }),
+  client: z.number({ required_error: 'Client is required' }),
   contact_person: z.number().optional().nullable(),
   owner: z.number({ required_error: 'Owner is required' }),
   team: z.number().optional().nullable(),
@@ -58,10 +57,6 @@ const opportunityFormSchema = z.object({
   budget_range_max: z.string().optional().nullable(),
   campaign_start_date: z.string().optional().nullable(),
   campaign_end_date: z.string().optional().nullable(),
-
-  // Execution fields
-  usage_terms: z.number().optional().nullable(),
-  deliverable_pack: z.number().optional().nullable(),
 
   notes: z.string().optional(),
 });
@@ -96,8 +91,6 @@ export default function OpportunityForm() {
   const { user } = useAuthStore();
   const { data: opportunity, isLoading } = useOpportunity(opportunityId);
   const { data: departmentUsers } = useDepartmentUsers(user?.department?.id);
-  const { data: usageTermsList } = useUsageTerms({ is_template: true });
-  const { data: deliverablePacksList } = useDeliverablePacks({ is_active: true });
   const createMutation = useCreateOpportunity();
   const updateMutation = useUpdateOpportunity();
 
@@ -107,7 +100,7 @@ export default function OpportunityForm() {
       title: '',
       stage: 'brief',
       priority: 'medium',
-      account: undefined,
+      client: undefined,
       contact_person: null,
       owner: user?.id || undefined,
       team: user?.department?.id || null,
@@ -121,15 +114,13 @@ export default function OpportunityForm() {
       budget_range_max: '',
       campaign_start_date: '',
       campaign_end_date: '',
-      usage_terms: null,
-      deliverable_pack: null,
       notes: '',
     },
   });
 
-  // Watch account field to load contact persons
-  const selectedAccountId = form.watch('account');
-  const { data: contactPersons } = useContactPersons(selectedAccountId, !!selectedAccountId);
+  // Watch client field to load contact persons
+  const selectedClientId = form.watch('client');
+  const { data: contactPersons } = useContactPersons(selectedClientId, !!selectedClientId);
 
   // Load opportunity data for editing
   useEffect(() => {
@@ -138,7 +129,7 @@ export default function OpportunityForm() {
         title: opportunity.title,
         stage: opportunity.stage,
         priority: opportunity.priority,
-        account: opportunity.account.id,
+        client: opportunity.client.id,
         contact_person: opportunity.contact_person?.id || null,
         owner: opportunity.owner.id,
         team: opportunity.team?.id || null,
@@ -152,8 +143,6 @@ export default function OpportunityForm() {
         budget_range_max: opportunity.budget_range_max || '',
         campaign_start_date: opportunity.campaign_start_date || '',
         campaign_end_date: opportunity.campaign_end_date || '',
-        usage_terms: opportunity.usage_terms || null,
-        deliverable_pack: opportunity.deliverable_pack || null,
         notes: opportunity.notes || '',
       });
     }
@@ -279,19 +268,19 @@ export default function OpportunityForm() {
 
                 <FormField
                   control={form.control}
-                  name="account"
+                  name="client"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Account *</FormLabel>
+                      <FormLabel>Client *</FormLabel>
                       <FormControl>
                         <EntitySearchCombobox
                           value={field.value}
                           onChange={(value) => {
                             field.onChange(value);
-                            // Reset contact person when account changes
+                            // Reset contact person when client changes
                             form.setValue('contact_person', null);
                           }}
-                          placeholder="Search accounts..."
+                          placeholder="Search clients..."
                           entityType="brand"
                         />
                       </FormControl>
@@ -309,11 +298,11 @@ export default function OpportunityForm() {
                       <Select
                         onValueChange={(val) => field.onChange(Number(val))}
                         value={field.value?.toString() || undefined}
-                        disabled={!selectedAccountId}
+                        disabled={!selectedClientId}
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder={selectedAccountId ? "Select contact person (optional)" : "Select account first"} />
+                            <SelectValue placeholder={selectedClientId ? "Select contact person (optional)" : "Select client first"} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -530,78 +519,6 @@ export default function OpportunityForm() {
                         <FormControl>
                           <Input type="date" {...field} value={field.value || ''} />
                         </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Execution Details */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Execution Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="usage_terms"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Usage Terms Template</FormLabel>
-                        <Select
-                          onValueChange={(val) => field.onChange(val ? Number(val) : null)}
-                          value={field.value?.toString() || undefined}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select usage terms (optional)" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {usageTermsList?.results?.map((term) => (
-                              <SelectItem key={term.id} value={term.id.toString()}>
-                                {term.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>
-                          Pre-defined usage rights and restrictions
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="deliverable_pack"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Deliverable Pack</FormLabel>
-                        <Select
-                          onValueChange={(val) => field.onChange(val ? Number(val) : null)}
-                          value={field.value?.toString() || undefined}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select deliverable pack (optional)" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {deliverablePacksList?.results?.map((pack) => (
-                              <SelectItem key={pack.id} value={pack.id.toString()}>
-                                {pack.name} ({pack.items?.length || 0} items)
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>
-                          Auto-populate deliverables from a template
-                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}

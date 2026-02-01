@@ -1,5 +1,4 @@
 import { useState, useRef } from 'react';
-import { useMutation } from '@tanstack/react-query';
 import { Loader2, Upload, FileAudio, CheckCircle2, AlertCircle } from 'lucide-react';
 import {
   Dialog,
@@ -21,8 +20,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import apiClient from '@/api/client';
 import { cn } from '@/lib/utils';
+import { useUploadRecordingAsset } from '@/api/hooks/useSongs';
 
 interface AudioUploadDialogProps {
   recordingId: number;
@@ -76,53 +75,7 @@ export function AudioUploadDialog({
     notes: '',
   });
 
-  const uploadMutation = useMutation({
-    mutationFn: async (data: AssetUpload) => {
-      if (!data.file) throw new Error('No file selected');
-
-      const formDataToSend = new FormData();
-      formDataToSend.append('file', data.file);
-      formDataToSend.append('recording', recordingId.toString());
-      formDataToSend.append('kind', data.kind);
-      formDataToSend.append('is_master', data.is_master.toString());
-      formDataToSend.append('is_public', data.is_public.toString());
-      if (data.notes) {
-        formDataToSend.append('notes', data.notes);
-      }
-
-      return apiClient.post(
-        '/api/v1/catalog/recording-assets/',
-        formDataToSend,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-          onUploadProgress: (progressEvent) => {
-            if (progressEvent.total) {
-              const progress = Math.round(
-                (progressEvent.loaded * 100) / progressEvent.total
-              );
-              setUploadProgress(progress);
-            }
-          },
-        }
-      );
-    },
-    onSuccess: () => {
-      onSuccess();
-      setFormData({
-        file: null,
-        kind: 'audio',
-        is_master: false,
-        is_public: false,
-        notes: '',
-      });
-      setUploadProgress(0);
-    },
-    onError: () => {
-      setUploadProgress(0);
-    },
-  });
+  const uploadMutation = useUploadRecordingAsset();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -139,7 +92,34 @@ export function AudioUploadDialog({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.file) {
-      uploadMutation.mutate(formData);
+      uploadMutation.mutate(
+        {
+          recordingId,
+          file: formData.file,
+          metadata: {
+            kind: formData.kind,
+            is_master: formData.is_master,
+            is_public: formData.is_public,
+            notes: formData.notes,
+          },
+        },
+        {
+          onSuccess: () => {
+            onSuccess();
+            setFormData({
+              file: null,
+              kind: 'audio',
+              is_master: false,
+              is_public: false,
+              notes: '',
+            });
+            setUploadProgress(0);
+          },
+          onError: () => {
+            setUploadProgress(0);
+          },
+        }
+      );
     }
   };
 

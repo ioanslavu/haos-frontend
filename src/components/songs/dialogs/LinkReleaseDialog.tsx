@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Disc3, Search, Loader2, Check, ChevronsUpDown, ExternalLink, Calendar } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -8,9 +7,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { addReleaseToSong } from '@/api/songApi';
 import { cn } from '@/lib/utils';
-import apiClient from '@/api/client';
+import { useSearchReleases, useLinkRelease } from '@/api/hooks/useSongs';
 
 interface LinkReleaseDialogProps {
   open: boolean;
@@ -30,46 +28,15 @@ interface Release {
 
 export function LinkReleaseDialog({ open, onOpenChange, songId, onSuccess }: LinkReleaseDialogProps) {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRelease, setSelectedRelease] = useState<Release | null>(null);
   const [comboOpen, setComboOpen] = useState(false);
 
   // Search releases
-  const { data: releasesData, isLoading: releasesLoading } = useQuery({
-    queryKey: ['releases-search', searchQuery],
-    queryFn: async () => {
-      if (!searchQuery || searchQuery.length < 2) return { data: { results: [] } };
-      const response = await apiClient.get('/api/v1/releases/', {
-        params: { search: searchQuery, page_size: 20 },
-      });
-      return response.data;
-    },
-    enabled: searchQuery.length >= 2,
-  });
-
-  const releases = releasesData?.results || [];
+  const { data: releases = [], isLoading: releasesLoading } = useSearchReleases(searchQuery);
 
   // Link release mutation
-  const linkMutation = useMutation({
-    mutationFn: () => addReleaseToSong(songId, selectedRelease!.id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['song', songId] });
-      toast({
-        title: 'Release Linked',
-        description: `"${selectedRelease?.title}" has been linked to this song.`,
-      });
-      onSuccess();
-      handleClose();
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Error',
-        description: error.response?.data?.error || 'Failed to link release. Please try again.',
-        variant: 'destructive',
-      });
-    },
-  });
+  const linkMutation = useLinkRelease();
 
   const handleClose = () => {
     setSelectedRelease(null);
@@ -87,7 +54,26 @@ export function LinkReleaseDialog({ open, onOpenChange, songId, onSuccess }: Lin
       });
       return;
     }
-    linkMutation.mutate();
+    linkMutation.mutate(
+      { songId, releaseId: selectedRelease.id },
+      {
+        onSuccess: () => {
+          toast({
+            title: 'Release Linked',
+            description: `"${selectedRelease?.title}" has been linked to this song.`,
+          });
+          onSuccess();
+          handleClose();
+        },
+        onError: (error: any) => {
+          toast({
+            title: 'Error',
+            description: error.response?.data?.error || 'Failed to link release. Please try again.',
+            variant: 'destructive',
+          });
+        },
+      }
+    );
   };
 
   return (

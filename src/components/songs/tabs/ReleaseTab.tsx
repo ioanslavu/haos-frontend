@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { Plus, Edit, ExternalLink, AlertCircle, CheckCircle2, Clock, TrendingUp, Disc3 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,9 +15,9 @@ import { AddPlatformDialog } from '../dialogs/AddPlatformDialog';
 import { EditPublicationDialog } from '../dialogs/EditPublicationDialog';
 import { DistributionChecklist } from '../shared/DistributionChecklist';
 import { LinkReleaseDialog } from '../dialogs/LinkReleaseDialog';
-import apiClient from '@/api/client';
 import { fetchReleasePublications } from '@/api/songApi';
 import { useAuthStore } from '@/stores/authStore';
+import { useReleaseDetail } from '@/api/hooks/useSongs';
 import { useToast } from '@/hooks/use-toast';
 import { Publication, ReleaseDetails } from '@/types/song';
 import { format, addDays } from 'date-fns';
@@ -38,14 +38,7 @@ export function ReleaseTab({ songId, releaseId, onCreateRelease }: ReleaseTabPro
   const [showLinkReleaseDialog, setShowLinkReleaseDialog] = useState(false);
 
   // Query release details
-  const { data: releaseData, isLoading: releaseLoading } = useQuery({
-    queryKey: ['release', releaseId],
-    queryFn: async () => {
-      const response = await apiClient.get(`/api/v1/releases/${releaseId}/`);
-      return response.data;
-    },
-    enabled: !!releaseId,
-  });
+  const { data: releaseData, isLoading: releaseLoading } = useReleaseDetail(releaseId || 0, !!releaseId);
 
   // Query publications
   const { data: publicationsData, isLoading: publicationsLoading } = useQuery({

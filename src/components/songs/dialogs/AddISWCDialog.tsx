@@ -11,9 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import apiClient from '@/api/client';
 import { toast as sonnerToast } from 'sonner';
+import { useAddISWC as useAddISWCHook } from '@/api/hooks/useSongs';
 
 interface AddISWCDialogProps {
   workId: number;
@@ -22,18 +21,9 @@ interface AddISWCDialogProps {
 }
 
 export function AddISWCDialog({ workId, open, onOpenChange }: AddISWCDialogProps) {
-  const queryClient = useQueryClient();
   const [iswc, setIswc] = useState('');
 
-  const addISWC = useMutation({
-    mutationFn: async ({ workId, iswc }: { workId: number; iswc: string }) => {
-      const response = await apiClient.post(`/api/v1/works/${workId}/add_iswc/`, { iswc });
-      return response.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['song-work'] });
-    },
-  });
+  const addISWC = useAddISWCHook();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

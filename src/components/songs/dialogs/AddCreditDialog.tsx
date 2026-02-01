@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
 import { Loader2, Search } from 'lucide-react';
 import {
   Dialog,
@@ -19,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import apiClient from '@/api/client';
+import { useSearchEntities, useAddRecordingCredit } from '@/api/hooks/useSongs';
 
 interface AddCreditDialogProps {
   recordingId: number;
@@ -58,35 +57,29 @@ export function AddCreditDialog({
   });
 
   // Search entities
-  const { data: entitiesData, isLoading: searchLoading } = useQuery({
-    queryKey: ['entities-search', searchTerm],
-    queryFn: () =>
-      apiClient.get<{ results: Entity[] }>('/api/v1/entities/', {
-        params: { search: searchTerm, page_size: 20 },
-      }),
-    enabled: searchTerm.length > 1,
-  });
+  const { data: entitiesData, isLoading: searchLoading } = useSearchEntities(searchTerm);
 
-  const entities = entitiesData?.data?.results || [];
+  const entities = (entitiesData || []) as Entity[];
 
-  const createMutation = useMutation({
-    mutationFn: (data: CreditCreate) =>
-      apiClient.post('/api/v1/rights/credits/', {
-        ...data,
-        scope: 'recording',
-        object_id: recordingId,
-      }),
-    onSuccess: () => {
-      onSuccess();
-      setFormData({ entity: 0, role: '' });
-      setSearchTerm('');
-    },
-  });
+  const createMutation = useAddRecordingCredit();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.entity && formData.role) {
-      createMutation.mutate(formData);
+      createMutation.mutate(
+        {
+          recording_id: recordingId,
+          entity_id: formData.entity,
+          role: formData.role,
+        },
+        {
+          onSuccess: () => {
+            onSuccess();
+            setFormData({ entity: 0, role: '' });
+            setSearchTerm('');
+          },
+        }
+      );
     }
   };
 

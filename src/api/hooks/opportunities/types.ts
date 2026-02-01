@@ -12,14 +12,10 @@ export type {
   MarkLostInput,
   OpportunityDeliverable,
   OpportunityAssignmentRole,
-} from '@/types/opportunities'
-
-// Re-export from service
-export type {
   OpportunityInvoiceLink,
   OpportunityContractLink,
   LinkInvoiceInput,
   LinkContractInput,
   CreateAndLinkContractInput,
   InvoiceType,
-} from '../../services/opportunities.service'
+} from '@/types/opportunities'

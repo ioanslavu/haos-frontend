@@ -35,12 +35,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { opportunityArtistsApi } from '@/api/services/opportunities.service'
-import { useQueryClient } from '@tanstack/react-query'
-import { opportunityKeys } from '@/api/hooks/useOpportunities'
+import { useUpdateOpportunityArtist, useDeleteOpportunityArtist } from '@/api/hooks/opportunities/useOpportunityMutations'
 import { cn, formatMoney } from '@/lib/utils'
-import { toast } from 'sonner'
-import type { ArtistRole, ContractStatus } from '@/types/opportunities'
+import type { ArtistRole, ArtistContractStatus } from '@/types/opportunities'
 
 // Artist role labels
 const ARTIST_ROLE_LABELS: Record<ArtistRole, string> = {
@@ -59,11 +56,11 @@ const ROLE_OPTIONS: { value: ArtistRole; label: string }[] = [
 ]
 
 // Contract status options
-const CONTRACT_STATUS_OPTIONS: { value: ContractStatus; label: string }[] = [
+const CONTRACT_STATUS_OPTIONS: { value: ArtistContractStatus; label: string }[] = [
   { value: 'pending', label: 'Pending' },
   { value: 'sent', label: 'Sent' },
   { value: 'signed', label: 'Signed' },
-  { value: 'declined', label: 'Declined' },
+  { value: 'active', label: 'Active' },
 ]
 
 interface Artist {
@@ -73,7 +70,7 @@ interface Artist {
     display_name: string
   }
   role: ArtistRole
-  contract_status: ContractStatus
+  contract_status: ArtistContractStatus
   proposed_fee?: string | null
   confirmed_fee?: string | null
   notes?: string | null
@@ -94,9 +91,10 @@ export function ArtistCard({
   isExpanded,
   onToggleExpand,
 }: ArtistCardProps) {
-  const queryClient = useQueryClient()
+  const updateArtist = useUpdateOpportunityArtist(opportunityId)
+  const deleteArtist = useDeleteOpportunityArtist(opportunityId)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [isUpdating, setIsUpdating] = useState(false)
+  const isUpdating = updateArtist.isPending || deleteArtist.isPending
 
   // Inline editing state
   type EditableField = 'proposed_fee' | 'confirmed_fee' | 'notes' | null
@@ -139,57 +137,42 @@ export function ArtistCard({
       return
     }
 
-    setIsUpdating(true)
     try {
-      await opportunityArtistsApi.update(artist.id, { [field]: inputMap[field] || undefined })
-      queryClient.invalidateQueries({ queryKey: opportunityKeys.detail(opportunityId) })
+      await updateArtist.mutateAsync({ artistId: artist.id, updates: { [field]: inputMap[field] || undefined } })
       setEditingField(null)
     } catch {
       setterMap[field](originalMap[field])
       setEditingField(null)
-      toast.error('Failed to update artist')
-    } finally {
-      setIsUpdating(false)
     }
   }
 
   // Handle role change
   const handleRoleChange = async (role: ArtistRole) => {
     if (role === artist.role) return
-    setIsUpdating(true)
     try {
-      await opportunityArtistsApi.update(artist.id, { role })
-      queryClient.invalidateQueries({ queryKey: opportunityKeys.detail(opportunityId) })
+      await updateArtist.mutateAsync({ artistId: artist.id, updates: { role } })
     } catch {
-      toast.error('Failed to update role')
-    } finally {
-      setIsUpdating(false)
+      // Error handled by mutation
     }
   }
 
   // Handle contract status change
-  const handleContractStatusChange = async (status: ContractStatus) => {
+  const handleContractStatusChange = async (status: ArtistContractStatus) => {
     if (status === artist.contract_status) return
-    setIsUpdating(true)
     try {
-      await opportunityArtistsApi.update(artist.id, { contract_status: status })
-      queryClient.invalidateQueries({ queryKey: opportunityKeys.detail(opportunityId) })
+      await updateArtist.mutateAsync({ artistId: artist.id, updates: { contract_status: status } })
     } catch {
-      toast.error('Failed to update contract status')
-    } finally {
-      setIsUpdating(false)
+      // Error handled by mutation
     }
   }
 
   // Handle delete
   const handleDelete = async () => {
     try {
-      await opportunityArtistsApi.delete(artist.id)
-      queryClient.invalidateQueries({ queryKey: opportunityKeys.detail(opportunityId) })
-      toast.success('Artist removed')
+      await deleteArtist.mutateAsync(artist.id)
       setShowDeleteConfirm(false)
     } catch {
-      toast.error('Failed to remove artist')
+      // Error handled by mutation
     }
   }
 
@@ -243,8 +226,7 @@ export function ArtistCard({
                   className={cn(
                     "capitalize shrink-0",
                     artist.contract_status === 'signed' && 'border-green-500/50 text-green-500 bg-green-500/10',
-                    artist.contract_status === 'sent' && 'border-amber-500/50 text-amber-500 bg-amber-500/10',
-                    artist.contract_status === 'declined' && 'border-red-500/50 text-red-500 bg-red-500/10'
+                    artist.contract_status === 'sent' && 'border-amber-500/50 text-amber-500 bg-amber-500/10'
                   )}
                 >
                   {artist.contract_status.replace('_', ' ')}

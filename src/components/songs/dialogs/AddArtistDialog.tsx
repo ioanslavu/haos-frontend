@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
 import { Check, ChevronsUpDown, Music2, Search, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -8,9 +7,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { addFeaturedArtist } from '@/api/songApi';
 import { cn } from '@/lib/utils';
-import apiClient from '@/api/client';
+import { useSearchEntities, useAddFeaturedArtist } from '@/api/hooks/useSongs';
 
 interface AddArtistDialogProps {
   open: boolean;
@@ -42,43 +40,12 @@ export function AddArtistDialog({ open, onOpenChange, songId, onSuccess }: AddAr
   const [comboOpen, setComboOpen] = useState(false);
 
   // Search entities
-  const { data: entitiesData, isLoading: entitiesLoading } = useQuery({
-    queryKey: ['entities-search', searchQuery],
-    queryFn: async () => {
-      if (!searchQuery || searchQuery.length < 2) return { data: { results: [] } };
-      const response = await apiClient.get('/api/v1/entities/', {
-        params: { search: searchQuery, type: 'artist', page_size: 20 },
-      });
-      return response.data;
-    },
-    enabled: searchQuery.length >= 2,
-  });
+  const { data: entitiesData, isLoading: entitiesLoading } = useSearchEntities(searchQuery);
 
-  const entities = entitiesData?.results || [];
+  const entities = entitiesData || [];
 
   // Add artist mutation
-  const addMutation = useMutation({
-    mutationFn: () =>
-      addFeaturedArtist(songId, {
-        artist_id: selectedArtist!.id,
-        role,
-      }),
-    onSuccess: () => {
-      toast({
-        title: 'Artist Added',
-        description: `${selectedArtist?.display_name} added as ${ARTIST_ROLES.find(r => r.value === role)?.label}`,
-      });
-      onSuccess();
-      handleClose();
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Error',
-        description: error.response?.data?.error || 'Failed to add artist. Please try again.',
-        variant: 'destructive',
-      });
-    },
-  });
+  const addMutation = useAddFeaturedArtist();
 
   const handleClose = () => {
     setSelectedArtist(null);
@@ -97,7 +64,26 @@ export function AddArtistDialog({ open, onOpenChange, songId, onSuccess }: AddAr
       });
       return;
     }
-    addMutation.mutate();
+    addMutation.mutate(
+      { songId, data: { artist_id: selectedArtist.id, role } },
+      {
+        onSuccess: () => {
+          toast({
+            title: 'Artist Added',
+            description: `${selectedArtist?.display_name} added as ${ARTIST_ROLES.find(r => r.value === role)?.label}`,
+          });
+          onSuccess();
+          handleClose();
+        },
+        onError: (error: any) => {
+          toast({
+            title: 'Error',
+            description: error.response?.data?.error || 'Failed to add artist. Please try again.',
+            variant: 'destructive',
+          });
+        },
+      }
+    );
   };
 
   return (

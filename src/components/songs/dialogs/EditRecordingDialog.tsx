@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useMutation } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import {
   Dialog,
@@ -21,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Recording } from '@/types/song';
-import apiClient from '@/api/client';
+import { useUpdateRecording } from '@/api/hooks/useSongs';
 
 interface EditRecordingDialogProps {
   recording: Recording;
@@ -99,17 +98,18 @@ export function EditRecordingDialog({
     });
   }, [recording]);
 
-  const updateMutation = useMutation({
-    mutationFn: (data: RecordingUpdate) =>
-      apiClient.patch(`/api/v1/recordings/${recording.id}/`, data),
-    onSuccess: () => {
-      onSuccess();
-    },
-  });
+  const updateMutationHook = useUpdateRecording();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    updateMutation.mutate(formData);
+    updateMutationHook.mutate(
+      { id: recording.id, data: formData as Partial<Recording> },
+      {
+        onSuccess: () => {
+          onSuccess();
+        },
+      }
+    );
   };
 
   return (
@@ -278,12 +278,12 @@ export function EditRecordingDialog({
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              disabled={updateMutation.isPending}
+              disabled={updateMutationHook.isPending}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={updateMutation.isPending}>
-              {updateMutation.isPending && (
+            <Button type="submit" disabled={updateMutationHook.isPending}>
+              {updateMutationHook.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
               Save Changes

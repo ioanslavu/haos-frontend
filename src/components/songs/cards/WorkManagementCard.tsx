@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import { FileText, Plus, Link2, ExternalLink, AlertCircle, CheckCircle2, Music, Users, DollarSign, Calendar } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
-import apiClient from '@/api/client';
+import { useWork } from '@/api/hooks/useSongs';
 import { Song } from '@/types/song';
 // import { LinkWorkDialog } from './LinkWorkDialog'; // TODO: Component not found
 
@@ -19,17 +18,7 @@ export function WorkManagementCard({ song }: WorkManagementCardProps) {
   const navigate = useNavigate();
   const [showLinkDialog, setShowLinkDialog] = useState(false);
 
-  const { data: workData, isLoading, error } = useQuery({
-    queryKey: ['work', song.work?.id],
-    queryFn: async () => {
-      if (!song.work?.id) return null;
-      const response = await apiClient.get(`/api/v1/works/${song.work.id}/`);
-      return { data: response.data };
-    },
-    enabled: !!song.work?.id,
-  });
-
-  const work = workData?.data;
+  const { data: work, isLoading, error } = useWork(song.work?.id || 0, !!song.work?.id);
   const hasWork = !!song.work;
 
   // Loading state

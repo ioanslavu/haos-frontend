@@ -49,11 +49,11 @@ Redesign the Opportunities page to match the Campaigns page UI exactly, with inl
 // services/opportunities.service.ts
 export const opportunityInvoicesApi = {
   list: (opportunityId: number) =>
-    apiClient.get(`/api/v1/artist_sales/opportunities/${opportunityId}/invoices/`),
+    apiClient.get(`/api/v1/opportunity/opportunities/${opportunityId}/invoices/`),
   link: (opportunityId: number, data: { invoice_id: number; invoice_type: string; is_primary?: boolean }) =>
-    apiClient.post(`/api/v1/artist_sales/opportunity-invoices/link/`, { opportunity: opportunityId, ...data }),
+    apiClient.post(`/api/v1/opportunity/opportunity-invoices/link/`, { opportunity: opportunityId, ...data }),
   unlink: (linkId: number) =>
-    apiClient.delete(`/api/v1/artist_sales/opportunity-invoices/${linkId}/`),
+    apiClient.delete(`/api/v1/opportunity/opportunity-invoices/${linkId}/`),
 }
 ```
 
@@ -62,13 +62,13 @@ export const opportunityInvoicesApi = {
 // services/opportunities.service.ts
 export const opportunityContractsApi = {
   list: (opportunityId: number) =>
-    apiClient.get(`/api/v1/artist_sales/opportunities/${opportunityId}/contracts/`),
+    apiClient.get(`/api/v1/opportunity/opportunities/${opportunityId}/contracts/`),
   link: (opportunityId: number, data: { contract_id: number; is_primary?: boolean }) =>
-    apiClient.post(`/api/v1/artist_sales/opportunity-contracts/link/`, { opportunity: opportunityId, ...data }),
+    apiClient.post(`/api/v1/opportunity/opportunity-contracts/link/`, { opportunity: opportunityId, ...data }),
   createAndLink: (opportunityId: number, contractData: CreateContractInput) =>
-    apiClient.post(`/api/v1/artist_sales/opportunity-contracts/create_and_link/`, { opportunity: opportunityId, ...contractData }),
+    apiClient.post(`/api/v1/opportunity/opportunity-contracts/create_and_link/`, { opportunity: opportunityId, ...contractData }),
   unlink: (linkId: number) =>
-    apiClient.delete(`/api/v1/artist_sales/opportunity-contracts/${linkId}/`),
+    apiClient.delete(`/api/v1/opportunity/opportunity-contracts/${linkId}/`),
 }
 ```
 
@@ -78,7 +78,7 @@ export const opportunityContractsApi = {
 export const opportunitiesApi = {
   // ... existing methods
   getStats: (params?: OpportunityListParams) =>
-    apiClient.get('/api/v1/artist_sales/opportunities/stats/', { params }),
+    apiClient.get('/api/v1/opportunity/opportunities/stats/', { params }),
 }
 ```
 

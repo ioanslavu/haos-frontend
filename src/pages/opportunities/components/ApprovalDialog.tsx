@@ -8,6 +8,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Loader2 } from 'lucide-react';
+import type { Approval } from '@/types/opportunities';
 import {
   Dialog,
   DialogContent,
@@ -36,21 +37,8 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { useCreateApproval, useOpportunityDeliverables } from '@/api/hooks/useOpportunities';
+import { useUpdateApproval } from '@/api/hooks/opportunities/useOpportunityMutations';
 import { toast } from 'sonner';
-import { approvalsApi } from '@/api/services/opportunities.service';
-import { useQueryClient } from '@tanstack/react-query';
-
-interface Approval {
-  id: number;
-  stage: string;
-  version: number;
-  status: string;
-  submitted_at: string;
-  approved_at?: string;
-  deliverable?: { id: number } | null;
-  notes?: string;
-  file_url?: string;
-}
 
 interface ApprovalDialogProps {
   opportunityId: number;
@@ -102,7 +90,7 @@ export function ApprovalDialog({
 }: ApprovalDialogProps) {
   const isEdit = !!approval;
   const createMutation = useCreateApproval();
-  const queryClient = useQueryClient();
+  const updateMutation = useUpdateApproval(opportunityId);
   const { data: deliverables } = useOpportunityDeliverables(opportunityId);
   const deliverablesList = Array.isArray(deliverables) ? deliverables : (deliverables?.results || []);
 
@@ -158,12 +146,9 @@ export function ApprovalDialog({
       };
 
       if (isEdit && approval) {
-        await approvalsApi.update(approval.id, payload);
-        queryClient.invalidateQueries({ queryKey: ['approvals'] });
-        toast.success('Approval updated');
+        await updateMutation.mutateAsync({ approvalId: approval.id, updates: payload });
       } else {
         await createMutation.mutateAsync(payload);
-        toast.success('Approval created');
       }
 
       onOpenChange(false);

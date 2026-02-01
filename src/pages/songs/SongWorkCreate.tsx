@@ -29,8 +29,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { createWorkInSongContext } from '@/api/songApi';
 import { toast as sonnerToast } from 'sonner';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import apiClient from '@/api/client';
+import { useQueryClient } from '@tanstack/react-query';
+import { useSong } from '@/api/hooks/useSongs';
 
 // Form schema
 const workFormSchema = z.object({
@@ -57,16 +57,7 @@ export default function SongWorkCreate() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch song data for context
-  const { data: songData } = useQuery({
-    queryKey: ['song', songId],
-    queryFn: async () => {
-      const response = await apiClient.get(`/api/v1/songs/${songId}/`);
-      return response.data;
-    },
-    enabled: !!songId,
-  });
-
-  const song = songData?.data || songData;
+  const { data: song } = useSong(songId!, !!songId);
 
   const form = useForm<WorkFormValues>({
     resolver: zodResolver(workFormSchema),

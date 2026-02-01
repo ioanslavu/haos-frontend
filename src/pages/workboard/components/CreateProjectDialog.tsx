@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useQuery } from '@tanstack/react-query';
 import {
   Dialog,
   DialogContent,
@@ -30,7 +29,7 @@ import { CalendarIcon, FileCode2, Sparkles, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useCreateProject, useProjectTemplates, useCreateProjectFromTemplate } from '@/api/hooks/useProjects';
-import apiClient from '@/api/client';
+import { useDepartments } from '@/api/hooks/useDepartments';
 import {
   PROJECT_TYPE_CONFIG,
   type ProjectType,
@@ -58,14 +57,7 @@ export function CreateProjectDialog({ isOpen, onClose }: CreateProjectDialogProp
   const { data: templates } = useProjectTemplates({ is_active: true });
 
   // Fetch departments from API (for admin users)
-  const { data: departmentsData } = useQuery({
-    queryKey: ['departments'],
-    queryFn: async () => {
-      const response = await apiClient.get('/api/v1/departments/');
-      return response.data;
-    },
-    enabled: isAdmin,
-  });
+  const { data: departmentsData } = useDepartments(isAdmin ? {} : undefined);
 
   // Map departments to {id, name} format
   const departments = departmentsData

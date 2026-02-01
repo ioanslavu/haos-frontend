@@ -2,10 +2,9 @@ import { useEffect, useState, useRef } from 'react'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { Separator } from '@/components/ui/separator'
 import { FileText } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
-import apiClient from '@/api/client'
 import { useAuthStore } from '@/stores/authStore'
 import { useDeleteTask, useUpdateTask, useCreateTask, useLinkTaskToDomain } from '@/api/hooks/useTasks'
+import { useDepartments } from '@/api/hooks/useDepartments'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -80,14 +79,7 @@ export function TaskDetailPanel({
   const { user, isAdmin: isAdminFn } = useAuthStore()
   const isAdmin = isAdminFn()
 
-  const { data: departmentsData } = useQuery({
-    queryKey: ['departments'],
-    queryFn: async () => {
-      const response = await apiClient.get('/api/v1/departments/')
-      return response.data
-    },
-    enabled: isAdmin,
-  })
+  const { data: departmentsData, isLoading: isDepartmentsLoading } = useDepartments(isAdmin ? {} : undefined)
 
   const departments = departmentsData
     ? (Array.isArray(departmentsData) ? departmentsData : departmentsData.results || []).map((d: any) => ({ id: d.id, name: d.name }))
@@ -248,7 +240,7 @@ export function TaskDetailPanel({
           <div className="px-6 py-6 space-y-6">
             <TaskHeader ref={titleInputRef} localTitle={localTitle} setLocalTitle={setLocalTitle} localDescription={localDescription} setLocalDescription={setLocalDescription} isCreateMode={isCreateMode} />
             <Separator />
-            <TaskProperties localPriority={localPriority} setLocalPriority={setLocalPriority} localAssignees={localAssignees} setLocalAssignees={setLocalAssignees} localTeam={localTeam} setLocalTeam={setLocalTeam} localDepartment={localDepartment} setLocalDepartment={setLocalDepartment} localDueDate={localDueDate} setLocalDueDate={setLocalDueDate} localEstimatedHours={localEstimatedHours} setLocalEstimatedHours={setLocalEstimatedHours} localNeedsReview={localNeedsReview} setLocalNeedsReview={setLocalNeedsReview} isCreateMode={isCreateMode} task={task} createdTaskId={createdTaskId} isAdmin={isAdmin} departments={departments} isDepartmentsLoading={!departmentsData && isAdmin} onUpdateField={handleUpdateField} />
+            <TaskProperties localPriority={localPriority} setLocalPriority={setLocalPriority} localAssignees={localAssignees} setLocalAssignees={setLocalAssignees} localTeam={localTeam} setLocalTeam={setLocalTeam} localDepartment={localDepartment} setLocalDepartment={setLocalDepartment} localDueDate={localDueDate} setLocalDueDate={setLocalDueDate} localEstimatedHours={localEstimatedHours} setLocalEstimatedHours={setLocalEstimatedHours} localNeedsReview={localNeedsReview} setLocalNeedsReview={setLocalNeedsReview} isCreateMode={isCreateMode} task={task} createdTaskId={createdTaskId} isAdmin={isAdmin} departments={departments} isDepartmentsLoading={isDepartmentsLoading} onUpdateField={handleUpdateField} />
             {(task?.id || createdTaskId) && (task?.project || localProject) && (<InlineCustomFieldsManager ref={customFieldsRef} taskId={task?.id || createdTaskId!} projectId={task?.project || localProject!} />)}
             <Separator />
             <TaskRelatedItems task={task} createdTaskId={createdTaskId} isCreateMode={isCreateMode} localArtist={localArtist} setLocalArtist={setLocalArtist} localClient={localClient} setLocalClient={setLocalClient} localEntity={localEntity} setLocalEntity={setLocalEntity} localSong={localSong} setLocalSong={setLocalSong} localCampaign={localCampaign} setLocalCampaign={setLocalCampaign} localSubcampaign={localSubcampaign} setLocalSubcampaign={setLocalSubcampaign} localDistribution={localDistribution} setLocalDistribution={setLocalDistribution} showArtistSearch={showArtistSearch} setShowArtistSearch={setShowArtistSearch} showClientSearch={showClientSearch} setShowClientSearch={setShowClientSearch} showSongSearch={showSongSearch} setShowSongSearch={setShowSongSearch} showCampaignSearch={showCampaignSearch} setShowCampaignSearch={setShowCampaignSearch} showDistributionSearch={showDistributionSearch} setShowDistributionSearch={setShowDistributionSearch} showAddRelatedItemMenu={showAddRelatedItemMenu} setShowAddRelatedItemMenu={setShowAddRelatedItemMenu} visibleRelatedFields={visibleRelatedFields} setVisibleRelatedFields={setVisibleRelatedFields} setShowAddArtistModal={setShowAddArtistModal} setShowAddClientModal={setShowAddClientModal} setShowCreateSongDialog={setShowCreateSongDialog} setShowCreateCampaignDialog={setShowCreateCampaignDialog} onUpdateField={handleUpdateField} onOpenChange={onOpenChange} />

@@ -20,9 +20,17 @@ import type {
   BulkUpdateInput,
   AdvanceStageInput,
   MarkLostInput,
+  Approval,
+  OpportunityInvoiceLink,
+  OpportunityContractLink,
+  LinkInvoiceInput,
+  LinkContractInput,
+  CreateAndLinkContractInput,
+  InvoiceType,
+  OpportunityStats,
 } from '@/types/opportunities';
 
-const BASE_URL = '/api/v1/artist-sales';
+const BASE_URL = '/api/v1';
 
 // === OPPORTUNITIES ===
 
@@ -176,135 +184,7 @@ export const opportunityDeliverablesApi = {
   },
 };
 
-// === ACTIVITIES & COMMENTS ===
-
-export const opportunityActivitiesApi = {
-  list: (params?: { opportunity?: number; activity_type?: string }) => {
-    return apiClient.get<PaginatedResponse<OpportunityActivity>>(`${BASE_URL}/opportunity-activities/`, { params });
-  },
-};
-
-export const opportunityCommentsApi = {
-  list: (params?: { opportunity?: number }) => {
-    return apiClient.get<PaginatedResponse<OpportunityComment>>(`${BASE_URL}/opportunity-comments/`, { params });
-  },
-
-  create: (data: { opportunity: number; comment: string; is_internal?: boolean }) => {
-    return apiClient.post<OpportunityComment>(`${BASE_URL}/opportunity-comments/`, data);
-  },
-
-  update: (id: number, data: Partial<OpportunityComment>) => {
-    return apiClient.patch<OpportunityComment>(`${BASE_URL}/opportunity-comments/${id}/`, data);
-  },
-
-  delete: (id: number) => {
-    return apiClient.delete(`${BASE_URL}/opportunity-comments/${id}/`);
-  },
-};
-
-// === USAGE TERMS ===
-
-export interface UsageTerms {
-  id: number;
-  name: string;
-  usage_scope?: string;
-  territories?: string[];
-  exclusivity_category?: string;
-  exclusivity_duration_days?: number;
-  usage_duration_days?: number;
-  extensions_allowed?: boolean;
-  buyout?: boolean;
-  brand_list_blocked?: string[];
-  is_template: boolean;
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export const usageTermsApi = {
-  list: (params?: { is_template?: boolean; search?: string }) => {
-    return apiClient.get<PaginatedResponse<UsageTerms>>(`${BASE_URL}/usage-terms/`, { params });
-  },
-
-  get: (id: number) => {
-    return apiClient.get<UsageTerms>(`${BASE_URL}/usage-terms/${id}/`);
-  },
-
-  create: (data: Partial<UsageTerms>) => {
-    return apiClient.post<UsageTerms>(`${BASE_URL}/usage-terms/`, data);
-  },
-
-  update: (id: number, data: Partial<UsageTerms>) => {
-    return apiClient.patch<UsageTerms>(`${BASE_URL}/usage-terms/${id}/`, data);
-  },
-
-  delete: (id: number) => {
-    return apiClient.delete(`${BASE_URL}/usage-terms/${id}/`);
-  },
-};
-
-// === DELIVERABLE PACKS ===
-
-export interface DeliverablePackItem {
-  id: number;
-  pack: number;
-  deliverable_type: string;
-  deliverable_type_display: string;
-  quantity: number;
-  description?: string;
-  created_at: string;
-}
-
-export interface DeliverablePack {
-  id: number;
-  name: string;
-  description?: string;
-  is_active: boolean;
-  items: DeliverablePackItem[];
-  created_at: string;
-  updated_at: string;
-}
-
-export const deliverablePacksApi = {
-  list: (params?: { is_active?: boolean; search?: string }) => {
-    return apiClient.get<PaginatedResponse<DeliverablePack>>(`${BASE_URL}/deliverable-packs/`, { params });
-  },
-
-  get: (id: number) => {
-    return apiClient.get<DeliverablePack>(`${BASE_URL}/deliverable-packs/${id}/`);
-  },
-
-  create: (data: Partial<DeliverablePack>) => {
-    return apiClient.post<DeliverablePack>(`${BASE_URL}/deliverable-packs/`, data);
-  },
-
-  update: (id: number, data: Partial<DeliverablePack>) => {
-    return apiClient.patch<DeliverablePack>(`${BASE_URL}/deliverable-packs/${id}/`, data);
-  },
-
-  delete: (id: number) => {
-    return apiClient.delete(`${BASE_URL}/deliverable-packs/${id}/`);
-  },
-};
-
 // === APPROVALS ===
-
-export interface Approval {
-  id: number;
-  opportunity: number;
-  deliverable?: number;
-  stage: string;
-  version: number;
-  status: 'pending' | 'approved' | 'rejected' | 'changes_requested';
-  submitted_at?: string;
-  approved_at?: string;
-  approver_contact?: any;
-  approver_user?: any;
-  notes?: string;
-  file_url?: string;
-  created_at: string;
-  updated_at: string;
-}
 
 export const approvalsApi = {
   list: (params?: { opportunity?: number; status?: string }) => {
@@ -342,15 +222,6 @@ export const approvalsApi = {
 
 // === OPPORTUNITY STATS ===
 
-export interface OpportunityStats {
-  total: number;
-  by_stage: Record<string, number>;
-  by_priority: Record<string, number>;
-  total_value: string;
-  won_value: string;
-  pipeline_value: string;
-}
-
 export const opportunityStatsApi = {
   get: (params?: OpportunityListParams) => {
     return apiClient.get<OpportunityStats>(`${BASE_URL}/opportunities/stats/`, { params });
@@ -359,42 +230,13 @@ export const opportunityStatsApi = {
 
 // === OPPORTUNITY INVOICE LINKS ===
 
-export type InvoiceType = 'advance' | 'milestone' | 'final' | 'full';
-
-export interface OpportunityInvoiceLink {
-  id: number;
-  opportunity: number;
-  invoice: number;
-  invoice_type: InvoiceType;
-  is_primary: boolean;
-  created_at: string;
-  // Nested invoice info
-  invoice_details?: {
-    id: number;
-    invoice_number: string;
-    status: string;
-    total_amount: string;
-    currency: string;
-    due_date: string;
-    client_name: string;
-  };
-}
-
-export interface LinkInvoiceInput {
-  opportunity: number;
-  invoice: number;
-  invoice_type: InvoiceType;
-  is_primary?: boolean;
-}
-
 export const opportunityInvoicesApi = {
   /**
    * List invoice links for an opportunity
    */
   list: (opportunityId: number) => {
     return apiClient.get<OpportunityInvoiceLink[]>(
-      `${BASE_URL}/opportunity-invoices/`,
-      { params: { opportunity: opportunityId } }
+      `${BASE_URL}/opportunities/${opportunityId}/invoices/`
     );
   },
 
@@ -402,59 +244,31 @@ export const opportunityInvoicesApi = {
    * Link an existing invoice to an opportunity
    */
   link: (data: LinkInvoiceInput) => {
-    return apiClient.post<OpportunityInvoiceLink>(`${BASE_URL}/opportunity-invoices/link/`, data);
+    return apiClient.post<OpportunityInvoiceLink>(
+      `${BASE_URL}/opportunities/${data.opportunity}/invoices/`,
+      { invoice_id: data.invoice, invoice_type: data.invoice_type, is_primary: data.is_primary }
+    );
   },
 
   /**
    * Unlink an invoice from an opportunity
    */
-  unlink: (linkId: number) => {
-    return apiClient.delete(`${BASE_URL}/opportunity-invoices/${linkId}/`);
+  unlink: (opportunityId: number, linkId: number) => {
+    return apiClient.delete(`${BASE_URL}/opportunities/${opportunityId}/invoices/${linkId}/`);
   },
 
   /**
    * Update invoice link (change type, primary status)
    */
-  update: (linkId: number, data: { invoice_type?: InvoiceType; is_primary?: boolean }) => {
-    return apiClient.patch<OpportunityInvoiceLink>(`${BASE_URL}/opportunity-invoices/${linkId}/`, data);
+  update: (opportunityId: number, linkId: number, data: { invoice_type?: InvoiceType; is_primary?: boolean }) => {
+    return apiClient.patch<OpportunityInvoiceLink>(
+      `${BASE_URL}/opportunities/${opportunityId}/invoices/${linkId}/`,
+      data
+    );
   },
 };
 
 // === OPPORTUNITY CONTRACT LINKS ===
-
-export interface OpportunityContractLink {
-  id: number;
-  opportunity: number;
-  contract: number;
-  is_primary: boolean;
-  created_at: string;
-  // Nested contract info
-  contract_details?: {
-    id: number;
-    contract_type: string;
-    contract_type_display: string;
-    status: string;
-    status_display: string;
-    entity_name: string;
-    created_at: string;
-  };
-}
-
-export interface LinkContractInput {
-  opportunity: number;
-  contract: number;
-  is_primary?: boolean;
-}
-
-export interface CreateAndLinkContractInput {
-  opportunity: number;
-  contract_type: string;
-  entity: number;
-  effective_date?: string;
-  expiry_date?: string;
-  notes?: string;
-  is_primary?: boolean;
-}
 
 export const opportunityContractsApi = {
   /**
@@ -462,8 +276,7 @@ export const opportunityContractsApi = {
    */
   list: (opportunityId: number) => {
     return apiClient.get<OpportunityContractLink[]>(
-      `${BASE_URL}/opportunity-contracts/`,
-      { params: { opportunity: opportunityId } }
+      `${BASE_URL}/opportunities/${opportunityId}/contracts/`
     );
   },
 
@@ -471,28 +284,37 @@ export const opportunityContractsApi = {
    * Link an existing contract to an opportunity
    */
   link: (data: LinkContractInput) => {
-    return apiClient.post<OpportunityContractLink>(`${BASE_URL}/opportunity-contracts/link/`, data);
+    return apiClient.post<OpportunityContractLink>(
+      `${BASE_URL}/opportunities/${data.opportunity}/contracts/`,
+      { contract_id: data.contract, is_primary: data.is_primary }
+    );
   },
 
   /**
    * Create a new contract and link it to an opportunity
    */
   createAndLink: (data: CreateAndLinkContractInput) => {
-    return apiClient.post<OpportunityContractLink>(`${BASE_URL}/opportunity-contracts/create_and_link/`, data);
+    return apiClient.post<OpportunityContractLink>(
+      `${BASE_URL}/opportunities/${data.opportunity}/contracts/generate/`,
+      data
+    );
   },
 
   /**
    * Unlink a contract from an opportunity
    */
-  unlink: (linkId: number) => {
-    return apiClient.delete(`${BASE_URL}/opportunity-contracts/${linkId}/`);
+  unlink: (opportunityId: number, linkId: number) => {
+    return apiClient.delete(`${BASE_URL}/opportunities/${opportunityId}/contracts/${linkId}/`);
   },
 
   /**
    * Update contract link (change primary status)
    */
-  update: (linkId: number, data: { is_primary?: boolean }) => {
-    return apiClient.patch<OpportunityContractLink>(`${BASE_URL}/opportunity-contracts/${linkId}/`, data);
+  update: (opportunityId: number, linkId: number, data: { is_primary?: boolean }) => {
+    return apiClient.patch<OpportunityContractLink>(
+      `${BASE_URL}/opportunities/${opportunityId}/contracts/${linkId}/`,
+      data
+    );
   },
 };
 

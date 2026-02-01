@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Plus,
   Save,
@@ -34,7 +33,13 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import apiClient from '@/api/client';
+import {
+  useChecklistTemplate,
+  useChecklistTemplateItems,
+  useUpdateChecklistTemplate,
+  useSaveChecklistTemplateItem,
+  useDeleteChecklistTemplateItem,
+} from '@/api/hooks/useChecklistTemplates';
 
 interface ChecklistTemplate {
   id: number;
@@ -66,78 +71,20 @@ interface ChecklistTemplateItem {
 export default function ChecklistTemplateEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { toast } = useToast();
   const [editingItem, setEditingItem] = useState<ChecklistTemplateItem | null>(null);
   const [itemDialogOpen, setItemDialogOpen] = useState(false);
 
-  // Fetch template
-  const { data: template, isLoading } = useQuery({
-    queryKey: ['checklist-template', id],
-    queryFn: async () => {
-      const response = await apiClient.get(`/api/v1/checklist-templates/${id}/`);
-      return response.data;
-    },
-  });
-
-  // Fetch template items
-  const { data: itemsData } = useQuery({
-    queryKey: ['checklist-template-items', id],
-    queryFn: async () => {
-      const response = await apiClient.get(`/api/v1/checklist-template-items/?template=${id}`);
-      return response.data;
-    },
-  });
+  // Fetch template and items
+  const { data: template, isLoading } = useChecklistTemplate(Number(id));
+  const { data: itemsData } = useChecklistTemplateItems(Number(id));
 
   const items = Array.isArray(itemsData) ? itemsData : itemsData?.results || [];
 
-  // Update template mutation
-  const updateTemplateMutation = useMutation({
-    mutationFn: async (data: Partial<ChecklistTemplate>) => {
-      const response = await apiClient.patch(`/api/v1/checklist-templates/${id}/`, data);
-      return response.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['checklist-template', id] });
-      toast({ title: 'Template updated successfully' });
-    },
-  });
-
-  // Create/Update item mutation
-  const saveItemMutation = useMutation({
-    mutationFn: async (data: ChecklistTemplateItem) => {
-      if (data.id) {
-        const response = await apiClient.patch(
-          `/api/v1/checklist-template-items/${data.id}/`,
-          data
-        );
-        return response.data;
-      } else {
-        const response = await apiClient.post('/api/v1/checklist-template-items/', {
-          ...data,
-          template: id,
-        });
-        return response.data;
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['checklist-template-items', id] });
-      setItemDialogOpen(false);
-      setEditingItem(null);
-      toast({ title: 'Item saved successfully' });
-    },
-  });
-
-  // Delete item mutation
-  const deleteItemMutation = useMutation({
-    mutationFn: async (itemId: number) => {
-      await apiClient.delete(`/api/v1/checklist-template-items/${itemId}/`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['checklist-template-items', id] });
-      toast({ title: 'Item deleted successfully' });
-    },
-  });
+  // Mutations
+  const updateTemplateMutation = useUpdateChecklistTemplate(Number(id));
+  const saveItemMutation = useSaveChecklistTemplateItem(Number(id));
+  const deleteItemMutation = useDeleteChecklistTemplateItem(Number(id));
 
   const handleAddItem = () => {
     setEditingItem({
@@ -162,7 +109,13 @@ export default function ChecklistTemplateEditor() {
 
   const handleSaveItem = () => {
     if (editingItem) {
-      saveItemMutation.mutate(editingItem);
+      saveItemMutation.mutate(editingItem, {
+        onSuccess: () => {
+          setItemDialogOpen(false);
+          setEditingItem(null);
+          toast({ title: 'Item saved successfully' });
+        },
+      });
     }
   };
 
@@ -374,7 +327,11 @@ export default function ChecklistTemplateEditor() {
                                 `Delete "${item.item_name}"? This cannot be undone.`
                               )
                             ) {
-                              deleteItemMutation.mutate(item.id!);
+                              deleteItemMutation.mutate(item.id!, {
+                                onSuccess: () => {
+                                  toast({ title: 'Item deleted successfully' });
+                                },
+                              });
                             }
                           }}
                         >

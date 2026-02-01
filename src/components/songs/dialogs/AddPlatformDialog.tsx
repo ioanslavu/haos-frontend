@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { Calendar as CalendarIcon, Loader2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
@@ -36,8 +35,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
-import apiClient from '@/api/client';
 import { useToast } from '@/hooks/use-toast';
+import { useCreatePublication } from '@/api/hooks/useSongs';
 
 const addPlatformFormSchema = z.object({
   platform: z.string().min(1, 'Platform is required'),
@@ -82,46 +81,45 @@ export function AddPlatformDialog({
     },
   });
 
-  const createPublicationMutation = useMutation({
-    mutationFn: async (data: AddPlatformFormValues) => {
-      const payload = {
-        object_type: 'release',
-        object_id: releaseId,
-        platform: data.platform,
-        url: data.url || undefined,
-        status: data.status,
-        external_id: data.external_id || undefined,
-        territory: data.territory,
-        published_at: data.published_at ? data.published_at.toISOString() : undefined,
-        scheduled_for: data.scheduled_for ? data.scheduled_for.toISOString() : undefined,
-        is_monetized: data.is_monetized,
-        notes: data.notes || undefined,
-      };
-
-      return await apiClient.post('/api/v1/publications/', payload);
-    },
-    onSuccess: () => {
-      toast({
-        title: 'Success',
-        description: 'Platform added successfully.',
-      });
-      onOpenChange(false);
-      form.reset();
-      onSuccess?.();
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Error',
-        description: error?.response?.data?.detail || 'Failed to add platform. Please try again.',
-        variant: 'destructive',
-      });
-    },
-  });
+  const createPublicationMutation = useCreatePublication();
 
   const onSubmit = async (data: AddPlatformFormValues) => {
     setIsSubmitting(true);
+    const payload = {
+      object_type: 'release',
+      object_id: releaseId,
+      platform: data.platform,
+      url: data.url || undefined,
+      status: data.status,
+      external_id: data.external_id || undefined,
+      territory: data.territory,
+      published_at: data.published_at ? data.published_at.toISOString() : undefined,
+      scheduled_for: data.scheduled_for ? data.scheduled_for.toISOString() : undefined,
+      is_monetized: data.is_monetized,
+      notes: data.notes || undefined,
+    };
     try {
-      await createPublicationMutation.mutateAsync(data);
+      await createPublicationMutation.mutateAsync(
+        payload as any,
+        {
+          onSuccess: () => {
+            toast({
+              title: 'Success',
+              description: 'Platform added successfully.',
+            });
+            onOpenChange(false);
+            form.reset();
+            onSuccess?.();
+          },
+          onError: (error: any) => {
+            toast({
+              title: 'Error',
+              description: error?.response?.data?.detail || 'Failed to add platform. Please try again.',
+              variant: 'destructive',
+            });
+          },
+        }
+      );
     } finally {
       setIsSubmitting(false);
     }

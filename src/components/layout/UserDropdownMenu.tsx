@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { User, UserCog, Check, Loader2, Settings, LogOut, ChevronRight, Sun, Moon, Monitor } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,9 +16,9 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useAuthStore } from '@/stores/authStore';
 import { useUIStore } from '@/stores/uiStore';
-import apiClient from '@/api/client';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { useTestUsers, useImpersonateUser, useStopImpersonation } from '@/api/hooks/useImpersonation';
 
 interface TestUser {
   id: number;
@@ -44,100 +44,73 @@ const roleColors: Record<string, string> = {
 export function UserDropdownMenu() {
   const { user, isAdmin, checkAuth, logout } = useAuthStore();
   const { theme, setTheme } = useUIStore();
-  const [testUsers, setTestUsers] = useState<TestUser[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [impersonating, setImpersonating] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Fetch test users from dedicated endpoint (only for admins)
-  useEffect(() => {
-    const fetchTestUsers = async () => {
-      if (!isAdmin()) return;
+  // Fetch test users and impersonation mutations
+  const { data: testUsersData, isLoading } = useTestUsers(isAdmin());
+  const impersonateMutation = useImpersonateUser();
+  const stopImpersonationMutation = useStopImpersonation();
 
-      try {
-        setIsLoading(true);
-        const response = await apiClient.get('/api/v1/impersonate/test-users/');
-        const users = response.data.test_users || [];
-
-        const mapped = users.map((u: any) => ({
-          id: u.id,
-          email: u.email,
-          displayName: u.full_name || `${u.first_name} ${u.last_name}`.trim() || u.email,
-          role: u.role?.code || 'guest',
-          roleLabel: u.role?.name || 'Guest',
-          department: u.department?.code || null,
-          departmentName: u.department?.name || null,
-        }));
-
-        setTestUsers(mapped);
-      } catch (error) {
-        console.error('Failed to fetch test users:', error);
-        setTestUsers([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchTestUsers();
-  }, [isAdmin]);
+  // Map test users data
+  const testUsers = testUsersData?.test_users?.map((u: any) => ({
+    id: u.id,
+    email: u.email,
+    displayName: u.full_name || `${u.first_name} ${u.last_name}`.trim() || u.email,
+    role: u.role?.code || 'guest',
+    roleLabel: u.role?.name || 'Guest',
+    department: u.department?.code || null,
+    departmentName: u.department?.name || null,
+  })) || [];
 
   const handleImpersonate = async (testUser: TestUser) => {
-    setImpersonating(true);
-    try {
-      // Call backend API to start impersonation
-      await apiClient.post('/api/v1/impersonate/start/', {
-        user_id: testUser.id,
-      });
+    impersonateMutation.mutate({ userId: testUser.id }, {
+      onSuccess: async () => {
+        // Refresh auth state to get impersonated user data
+        await checkAuth();
 
-      // Refresh auth state to get impersonated user data
-      await checkAuth();
+        toast({
+          title: 'Role Testing Started',
+          description: `Now testing as ${testUser.displayName} (${testUser.roleLabel})`,
+        });
 
-      toast({
-        title: 'Role Testing Started',
-        description: `Now testing as ${testUser.displayName} (${testUser.roleLabel})`,
-      });
-
-      // Reload the page to refresh all data with new role
-      window.location.reload();
-    } catch (error: any) {
-      console.error('Failed to start impersonation:', error);
-      toast({
-        title: 'Failed to Start Testing',
-        description: error.response?.data?.error || 'An error occurred',
-        variant: 'destructive',
-      });
-    } finally {
-      setImpersonating(false);
-    }
+        // Reload the page to refresh all data with new role
+        window.location.reload();
+      },
+      onError: (error: any) => {
+        console.error('Failed to start impersonation:', error);
+        toast({
+          title: 'Failed to Start Testing',
+          description: error.response?.data?.error || 'An error occurred',
+          variant: 'destructive',
+        });
+      },
+    });
   };
 
   const handleStopImpersonation = async () => {
-    setImpersonating(true);
-    try {
-      // Call backend API to stop impersonation
-      await apiClient.post('/api/v1/impersonate/stop/');
+    stopImpersonationMutation.mutate(undefined, {
+      onSuccess: async () => {
+        // Refresh auth state to get real user data
+        await checkAuth();
 
-      // Refresh auth state to get real user data
-      await checkAuth();
+        toast({
+          title: 'Role Testing Stopped',
+          description: 'Returned to your admin account',
+        });
 
-      toast({
-        title: 'Role Testing Stopped',
-        description: 'Returned to your admin account',
-      });
-
-      // Reload the page to refresh all data with real role
-      window.location.reload();
-    } catch (error: any) {
-      console.error('Failed to stop impersonation:', error);
-      toast({
-        title: 'Failed to Stop Testing',
-        description: error.response?.data?.error || 'An error occurred',
-        variant: 'destructive',
-      });
-    } finally {
-      setImpersonating(false);
-    }
+        // Reload the page to refresh all data with real role
+        window.location.reload();
+      },
+      onError: (error: any) => {
+        console.error('Failed to stop impersonation:', error);
+        toast({
+          title: 'Failed to Stop Testing',
+          description: error.response?.data?.error || 'An error occurred',
+          variant: 'destructive',
+        });
+      },
+    });
   };
 
   const handleLogout = async () => {
@@ -155,6 +128,7 @@ export function UserDropdownMenu() {
   };
 
   const isCurrentlyImpersonating = user?.email?.startsWith('test.');
+  const impersonating = impersonateMutation.isPending || stopImpersonationMutation.isPending;
 
   // Get user initials for avatar
   const getUserInitials = () => {

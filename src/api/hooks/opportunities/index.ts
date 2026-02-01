@@ -37,10 +37,6 @@ export {
   useOpportunityArtists,
   useOpportunityTasks,
   useOpportunityDeliverables,
-  useUsageTerms,
-  useUsageTerm,
-  useDeliverablePacks,
-  useDeliverablePack,
   useApprovals,
 } from './useOpportunities'
 
@@ -64,8 +60,6 @@ export {
   useCreateOpportunityTask,
   useCreateOpportunityDeliverable,
   useUpdateOpportunityDeliverable,
-  useCreateUsageTerm,
-  useCreateDeliverablePack,
   useCreateApproval,
   useApproveApproval,
   useRejectApproval,

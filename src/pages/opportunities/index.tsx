@@ -59,7 +59,7 @@ export default function OpportunitiesPage() {
   const [searchInput, setSearchInput] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [filters, setFilters] = useState<OpportunityFilters>({})
-  const [expandedAccounts, setExpandedAccounts] = useState<Set<number>>(new Set())
+  const [expandedClients, setExpandedClients] = useState<Set<number>>(new Set())
   const [expandedOwners, setExpandedOwners] = useState<Set<number>>(new Set())
 
   // Debounce search input
@@ -128,28 +128,28 @@ export default function OpportunitiesPage() {
     }
   }, [opportunities])
 
-  // Group by account
-  const opportunitiesByAccount = useMemo(() => {
+  // Group by client
+  const opportunitiesByClient = useMemo(() => {
     const grouped = new Map<number, {
-      account: Opportunity['account']
+      client: Opportunity['client']
       opportunities: Opportunity[]
       totalValue: number
       activeCount: number
     }>()
 
     opportunities.forEach(opp => {
-      if (!opp.account?.id) return
+      if (!opp.client?.id) return
 
-      const accountId = opp.account.id
-      if (!grouped.has(accountId)) {
-        grouped.set(accountId, {
-          account: opp.account,
+      const clientId = opp.client.id
+      if (!grouped.has(clientId)) {
+        grouped.set(clientId, {
+          client: opp.client,
           opportunities: [],
           totalValue: 0,
           activeCount: 0,
         })
       }
-      const group = grouped.get(accountId)!
+      const group = grouped.get(clientId)!
       group.opportunities.push(opp)
       group.totalValue += parseFloat(opp.estimated_value || '0')
       if (ACTIVE_STAGES.includes(opp.stage)) {
@@ -198,13 +198,13 @@ export default function OpportunitiesPage() {
     })
   }, [opportunities])
 
-  const toggleAccountExpanded = (accountId: number) => {
-    setExpandedAccounts(prev => {
+  const toggleClientExpanded = (clientId: number) => {
+    setExpandedClients(prev => {
       const next = new Set(prev)
-      if (next.has(accountId)) {
-        next.delete(accountId)
+      if (next.has(clientId)) {
+        next.delete(clientId)
       } else {
-        next.add(accountId)
+        next.add(clientId)
       }
       return next
     })
@@ -226,8 +226,8 @@ export default function OpportunitiesPage() {
     navigate(`/opportunities/${id}`)
   }
 
-  const handleAccountClick = (accountId: number) => {
-    navigate(`/entities/${accountId}`)
+  const handleClientClick = (clientId: number) => {
+    navigate(`/entities/${clientId}`)
   }
 
   const clearFilters = () => {
@@ -325,10 +325,10 @@ export default function OpportunitiesPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setTabMode('by-account')}
+                    onClick={() => setTabMode('by-client')}
                     className={cn(
                       "h-8 px-3 gap-1.5 rounded-lg text-xs",
-                      tabMode === 'by-account' && "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg"
+                      tabMode === 'by-client' && "bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg"
                     )}
                   >
                     <Users className="h-3.5 w-3.5" />
@@ -432,7 +432,7 @@ export default function OpportunitiesPage() {
               <OpportunitiesKanban
                 opportunities={opportunities}
                 onOpportunityClick={handleOpportunityClick}
-                onAccountClick={handleAccountClick}
+                onClientClick={handleClientClick}
               />
             ) : (
               <>
@@ -447,7 +447,7 @@ export default function OpportunitiesPage() {
                     <OpportunitiesTable
                       opportunities={activeOpportunities}
                       onOpportunityClick={handleOpportunityClick}
-                      onAccountClick={handleAccountClick}
+                      onClientClick={handleClientClick}
                     />
                   </div>
                 )}
@@ -462,7 +462,7 @@ export default function OpportunitiesPage() {
                     <OpportunitiesTable
                       opportunities={terminalOpportunities}
                       onOpportunityClick={handleOpportunityClick}
-                      onAccountClick={handleAccountClick}
+                      onClientClick={handleClientClick}
                     />
                   </div>
                 )}
@@ -471,37 +471,37 @@ export default function OpportunitiesPage() {
           </div>
         )}
 
-        {tabMode === 'by-account' && (
+        {tabMode === 'by-client' && (
           <div className="space-y-3">
-            {opportunitiesByAccount.map(({ account, opportunities: accountOpps, totalValue, activeCount }) => {
-              const isExpanded = expandedAccounts.has(account.id)
+            {opportunitiesByClient.map(({ client, opportunities: clientOpps, totalValue, activeCount }) => {
+              const isExpanded = expandedClients.has(client.id)
 
               return (
-                <Card key={account.id} className="rounded-2xl border-white/10 bg-background/50 backdrop-blur-sm overflow-hidden">
-                  <AccountGroupHeader
-                    account={account}
-                    opportunityCount={accountOpps.length}
+                <Card key={client.id} className="rounded-2xl border-white/10 bg-background/50 backdrop-blur-sm overflow-hidden">
+                  <ClientGroupHeader
+                    client={client}
+                    opportunityCount={clientOpps.length}
                     activeCount={activeCount}
                     totalValue={totalValue}
                     isExpanded={isExpanded}
-                    onToggle={() => toggleAccountExpanded(account.id)}
-                    onViewAccount={() => navigate(`/entities/${account.id}`)}
+                    onToggle={() => toggleClientExpanded(client.id)}
+                    onViewClient={() => navigate(`/entities/${client.id}`)}
                   />
 
                   {isExpanded && (
                     <div className="border-t border-white/10">
                       {viewType === 'table' ? (
                         <OpportunitiesTable
-                          opportunities={accountOpps}
+                          opportunities={clientOpps}
                           onOpportunityClick={handleOpportunityClick}
-                          onAccountClick={handleAccountClick}
+                          onClientClick={handleClientClick}
                         />
                       ) : (
                         <div className="p-4">
                           <OpportunitiesKanban
-                            opportunities={accountOpps}
+                            opportunities={clientOpps}
                             onOpportunityClick={handleOpportunityClick}
-                            onAccountClick={handleAccountClick}
+                            onClientClick={handleClientClick}
                           />
                         </div>
                       )}
@@ -535,14 +535,14 @@ export default function OpportunitiesPage() {
                         <OpportunitiesTable
                           opportunities={ownerOpps}
                           onOpportunityClick={handleOpportunityClick}
-                          onAccountClick={handleAccountClick}
+                          onClientClick={handleClientClick}
                         />
                       ) : (
                         <div className="p-4">
                           <OpportunitiesKanban
                             opportunities={ownerOpps}
                             onOpportunityClick={handleOpportunityClick}
-                            onAccountClick={handleAccountClick}
+                            onClientClick={handleClientClick}
                           />
                         </div>
                       )}
@@ -595,25 +595,25 @@ export default function OpportunitiesPage() {
 import { ChevronDown, ChevronRight, ExternalLink } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 
-interface AccountGroupHeaderProps {
-  account: { id: number; display_name: string; kind?: string }
+interface ClientGroupHeaderProps {
+  client: { id: number; display_name: string; kind?: string }
   opportunityCount: number
   activeCount: number
   totalValue: number
   isExpanded: boolean
   onToggle: () => void
-  onViewAccount: () => void
+  onViewClient: () => void
 }
 
-function AccountGroupHeader({
-  account,
+function ClientGroupHeader({
+  client,
   opportunityCount,
   activeCount,
   totalValue,
   isExpanded,
   onToggle,
-  onViewAccount,
-}: AccountGroupHeaderProps) {
+  onViewClient,
+}: ClientGroupHeaderProps) {
   return (
     <div
       className="flex items-center gap-4 p-4 cursor-pointer hover:bg-muted/30 transition-colors"
@@ -629,18 +629,18 @@ function AccountGroupHeader({
 
       <Avatar className="h-10 w-10">
         <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white">
-          {account.display_name.charAt(0).toUpperCase()}
+          {client.display_name.charAt(0).toUpperCase()}
         </AvatarFallback>
       </Avatar>
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <h3 className="font-semibold truncate">{account.display_name}</h3>
+          <h3 className="font-semibold truncate">{client.display_name}</h3>
           <Button
             variant="ghost"
             size="icon"
             className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-            onClick={(e) => { e.stopPropagation(); onViewAccount() }}
+            onClick={(e) => { e.stopPropagation(); onViewClient() }}
           >
             <ExternalLink className="h-3 w-3" />
           </Button>

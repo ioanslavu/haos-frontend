@@ -8,6 +8,7 @@ import { Plus, Pencil, Trash2, Loader2, FileText, ExternalLink, CheckCircle, XCi
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import type { Approval } from '@/types/opportunities';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,27 +35,12 @@ import {
   useRejectApproval,
   useRequestChangesApproval
 } from '@/api/hooks/useOpportunities';
+import { useDeleteApproval } from '@/api/hooks/opportunities/useOpportunityMutations';
 import { formatDate } from '@/lib/utils';
-import { toast } from 'sonner';
 import { ApprovalDialog } from './ApprovalDialog';
-import { approvalsApi } from '@/api/services/opportunities.service';
-import { useQueryClient } from '@tanstack/react-query';
 
 interface OpportunityApprovalsTabProps {
   opportunityId: number;
-}
-
-interface Approval {
-  id: number;
-  stage: string;
-  version: number;
-  status: string;
-  submitted_at: string;
-  approved_at?: string;
-  approver_contact?: { full_name: string } | null;
-  approver_user?: { full_name: string } | null;
-  notes?: string;
-  file_url?: string;
 }
 
 const STAGE_LABELS: Record<string, string> = {
@@ -107,7 +93,6 @@ export function OpportunityApprovalsTab({ opportunityId }: OpportunityApprovalsT
   const [requestingChangesApproval, setRequestingChangesApproval] = useState<Approval | null>(null);
   const [actionNotes, setActionNotes] = useState('');
 
-  const queryClient = useQueryClient();
   const { data: approvals, isLoading } = useApprovals({ opportunity: opportunityId });
   const approvalsList = Array.isArray(approvals) ? approvals : (approvals?.results || []);
 
@@ -115,6 +100,7 @@ export function OpportunityApprovalsTab({ opportunityId }: OpportunityApprovalsT
   const approveMutation = useApproveApproval();
   const rejectMutation = useRejectApproval();
   const requestChangesMutation = useRequestChangesApproval();
+  const deleteApprovalMutation = useDeleteApproval(opportunityId);
 
   const handleEdit = (approval: Approval) => {
     setEditingApproval(approval);
@@ -131,12 +117,10 @@ export function OpportunityApprovalsTab({ opportunityId }: OpportunityApprovalsT
 
     try {
       setIsDeleting(true);
-      await approvalsApi.delete(deletingApproval.id);
-      toast.success('Approval deleted');
-      queryClient.invalidateQueries({ queryKey: ['approvals'] });
+      await deleteApprovalMutation.mutateAsync(deletingApproval.id);
       setDeletingApproval(null);
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Failed to delete approval');
+    } catch {
+      // Error handled by mutation
     } finally {
       setIsDeleting(false);
     }

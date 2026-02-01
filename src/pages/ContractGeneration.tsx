@@ -12,8 +12,15 @@ import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, FileText, Users, Calendar, DollarSign, Save, Send, Eye, ArrowLeft } from 'lucide-react'
-import apiClient from '@/api/client'
 import { toast } from 'sonner'
+import {
+  useContractTemplates,
+  useContractDraft,
+  useSaveContractDraft,
+  usePreviewContractGeneration,
+  useGenerateContractWithTerms,
+} from '@/api/hooks/useContractGeneration'
+import { useEntity } from '@/api/hooks/useEntities'
 
 interface Entity {
   id: number
@@ -51,13 +58,18 @@ export default function ContractGeneration() {
   const navigate = useNavigate()
   const { id: entityId } = useParams<{ id: string }>()
   const [loading, setLoading] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [previewing, setPreviewing] = useState(false)
 
   // Entity and Template selection
-  const [entity, setEntity] = useState<Entity | null>(null)
-  const [templates, setTemplates] = useState<Template[]>([])
+  const { data: entity } = useEntity(Number(entityId) || 0, !!entityId)
   const [selectedTemplate] = useState<string>('2') // Always use template ID 2 for artists
+
+  // Contract generation hooks
+  const { data: templatesData } = useContractTemplates(true)
+  const templates = templatesData || []
+  const { data: draftData } = useContractDraft(Number(entityId), true)
+  const saveDraftMutation = useSaveContractDraft()
+  const previewMutation = usePreviewContractGeneration()
+  const generateMutation = useGenerateContractWithTerms()
 
   // Contract Terms
   const [contractTerms, setContractTerms] = useState({
@@ -111,56 +123,15 @@ export default function ContractGeneration() {
   const [previewData, setPreviewData] = useState<any>(null)
   const [missingPlaceholders, setMissingPlaceholders] = useState<string[]>([])
 
-  // Load entity and templates on mount
+  // Load draft data when it arrives
   useEffect(() => {
-    if (entityId) {
-      loadEntity(entityId)
-    }
-    loadTemplates()
-    loadDraft()
-  }, [entityId])
-
-  const loadEntity = async (id: string) => {
-    try {
-      const response = await apiClient.get(`/api/v1/entities/${id}/`)
-      setEntity(response.data)
-    } catch (error) {
-      console.error('Failed to load entity:', error)
-      toast.error('Failed to load artist details')
-    }
-  }
-
-  const loadTemplates = async () => {
-    try {
-      const response = await apiClient.get('/api/v1/templates/')
-      setTemplates(response.data.results || response.data)
-    } catch (error) {
-      console.error('Failed to load templates:', error)
-      toast.error('Failed to load contract templates')
-    }
-  }
-
-  const loadDraft = async () => {
-    if (!entityId) return
-
-    try {
-      const response = await apiClient.get('/api/v1/contracts/load-draft/', {
-        params: { entity_id: entityId }
-      })
-
-      if (response.data.draft_data) {
-        setContractTerms(response.data.draft_data.contract_terms || contractTerms)
-
-        // Load commission structure if available
-        if (response.data.draft_data.commission_structure) {
-          setCommissionStructure(response.data.draft_data.commission_structure)
-        }
-        toast.success('Draft loaded successfully')
+    if (draftData?.draft_data) {
+      setContractTerms(draftData.draft_data.contract_terms || contractTerms)
+      if (draftData.draft_data.commission_structure) {
+        setCommissionStructure(draftData.draft_data.commission_structure)
       }
-    } catch (error) {
-      console.error('Failed to load draft:', error)
     }
-  }
+  }, [draftData])
 
   const saveDraft = async () => {
     if (!entityId) {
@@ -168,22 +139,21 @@ export default function ContractGeneration() {
       return
     }
 
-    setSaving(true)
-    try {
-      await apiClient.post('/api/v1/contracts/save-draft/', {
-        entity_id: entityId,
-        draft_data: {
-          contract_terms: contractTerms,
-          commission_structure: commissionStructure
-        }
-      })
-      toast.success('Draft saved successfully')
-    } catch (error) {
-      console.error('Failed to save draft:', error)
-      toast.error('Failed to save draft')
-    } finally {
-      setSaving(false)
-    }
+    saveDraftMutation.mutate({
+      entityId: Number(entityId),
+      draftData: {
+        contract_terms: contractTerms,
+        commission_structure: commissionStructure
+      }
+    }, {
+      onSuccess: () => {
+        toast.success('Draft saved successfully')
+      },
+      onError: (error) => {
+        console.error('Failed to save draft:', error)
+        toast.error('Failed to save draft')
+      },
+    })
   }
 
   // Build commission structure for API
@@ -227,31 +197,29 @@ export default function ContractGeneration() {
       return
     }
 
-    setPreviewing(true)
-    try {
-      const response = await apiClient.post('/api/v1/contracts/preview-generation/', {
-        entity_id: entityId,
-        template_id: selectedTemplate,
-        contract_terms: {
-          ...contractTerms,
-          commission_structure: buildCommissionStructure()
-        }
-      })
-
-      setPreviewData(response.data)
-      setMissingPlaceholders(response.data.missing_placeholders || [])
-
-      if (response.data.missing_placeholders?.length > 0) {
-        toast.warning(`${response.data.missing_placeholders.length} placeholders are missing values`)
-      } else {
-        toast.success('All placeholders have values!')
+    previewMutation.mutate({
+      entityId: entityId,
+      templateId: selectedTemplate,
+      contractTerms: {
+        ...contractTerms,
+        commission_structure: buildCommissionStructure()
       }
-    } catch (error) {
-      console.error('Failed to preview contract:', error)
-      toast.error('Failed to preview contract')
-    } finally {
-      setPreviewing(false)
-    }
+    }, {
+      onSuccess: (data) => {
+        setPreviewData(data)
+        setMissingPlaceholders(data.missing_placeholders || [])
+
+        if (data.missing_placeholders?.length > 0) {
+          toast.warning(`${data.missing_placeholders.length} placeholders are missing values`)
+        } else {
+          toast.success('All placeholders have values!')
+        }
+      },
+      onError: (error) => {
+        console.error('Failed to preview contract:', error)
+        toast.error('Failed to preview contract')
+      },
+    })
   }
 
   const generateContract = async () => {
@@ -266,39 +234,39 @@ export default function ContractGeneration() {
     }
 
     setLoading(true)
-    try {
-      // Convert contract terms to proper types
-      const formattedContractTerms = {
-        contract_duration_years: parseInt(contractTerms.contract_duration_years),
-        notice_period_days: parseInt(contractTerms.notice_period_days),
-        auto_renewal: contractTerms.auto_renewal,
-        auto_renewal_years: parseInt(contractTerms.auto_renewal_years),
-        minimum_launches_per_year: parseInt(contractTerms.minimum_launches_per_year),
-        max_investment_per_song: parseFloat(contractTerms.max_investment_per_song),
-        max_investment_per_year: parseFloat(contractTerms.max_investment_per_year),
-        penalty_amount: parseFloat(contractTerms.penalty_amount),
-        currency: contractTerms.currency,
-        start_date: contractTerms.start_date,
-        special_terms: contractTerms.special_terms,
-        commission_structure: buildCommissionStructure()
-      }
-
-      const response = await apiClient.post('/api/v1/contracts/generate-with-terms/', {
-        entity_id: parseInt(entityId),
-        template_id: parseInt(selectedTemplate),
-        contract_terms: formattedContractTerms
-      })
-
-      toast.success('Contract generation started!')
-
-      // Navigate to the contract detail page
-      navigate(`/contracts/${response.data.id}`)
-    } catch (error) {
-      console.error('Failed to generate contract:', error)
-      toast.error('Failed to generate contract')
-    } finally {
-      setLoading(false)
+    // Convert contract terms to proper types
+    const formattedContractTerms = {
+      contract_duration_years: parseInt(contractTerms.contract_duration_years),
+      notice_period_days: parseInt(contractTerms.notice_period_days),
+      auto_renewal: contractTerms.auto_renewal,
+      auto_renewal_years: parseInt(contractTerms.auto_renewal_years),
+      minimum_launches_per_year: parseInt(contractTerms.minimum_launches_per_year),
+      max_investment_per_song: parseFloat(contractTerms.max_investment_per_song),
+      max_investment_per_year: parseFloat(contractTerms.max_investment_per_year),
+      penalty_amount: parseFloat(contractTerms.penalty_amount),
+      currency: contractTerms.currency,
+      start_date: contractTerms.start_date,
+      special_terms: contractTerms.special_terms,
+      commission_structure: buildCommissionStructure()
     }
+
+    generateMutation.mutate({
+      entityId: parseInt(entityId),
+      templateId: parseInt(selectedTemplate),
+      contractTerms: formattedContractTerms
+    }, {
+      onSuccess: (response) => {
+        toast.success('Contract generation started!')
+        // Navigate to the contract detail page
+        navigate(`/contracts/${response.id}`)
+        setLoading(false)
+      },
+      onError: (error) => {
+        console.error('Failed to generate contract:', error)
+        toast.error('Failed to generate contract')
+        setLoading(false)
+      },
+    })
   }
 
   // Helper to update commission structure fields
@@ -351,17 +319,17 @@ export default function ContractGeneration() {
             <Button
               variant="outline"
               onClick={saveDraft}
-              disabled={saving}
+              disabled={saveDraftMutation.isPending}
             >
-              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              {saveDraftMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
               Save Draft
             </Button>
             <Button
               variant="outline"
               onClick={previewContract}
-              disabled={previewing}
+              disabled={previewMutation.isPending}
             >
-              {previewing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Eye className="mr-2 h-4 w-4" />}
+              {previewMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Eye className="mr-2 h-4 w-4" />}
               Preview
             </Button>
           </div>

@@ -91,8 +91,6 @@ const TeamsPage = lazy(() => import("./pages/teams/TeamsPage"));
 const OpportunitiesPage = lazy(() => import("./pages/opportunities"));
 const OpportunityDetail = lazy(() => import("./pages/opportunities/OpportunityDetail"));
 const OpportunityForm = lazy(() => import("./pages/opportunities/OpportunityForm"));
-const DeliverablePacksAdmin = lazy(() => import("./pages/opportunities/DeliverablePacksAdmin"));
-const UsageTermsAdmin = lazy(() => import("./pages/opportunities/UsageTermsAdmin"));
 
 // Admin pages
 const EntityRequestsPage = lazy(() => import("./pages/admin/EntityRequestsPage"));
@@ -224,16 +222,6 @@ const App = () => (
             <Route path="/opportunities/:id/edit" element={
               <ProtectedRoute>
                 <OpportunityForm />
-              </ProtectedRoute>
-            } />
-            <Route path="/artist-sales/admin/deliverable-packs" element={
-              <ProtectedRoute>
-                <DeliverablePacksAdmin />
-              </ProtectedRoute>
-            } />
-            <Route path="/artist-sales/admin/usage-terms" element={
-              <ProtectedRoute>
-                <UsageTermsAdmin />
               </ProtectedRoute>
             } />
 

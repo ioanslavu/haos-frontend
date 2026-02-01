@@ -17,13 +17,7 @@ interface Task {
   title: string;
   description?: string;
   status: string;
-  song_checklist_item?: {
-    id: number;
-    template_item?: {
-      has_task_inputs: boolean;
-      requires_review: boolean;
-    };
-  };
+  needs_review?: boolean;
 }
 
 interface TaskCompletionModalProps {
@@ -58,8 +52,8 @@ export function TaskCompletionModal({ task, open, onOpenChange }: TaskCompletion
     }
   }, [existingValues]);
 
-  const hasInputFields = task?.song_checklist_item?.template_item?.has_task_inputs;
-  const requiresReview = task?.song_checklist_item?.template_item?.requires_review;
+  const hasInputFields = (inputFields?.length || 0) > 0;
+  const requiresReview = !!(taskData?.needs_review ?? task?.needs_review);
 
   const handleFieldChange = (fieldName: string, value: any) => {
     setFormValues((prev) => ({ ...prev, [fieldName]: value }));

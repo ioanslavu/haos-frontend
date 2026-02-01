@@ -82,9 +82,9 @@ export function OpportunityHeader({
   return (
     <Card className="rounded-2xl border-white/10 bg-background/50 backdrop-blur-xl shadow-lg">
       <div className="p-5 space-y-4">
-        {/* Row 1: Title, Account, Stage Flow, Actions */}
+        {/* Row 1: Title, Client, Stage Flow, Actions */}
         <div className="flex items-center justify-between gap-6">
-          {/* Left: Title and Account */}
+          {/* Left: Title and Client */}
           <div className="flex items-center gap-4 min-w-0 flex-1">
             <div className="min-w-0">
               <div className="flex items-center gap-2 mb-1">
@@ -97,11 +97,11 @@ export function OpportunityHeader({
                 <span className="text-xs font-mono">{opportunity.opportunity_number}</span>
                 <span className="text-muted-foreground/50">-</span>
                 <Link
-                  to={`/entities/${opportunity.account.id}`}
+                  to={`/entities/${opportunity.client.id}`}
                   className="flex items-center gap-1.5 hover:text-primary transition-colors"
                 >
                   <Building2 className="h-4 w-4" />
-                  <span className="font-medium">{opportunity.account.display_name}</span>
+                  <span className="font-medium">{opportunity.client.display_name}</span>
                 </Link>
                 {opportunity.contact_person && (
                   <>

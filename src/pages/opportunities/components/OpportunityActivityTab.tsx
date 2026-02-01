@@ -47,7 +47,7 @@ function ActivityItem({
   activity: OpportunityActivity
   isLast: boolean
 }) {
-  const { icon: Icon, bgColor, textColor } = getActivityStyle(activity.action)
+  const { icon: Icon, bgColor, textColor } = getActivityStyle(activity.activity_type)
 
   return (
     <div className="relative pb-4">

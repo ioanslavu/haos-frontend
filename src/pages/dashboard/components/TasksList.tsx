@@ -4,9 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CheckSquare, User, Calendar, FileText, Bell, Music, AlertCircle } from 'lucide-react';
-import apiClient from '@/api/client';
 import { useNavigate } from 'react-router-dom';
 import { useTaskInbox } from '@/api/hooks/useTasks';
+import { useMarkNotificationRead } from '@/api/hooks/useNotifications';
 
 interface Task {
   id: number;
@@ -54,6 +54,7 @@ export const TasksList: React.FC = () => {
   const navigate = useNavigate();
 
   const { data, isLoading, error } = useTaskInbox();
+  const markAsRead = useMarkNotificationRead();
 
   const getPriorityLabel = (priority: number) => {
     switch (priority) {
@@ -109,12 +110,8 @@ export const TasksList: React.FC = () => {
   };
 
   const handleNotificationClick = async (notification: Notification) => {
-    // Mark as read
-    try {
-      await apiClient.patch(`/api/v1/notifications/${notification.id}/mark-read/`);
-    } catch (err) {
-      console.error('Failed to mark notification as read:', err);
-    }
+    // Mark as read using hook
+    markAsRead.mutate(notification.id);
 
     // Navigate to action URL
     if (notification.action_url) {

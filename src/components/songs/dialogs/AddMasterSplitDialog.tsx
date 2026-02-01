@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
 import { Loader2, Search, AlertCircle } from 'lucide-react';
 import {
   Dialog,
@@ -12,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import apiClient from '@/api/client';
+import { useSearchEntities, useAddRecordingSplit, useRecordingDetail } from '@/api/hooks/useSongs';
 
 interface AddMasterSplitDialogProps {
   recordingId: number;
@@ -47,50 +46,40 @@ export function AddMasterSplitDialog({
   });
 
   // Search entities (labels, artists, rights holders)
-  const { data: entitiesData, isLoading: searchLoading } = useQuery({
-    queryKey: ['entities-search', searchTerm],
-    queryFn: () =>
-      apiClient.get<{ results: Entity[] }>('/api/v1/entities/', {
-        params: { search: searchTerm, page_size: 20 },
-      }),
-    enabled: searchTerm.length > 1,
-  });
+  const { data: entitiesData, isLoading: searchLoading } = useSearchEntities(searchTerm);
 
-  const entities = entitiesData?.data?.results || [];
+  const entities = (entitiesData || []) as Entity[];
 
   // Get current splits to show remaining percentage
-  const { data: recordingData } = useQuery({
-    queryKey: ['recording-detail', recordingId],
-    queryFn: () => apiClient.get(`/api/v1/recordings/${recordingId}/`),
-    enabled: open,
-  });
+  const { data: recordingData } = useRecordingDetail(recordingId, open);
 
-  const currentSplits = recordingData?.data?.splits || [];
+  const currentSplits = (recordingData as any)?.splits || [];
   const currentTotal = currentSplits.reduce(
     (sum: number, split: any) => sum + split.share,
     0
   );
   const remaining = 100 - currentTotal;
 
-  const createMutation = useMutation({
-    mutationFn: (data: SplitCreate) =>
-      apiClient.post('/api/v1/rights/splits/', {
-        ...data,
-        scope: 'recording',
-        object_id: recordingId,
-        right_type: 'master',
-      }),
-    onSuccess: () => {
-      onSuccess();
-      setFormData({ entity_id: 0, share: 0, territory: '' });
-      setSearchTerm('');
-    },
-  });
+  const addSplitMutation = useAddRecordingSplit();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.entity_id && formData.share > 0 && formData.share <= remaining) {
-      createMutation.mutate(formData);
+      addSplitMutation.mutate(
+        {
+          recording_id: recordingId,
+          entity_id: formData.entity_id,
+          share: formData.share,
+          territory: formData.territory || undefined,
+        },
+        {
+          onSuccess: () => {
+            onSuccess();
+            setFormData({ entity_id: 0, share: 0, territory: '' });
+            setSearchTerm('');
+          },
+        }
+      );
     }
   };
 
@@ -219,21 +208,21 @@ export function AddMasterSplitDialog({
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              disabled={createMutation.isPending}
+              disabled={addSplitMutation.isPending}
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={
-                createMutation.isPending ||
+                addSplitMutation.isPending ||
                 !formData.entity_id ||
                 !formData.share ||
                 formData.share <= 0 ||
                 formData.share > remaining
               }
             >
-              {createMutation.isPending && (
+              {addSplitMutation.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
               Add Split

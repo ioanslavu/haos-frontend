@@ -31,3 +31,11 @@ export const assignmentKeys = {
   all: ['opportunity-assignments'] as const,
   list: (opportunityId: number) => [...assignmentKeys.all, opportunityId] as const,
 }
+
+export const approvalKeys = {
+  all: ['approvals'] as const,
+  lists: () => [...approvalKeys.all, 'list'] as const,
+  list: (filters: Record<string, unknown>) => [...approvalKeys.lists(), filters] as const,
+  details: () => [...approvalKeys.all, 'detail'] as const,
+  detail: (id: number) => [...approvalKeys.details(), id] as const,
+}

@@ -28,13 +28,13 @@ import { STAGE_CONFIG, PRIORITY_CONFIG } from '@/types/opportunities'
 interface OpportunitiesTableProps {
   opportunities: Opportunity[]
   onOpportunityClick: (id: number) => void
-  onAccountClick: (accountId: number) => void
+  onClientClick: (clientId: number) => void
 }
 
 export function OpportunitiesTable({
   opportunities,
   onOpportunityClick,
-  onAccountClick,
+  onClientClick,
 }: OpportunitiesTableProps) {
   if (opportunities.length === 0) {
     return null
@@ -102,16 +102,16 @@ export function OpportunitiesTable({
                     className="flex items-center gap-2 hover:text-primary transition-colors"
                     onClick={(e) => {
                       e.stopPropagation()
-                      if (opp.account?.id) onAccountClick(opp.account.id)
+                      if (opp.client?.id) onClientClick(opp.client.id)
                     }}
                   >
                     <Avatar className="h-6 w-6">
                       <AvatarFallback className="text-[10px] bg-muted">
-                        {opp.account?.display_name?.charAt(0)?.toUpperCase() || '?'}
+                        {opp.client?.display_name?.charAt(0)?.toUpperCase() || '?'}
                       </AvatarFallback>
                     </Avatar>
                     <span className="text-sm truncate max-w-[150px]">
-                      {opp.account?.display_name || 'Unknown'}
+                      {opp.client?.display_name || 'Unknown'}
                     </span>
                   </button>
                 </TableCell>

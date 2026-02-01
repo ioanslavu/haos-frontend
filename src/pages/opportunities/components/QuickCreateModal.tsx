@@ -61,8 +61,8 @@ export function QuickCreateModal() {
   const recentClients = Array.from(
     new Map(
       recentOpportunities
-        .filter(o => o.account?.id && o.account?.display_name)
-        .map(o => [o.account.id, o.account])
+        .filter(o => o.client?.id && o.client?.display_name)
+        .map(o => [o.client.id, o.client])
     ).values()
   ).slice(0, 5)
 
@@ -81,7 +81,7 @@ export function QuickCreateModal() {
       // Create opportunity immediately with BRIEF stage
       const opportunity = await createOpportunity.mutateAsync({
         title: opportunityTitle,
-        account: client.id, // Backend field is still 'account'
+        client: client.id,
         owner: user?.id,
         stage: 'brief',
         priority: 'medium',

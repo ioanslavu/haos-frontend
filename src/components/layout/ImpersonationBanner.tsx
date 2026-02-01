@@ -1,15 +1,14 @@
-import { useState } from 'react';
 import { AlertCircle, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuthStore } from '@/stores/authStore';
-import apiClient from '@/api/client';
 import { useToast } from '@/hooks/use-toast';
+import { useStopImpersonation } from '@/api/hooks/useImpersonation';
 
 export function ImpersonationBanner() {
   const { user, checkAuth } = useAuthStore();
-  const [stopping, setStopping] = useState(false);
   const { toast } = useToast();
+  const stopImpersonation = useStopImpersonation();
 
   // Check if currently impersonating (test user)
   const isImpersonating = user?.email?.startsWith('test.');
@@ -32,30 +31,28 @@ export function ImpersonationBanner() {
   const roleName = user?.role ? roleLabels[user.role] || user.role : 'Unknown Role';
 
   const handleStopImpersonation = async () => {
-    setStopping(true);
-    try {
-      // Call backend API to stop impersonation
-      await apiClient.post('/api/v1/impersonate/stop/');
+    stopImpersonation.mutate(undefined, {
+      onSuccess: async () => {
+        // Refresh auth state
+        await checkAuth();
 
-      // Refresh auth state
-      await checkAuth();
+        toast({
+          title: 'Role Testing Stopped',
+          description: 'Returned to your admin account',
+        });
 
-      toast({
-        title: 'Role Testing Stopped',
-        description: 'Returned to your admin account',
-      });
-
-      // Reload page to refresh all data
-      window.location.reload();
-    } catch (error: any) {
-      console.error('Failed to stop impersonation:', error);
-      toast({
-        title: 'Failed to Stop Testing',
-        description: error.response?.data?.error || 'An error occurred',
-        variant: 'destructive',
-      });
-      setStopping(false);
-    }
+        // Reload page to refresh all data
+        window.location.reload();
+      },
+      onError: (error: any) => {
+        console.error('Failed to stop impersonation:', error);
+        toast({
+          title: 'Failed to Stop Testing',
+          description: error.response?.data?.error || 'An error occurred',
+          variant: 'destructive',
+        });
+      },
+    });
   };
 
   return (
@@ -74,10 +71,10 @@ export function ImpersonationBanner() {
           variant="outline"
           size="sm"
           onClick={handleStopImpersonation}
-          disabled={stopping}
+          disabled={stopImpersonation.isPending}
           className="h-7 text-xs gap-1 bg-white hover:bg-amber-100 border-amber-300"
         >
-          {stopping ? (
+          {stopImpersonation.isPending ? (
             <>
               <Loader2 className="h-3 w-3 animate-spin" />
               Stopping...

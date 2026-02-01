@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Dialog,
   DialogContent,
@@ -11,20 +11,20 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Plus, FileEdit, Eye, CheckCircle2 } from 'lucide-react';
-import apiClient from '@/api/client';
 import { addTemplateToSong } from '@/api/songApi';
 import { useToast } from '@/hooks/use-toast';
 import { SongStage } from '@/types/song';
+import { useChecklistTemplates } from '@/api/hooks/useChecklistTemplates';
 
 interface ChecklistTemplate {
   id: number;
   name: string;
   description: string;
   entity_type: string;
-  stage: SongStage | null;
+  stage: SongStage;
   is_active: boolean;
   is_default: boolean;
-  item_count: number;
+  items_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -49,23 +49,14 @@ export function AddTemplateDialog({
   const [selectedTemplate, setSelectedTemplate] = useState<number | null>(null);
 
   // Fetch available templates for current stage
-  const { data: templatesData, isLoading } = useQuery({
-    queryKey: ['checklist-templates', currentStage],
-    queryFn: async () => {
-      const response = await apiClient.get('/api/v1/checklist-templates/', {
-        params: {
-          stage: currentStage,
-          is_active: true,
-        },
-      });
-      return response.data;
-    },
-    enabled: open,
+  const { data: templatesData, isLoading } = useChecklistTemplates({
+    stage: currentStage,
+    is_active: true,
   });
 
   const templates: ChecklistTemplate[] = Array.isArray(templatesData)
     ? templatesData
-    : templatesData?.results || [];
+    : (templatesData as any)?.results || [];
 
   // Mutation to add template
   const addTemplateMutation = useMutation({
@@ -156,13 +147,13 @@ export function AddTemplateDialog({
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <FileEdit className="h-4 w-4" />
-                    <span>{template.item_count} checklist items</span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <FileEdit className="h-4 w-4" />
+                      <span>{template.items_count} checklist items</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
           </div>
         )}
 

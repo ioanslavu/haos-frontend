@@ -7,11 +7,11 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { DeliverableCard } from './DeliverableCard'
 import { InlineDeliverableAdd } from './InlineDeliverableAdd'
-import type { Deliverable } from '@/types/opportunities'
+import type { OpportunityDeliverable } from '@/types/opportunities'
 
 interface OpportunityDeliverablesTabProps {
   opportunityId: number
-  deliverables: Deliverable[]
+  deliverables: OpportunityDeliverable[]
   showAddDeliverable: boolean
   setShowAddDeliverable: (show: boolean) => void
   expandedDeliverableIds: Set<number>

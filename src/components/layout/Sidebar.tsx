@@ -301,8 +301,6 @@ const digitalSubmenu: NavigationItem[] = [
 // Opportunities submenu (unified artist sales system)
 const artistSalesSubmenu: NavigationItem[] = [
   { name: 'Pipeline', href: '/opportunities', icon: Target },
-  { name: 'Deliverable Packs', href: '/artist-sales/admin/deliverable-packs', icon: Package },
-  { name: 'Usage Terms', href: '/artist-sales/admin/usage-terms', icon: FileText },
 ];
 
 const adminNavigation: NavigationItem[] = [

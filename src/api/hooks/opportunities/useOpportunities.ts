@@ -8,8 +8,6 @@ import {
   opportunityArtistsApi,
   opportunityTasksApi,
   opportunityDeliverablesApi,
-  usageTermsApi,
-  deliverablePacksApi,
   approvalsApi,
   opportunityStatsApi,
 } from '../../services/opportunities.service'
@@ -86,44 +84,6 @@ export function useOpportunityDeliverables(opportunityId?: number) {
     queryKey: opportunityKeys.deliverables(opportunityId),
     queryFn: () => opportunityDeliverablesApi.list({ opportunity: opportunityId }).then(res => res.data),
     enabled: !!opportunityId,
-  })
-}
-
-// ============================================
-// USAGE TERMS HOOKS
-// ============================================
-
-export function useUsageTerms(params?: { is_template?: boolean; search?: string }) {
-  return useQuery({
-    queryKey: ['usage-terms', params],
-    queryFn: () => usageTermsApi.list(params).then(res => res.data),
-  })
-}
-
-export function useUsageTerm(id: number) {
-  return useQuery({
-    queryKey: ['usage-terms', id],
-    queryFn: () => usageTermsApi.get(id).then(res => res.data),
-    enabled: !!id,
-  })
-}
-
-// ============================================
-// DELIVERABLE PACKS HOOKS
-// ============================================
-
-export function useDeliverablePacks(params?: { is_active?: boolean; search?: string }) {
-  return useQuery({
-    queryKey: ['deliverable-packs', params],
-    queryFn: () => deliverablePacksApi.list(params).then(res => res.data),
-  })
-}
-
-export function useDeliverablePack(id: number) {
-  return useQuery({
-    queryKey: ['deliverable-packs', id],
-    queryFn: () => deliverablePacksApi.get(id).then(res => res.data),
-    enabled: !!id,
   })
 }
 
